@@ -1,0 +1,15 @@
+services:
+  vault:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    # Optional. Without a .env the server makes its own admin token and encryption key on first start
+    # (kept in the vault-data volume) and prints a signed-in console link: docker compose logs vault
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - vault-data:/data
+volumes:
+  vault-data:

@@ -1,0 +1,235 @@
+{
+ "artboards": [
+  {
+   "file": "InvitationRequired.dc.html",
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844
+  },
+  {
+   "file": "Passcode.dc.html",
+   "x": 470,
+   "y": 0,
+   "w": 390,
+   "h": 844
+  },
+  {
+   "file": "Consent.dc.html",
+   "x": 940,
+   "y": 0,
+   "w": 390,
+   "h": 844
+  },
+  {
+   "file": "ConsentVideo.dc.html",
+   "x": 1410,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "Consent with video intro"
+  },
+  {
+   "file": "Prototype.dc.html",
+   "x": 1880,
+   "y": 0,
+   "w": 390,
+   "h": 844
+  },
+  {
+   "file": "Recording.dc.html",
+   "x": 2350,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "Think-aloud recording on"
+  },
+  {
+   "file": "Main.dc.html",
+   "x": 2820,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "Tasks sheet"
+  },
+  {
+   "file": "Feedback.dc.html",
+   "x": 3290,
+   "y": 0,
+   "w": 390,
+   "h": 844
+  },
+  {
+   "file": "Expired.dc.html",
+   "x": 3760,
+   "y": 0,
+   "w": 390,
+   "h": 844
+  },
+  {
+   "file": "DesktopTester.dc.html",
+   "x": 0,
+   "y": 1050,
+   "w": 1280,
+   "h": 800
+  },
+  {
+   "file": "SignIn.dc.html",
+   "x": 1360,
+   "y": 1050,
+   "w": 1280,
+   "h": 900
+  },
+  {
+   "file": "Shares.dc.html",
+   "x": 2720,
+   "y": 1050,
+   "w": 1280,
+   "h": 900
+  },
+  {
+   "file": "NewShare.dc.html",
+   "x": 4080,
+   "y": 1050,
+   "w": 1280,
+   "h": 900
+  },
+  {
+   "file": "ViewersLinks.dc.html",
+   "x": 5440,
+   "y": 1050,
+   "w": 1280,
+   "h": 900
+  },
+  {
+   "file": "AccessLog.dc.html",
+   "x": 6800,
+   "y": 1050,
+   "w": 1280,
+   "h": 900
+  },
+  {
+   "file": "Results.dc.html",
+   "x": 8160,
+   "y": 1050,
+   "w": 1280,
+   "h": 900
+  },
+  {
+   "file": "Server.dc.html",
+   "x": 9520,
+   "y": 1050,
+   "w": 1280,
+   "h": 900
+  },
+  {
+   "file": "ViewOnly.dc.html",
+   "x": 4230,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "title": "View-only share"
+  },
+  {
+   "file": "Account.dc.html",
+   "x": 10880,
+   "y": 1050,
+   "w": 1280,
+   "h": 900,
+   "title": "Account"
+  },
+  {
+   "file": "ConnectTool.dc.html",
+   "x": 12240,
+   "y": 1050,
+   "w": 1280,
+   "h": 900,
+   "title": "Account: tool connected"
+  },
+  {
+   "file": "Disconnect.dc.html",
+   "x": 13600,
+   "y": 1050,
+   "w": 1280,
+   "h": 900,
+   "title": "Disconnect a tool"
+  },
+  {
+   "file": "Leave.dc.html",
+   "x": 14960,
+   "y": 1050,
+   "w": 1280,
+   "h": 900,
+   "title": "Leave: delete everything and go"
+  },
+  {
+   "file": "Left.dc.html",
+   "x": 16320,
+   "y": 1050,
+   "w": 1280,
+   "h": 900,
+   "title": "After leaving"
+  }
+ ],
+ "annotations": [
+  {
+   "id": "row-tester",
+   "x": 0,
+   "y": -150,
+   "w": 560,
+   "text": "TESTER JOURNEY (phone)\nLeft to right: personal link \u2192 passcode (if set) \u2192 Before you start (standard, and with a video intro: captions, language, full screen, think-aloud opt-in) \u2192 prototype with watermark \u2192 the same with voice recording on \u2192 Tasks sheet (task, question with dictation, more appear on schedule) \u2192 Feedback sheet \u2192 expired link."
+  },
+  {
+   "id": "row-designer",
+   "x": 0,
+   "y": 900,
+   "w": 640,
+   "text": "DESKTOP TESTER VIEW, then the DESIGNER CONSOLE\nEvery console page is a 1280\u00d7900 screen: nav on top, then a page that scrolls (a real scrollbar), then a footer that sits at the bottom of the screen and is pushed down by longer content. Sign in \u2192 Prototypes \u2192 New share (purpose: view only / unmoderated / moderated, task and question scheduler, options, Before-you-start editor with captions) \u2192 a share: viewers & links, access log, feedback & results \u2192 Server \u2192 Account (connect a tool, disconnect, sign out)."
+  },
+  {
+   "id": "system",
+   "x": 2400,
+   "y": -150,
+   "w": 560,
+   "text": "DESIGN SYSTEM (pass 4)\nSpacing 4/8/12/16/20/24/32. Gutter 20 on desktop, 16 on phone (one token), inside every box: cards, sheets, modals, toasts. Bottom gutter 32 inside any scrolling sheet or panel; a fade shows while more is below. Controls 36 tall (28 small, 44 on phone). Radii 6 controls / 10 cards / 14 sheet / pill toggles. Fields are 100% of the content width; side-by-side fields use a 2-column grid with a 16 gap. Nav 56 tall. Page bottom: at least 64 before the footer line, 48 below it, everywhere. No orphan words. Switches, not checkboxes. Full spec: design/DESIGN-SYSTEM.md"
+  },
+  {
+   "id": "notifications",
+   "x": 2350,
+   "y": -330,
+   "w": 560,
+   "text": "NOTIFICATIONS (toasts)\nOne at a time, bottom center, inset one gutter from the bottom and sides (16 phone / 20 desktop), never wider than 480. Text wraps; nothing is ever clipped. Dismiss \u00d7 on the right; hover pauses. Auto-dismiss: 3 s minimum, about 50 ms per character, 8 s max. Announced politely to screen readers. A toast only confirms or points (\"Press Stop in the header\"); the permanent signal is the red Recording pill, which stays until Stop."
+  },
+  {
+   "id": "before-you-start",
+   "x": 940,
+   "y": -330,
+   "w": 560,
+   "text": "BEFORE YOU START = the onboarding\nThe only onboarding a tester gets: link \u2192 passcode (if set) \u2192 this sheet \u2192 prototype. Title row, a body that scrolls (intro media or text, then \"What gets recorded\" with the voice switch), and an action row pinned at the bottom. Nobody has to see everything at once; the buttons never leave the screen. On desktop the same three parts sit in a centered modal (max 560 wide, viewport minus a gutter tall)."
+  },
+  {
+   "id": "account-flow",
+   "x": 10880,
+   "y": 860,
+   "w": 640,
+   "text": "ACCOUNT AND SETUP FLOW (no sign-up, no passwords in the vault)\n1. IT deploys the vault behind the company identity proxy (Okta, Entra ID, Google, Cloudflare Access) and lists designers' emails as admins. On a server you run yourself, the admin token is the fallback.\n2. A designer opens the console URL; the proxy signs them in with the company MFA. No sign-up screen exists.\n3. Account \u2192 Connect a tool: name it (Claude Code on my MacBook), get a token shown once, paste it into `claude mcp add \u2026` or the CLI. One token per tool.\n4. Disconnect one tool from the Account page (or `vault disconnect`): that tool fails on its next call, nothing already shared changes. Sign out ends the browser session.\n5. Leave: one button deletes every prototype the person shared (files, links, recordings, results), disconnects all their tools and signs them out. IT removes the email from the admin list to close the door for good.\nEvery connect, disconnect, leave and failed attempt is in the access log."
+  },
+  {
+   "id": "view-only",
+   "x": 4230,
+   "y": -150,
+   "w": 390,
+   "text": "VIEW ONLY\nA share made for looking, not testing: no tasks, no recording, no consent sheet, no feedback button. Watermark and access log stay (who opened it, when)."
+  },
+  {
+   "id": "scrolling",
+   "x": 1410,
+   "y": -330,
+   "w": 560,
+   "text": "SCROLLING SHEETS\nThe body scrolls inside the sheet with a real scrollbar; a 32px fade shows while more is below and disappears at the end, so the last line is always readable. Header row 12/16, body starts 16 below it and ends with 32 of space (the bottom gutter). Same rule for the Tasks and Feedback sheets and the desktop side panel."
+  }
+ ],
+ "launch": {
+  "view": "canvas"
+ }
+}

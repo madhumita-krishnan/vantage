@@ -1,0 +1,34 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Acme Billing — prototype</title>
+<style>
+body{margin:0;font-family:-apple-system,Segoe UI,Inter,sans-serif;background:#f4f5f8;color:#1c1f26}
+.top{background:#111827;color:#fff;padding:14px 24px;display:flex;gap:20px;align-items:center}.top b{font-size:16px}.top a{color:#cbd5e1;text-decoration:none;font-size:14px}.top a.on{color:#fff;border-bottom:2px solid #60a5fa}
+main{max-width:860px;margin:32px auto;padding:0 20px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:16px}
+h1{font-size:22px;margin:0 0 6px}h2{font-size:15px;margin:0 0 10px}p{color:#4b5563;margin:0 0 12px}
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.plan{border:1px solid #e5e7eb;border-radius:10px;padding:16px;cursor:pointer}.plan.sel{border-color:#2563eb;box-shadow:0 0 0 3px #dbeafe}.plan .price{font-size:24px;font-weight:600}
+button{font:inherit;padding:9px 14px;border-radius:8px;border:1px solid #d1d5db;background:#fff;cursor:pointer}button.pri{background:#2563eb;color:#fff;border-color:transparent}
+input{font:inherit;padding:9px 10px;border:1px solid #d1d5db;border-radius:8px;width:100%;box-sizing:border-box;margin-bottom:10px}
+.hidden{display:none}.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:8px}
+table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #eee;text-align:left;font-size:14px}
+</style></head><body>
+<div class="top"><b>Acme Billing</b><a href="#plans" class="on" data-nav="plans">Plans</a><a href="#team" data-nav="team">Team</a><a href="#billing" data-nav="billing">Billing address</a></div>
+<main>
+<section id="s-plans"><div class="card"><h1>Choose a plan</h1><p>Prices shown per seat. Annual billing saves 20%.</p><div class="plans">
+<div class="plan" data-plan="Starter"><h2>Starter</h2><div class="price">$9<small>/mo</small></div><p>Up to 3 seats</p></div>
+<div class="plan sel" data-plan="Team"><h2>Team</h2><div class="price">$24<small>/mo</small></div><p>Unlimited seats</p></div>
+<div class="plan" data-plan="Annual"><h2>Annual</h2><div class="price">$230<small>/yr</small></div><p>Team plan, billed yearly</p></div></div>
+<div style="margin-top:16px"><button class="pri" id="continue">Continue</button></div></div></section>
+<section id="s-team" class="hidden"><div class="card"><h1>Team members</h1><p>People who can sign in to your workspace.</p><table><thead><tr><th>Name</th><th>Role</th><th></th></tr></thead><tbody id="members"><tr><td>Madhumita K.</td><td>Owner</td><td></td></tr></tbody></table>
+<div style="margin-top:14px"><button id="addMember">Add member</button></div><div id="addForm" class="hidden" style="margin-top:14px;max-width:360px"><input id="mName" placeholder="Full name"><input id="mEmail" placeholder="Work email"><button class="pri" id="saveMember">Send invite</button></div></div></section>
+<section id="s-billing" class="hidden"><div class="card"><h1>Billing address</h1><p>Appears on invoices.</p><div style="max-width:420px"><input placeholder="Company"><input placeholder="Street"><input placeholder="City"><input placeholder="Postal code"><button class="pri" id="saveAddr">Save address</button></div></div></section>
+</main>
+<script>
+const show=(id)=>{document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));document.getElementById('s-'+id).classList.remove('hidden');document.querySelectorAll('[data-nav]').forEach(a=>a.classList.toggle('on',a.dataset.nav===id))};
+window.addEventListener('hashchange',()=>show(location.hash.slice(1)||'plans'));show(location.hash.slice(1)||'plans');
+document.querySelectorAll('.plan').forEach(p=>p.onclick=()=>{document.querySelectorAll('.plan').forEach(x=>x.classList.remove('sel'));p.classList.add('sel');if(window.vault)vault.event('plan_selected',{plan:p.dataset.plan})});
+const toast=(m)=>{const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),1800)};
+document.getElementById('continue').onclick=()=>{toast('Plan saved');location.hash='team'};
+document.getElementById('addMember').onclick=()=>document.getElementById('addForm').classList.remove('hidden');
+document.getElementById('saveMember').onclick=()=>{const n=document.getElementById('mName').value||'New member';document.getElementById('members').insertAdjacentHTML('beforeend',`<tr><td>${n}</td><td>Member</td><td>Invited</td></tr>`);document.getElementById('addForm').classList.add('hidden');toast('Invite sent');if(window.vault)vault.event('member_added')};
+document.getElementById('saveAddr').onclick=()=>toast('Address saved');
+</script></body></html>

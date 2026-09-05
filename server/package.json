@@ -1,0 +1,17 @@
+{
+  "name": "prototype-vault",
+  "version": "1.0.0",
+  "description": "Self-hosted, access-controlled sharing for coded prototypes. Zero dependencies.",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "gen-token": "node -e \"console.log(require('crypto').randomBytes(32).toString('base64url'))\"",
+    "gen-key": "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {}
+}

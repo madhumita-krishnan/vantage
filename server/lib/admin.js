@@ -1,0 +1,200 @@
+'use strict';
+// Admin API (/api/*): identity, account, personal access tokens, shares and their sub-resources.
+const C = require('./crypto');
+const R = require('./results');
+
+module.exports = function admin(ctx) {
+  const { CONFIG, store, blob, audit, events, feedback, H, S, M } = ctx;
+  const { httpError, readBody, readJson, json, send, ssoEmail, baseUrl } = H;
+  const now = Date.now;
+
+  function adminFromReq(req) {
+    const auth = String(req.headers.authorization || '');
+    if (auth.startsWith('Bearer ')) {
+      const raw = auth.slice(7);
+      if (CONFIG.adminToken && C.safeEqual(raw, CONFIG.adminToken)) return { kind: 'server-token', who: 'admin-token' };
+      const t = store.data.tokens[C.sha256(raw)]; // personal access tokens ("Connect a tool"), stored hashed
+      if (!t || t.revokedAt) return null;
+      if (!t.lastUsedAt || now() - t.lastUsedAt > 60e3) { t.lastUsedAt = now(); store.save(); }
+      return { kind: 'personal-token', who: `${t.owner} via ${t.name}`, owner: t.owner, tokenId: t.id };
+    }
+    const email = ssoEmail(req);
+    return email && CONFIG.adminEmails.includes(email) ? { kind: 'sso', who: email } : null;
+  }
+  // Unauthenticated: tells the sign-in screen which ways in exist. No secrets.
+  function authInfo(req) {
+    const email = ssoEmail(req);
+    return { serverToken: !!CONFIG.adminToken, sso: !!(CONFIG.trustProxy && CONFIG.trustedHeaderEmail && CONFIG.adminEmails.length), ssoEmail: email || null, ssoAdmin: !!(email && CONFIG.adminEmails.includes(email)), ssoLogoutUrl: CONFIG.ssoLogoutUrl || null };
+  }
+  const tokenView = (t, a) => ({ id: t.id, name: t.name, owner: t.owner, prefix: t.prefix, createdAt: S.iso(t.createdAt), createdBy: t.createdBy, lastUsedAt: t.lastUsedAt ? S.iso(t.lastUsedAt) : null, revokedAt: t.revokedAt ? S.iso(t.revokedAt) : null, current: !!a && a.tokenId === t.id });
+  const view = (req, res, share, status = 200) => json(req, res, status, { share: S.shareView(req, share, true) });
+
+  function me(req, admin) {
+    const owner = admin.owner || admin.who;
+    const label = { sso: 'Company sign-in', 'server-token': 'Server admin token' }[admin.kind] || 'Personal access token';
+    return {
+      ok: true, admin: admin.who,
+      mine: { shares: Object.values(store.data.shares).filter((x) => S.ownsShare(x, owner)).length, tokens: Object.values(store.data.tokens).filter((t) => t.owner === owner && !t.revokedAt).length },
+      identity: { kind: admin.kind, who: owner, tokenId: admin.tokenId || null, label },
+      server: {
+        encryptionAtRest: blob.enabled, sso: !!(CONFIG.trustProxy && CONFIG.trustedHeaderEmail), publicUrl: baseUrl(req), allowedExternalOrigins: CONFIG.allowedExternalOrigins,
+        defaultExpiryDays: CONFIG.defaultExpiryDays, maxExpiryDays: CONFIG.maxExpiryDays, maxUploadMb: CONFIG.maxUploadBytes / 1048576, maxMediaMb: CONFIG.maxMediaBytes / 1048576, mediaTypes: Object.keys(S.MEDIA_TYPES),
+        retentionDays: CONFIG.retentionDays, sessionHours: CONFIG.sessionHours, dataDir: CONFIG.dataDir, ssoLogoutUrl: CONFIG.ssoLogoutUrl || null, adminEmails: CONFIG.adminEmails, serverToken: !!CONFIG.adminToken,
+        quickstart: CONFIG.quickstart, secretsFile: CONFIG.secretsFile, mcpPath: CONFIG.mcpPath, host: CONFIG.host, version: require('../package.json').version, node: process.version,
+        uptimeSec: Math.round(process.uptime()), shares: Object.keys(store.data.shares).length,
+      },
+    };
+  }
+  async function tokens(req, res, admin, tid) {
+    if (!tid && req.method === 'GET') return json(req, res, 200, { tokens: Object.values(store.data.tokens).sort((a, b) => b.createdAt - a.createdAt).map((t) => tokenView(t, admin)) });
+    if (!tid && req.method === 'POST') {
+      const name = String((await readJson(req, 65536)).name || '').trim().slice(0, 60);
+      if (!name) throw httpError(400, 'name is required (for example "Claude Code on my laptop")');
+      if (Object.values(store.data.tokens).filter((t) => !t.revokedAt).length >= 50) throw httpError(400, 'Too many active tokens; disconnect one first');
+      const raw = 'pv_' + C.randomToken(24);
+      const t = { id: C.randomId(6), name, owner: admin.owner || admin.who, prefix: raw.slice(0, 7), createdAt: now(), createdBy: admin.who, lastUsedAt: null, revokedAt: null };
+      store.data.tokens[C.sha256(raw)] = t; store.save();
+      S.logAudit(null, 'token.created', req, { by: admin.who, tokenId: t.id, name });
+      return json(req, res, 201, { token: raw, item: tokenView(t, admin) });
+    }
+    if (tid && req.method === 'DELETE') {
+      const t = Object.values(store.data.tokens).find((x) => x.id === (tid === 'current' ? admin.tokenId : tid));
+      if (!t) throw httpError(404, 'Token not found');
+      if (!t.revokedAt) { t.revokedAt = now(); store.save(); S.logAudit(null, 'token.revoked', req, { by: admin.who, tokenId: t.id, name: t.name, self: t.id === admin.tokenId }); }
+      return json(req, res, 200, { item: tokenView(t, admin) });
+    }
+    throw httpError(405, 'Method not allowed');
+  }
+  // Leave = delete everything this identity made, disconnect its tools.
+  function leave(req, res, admin) {
+    const owner = admin.owner || admin.who;
+    if (admin.kind === 'server-token') throw httpError(400, 'The server admin token is shared by everyone who has it, not a personal account. Delete shares one by one and ask whoever runs the server to rotate ADMIN_TOKEN.');
+    const mine = Object.values(store.data.shares).filter((x) => S.ownsShare(x, owner));
+    for (const x of mine) S.deleteShare(x, req, admin);
+    let n = 0;
+    for (const t of Object.values(store.data.tokens)) if (t.owner === owner && !t.revokedAt) { t.revokedAt = now(); n++; }
+    store.save();
+    S.logAudit(null, 'account.left', req, { by: admin.who, shares: mine.length, tokens: n });
+    return json(req, res, 200, { ok: true, shares: mine.length, tokens: n, sso: admin.kind === 'sso' });
+  }
+
+  async function shareRoute(req, res, url, admin, share, sub, subId, action) {
+    const method = req.method;
+    if (!sub) {
+      if (method === 'GET') return view(req, res, share);
+      if (method === 'PATCH') { S.updateShare(share, await readJson(req), req, admin); return view(req, res, share); }
+      if (method === 'DELETE') { S.deleteShare(share, req, admin); return json(req, res, 200, { ok: true }); }
+    }
+    if (sub === 'bundle' && (method === 'PUT' || method === 'POST')) {
+      const b = await readJson(req, CONFIG.maxUploadBytes);
+      S.setBundle(share, b.files, b.entry); store.save();
+      S.logAudit(share, 'bundle.replaced', req, { by: admin.who, files: share.files.count, bytes: share.files.bytes });
+      return view(req, res, share);
+    }
+    if (sub === 'viewers') {
+      if (method === 'POST' && !subId) {
+        const b = await readJson(req);
+        const added = (Array.isArray(b.viewers) ? b.viewers : [b]).map((s) => S.addViewer(share, s, 'invite', b.maxOpens));
+        store.save();
+        S.logAudit(share, 'viewer.added', req, { by: admin.who, emails: added.map((v) => v.email) });
+        return json(req, res, 201, { viewers: added.map((v) => S.viewerView(req, share, v, true)) });
+      }
+      const v = share.viewers[subId];
+      if (!v) throw httpError(404, 'Viewer not found');
+      if (method === 'DELETE' || (action === 'rotate' && method === 'POST')) {
+        const rotate = action === 'rotate';
+        if (rotate) v.token = C.randomToken(); else { v.revoked = true; v.token = null; }
+        S.dropSessions((s) => s.viewerId === v.id);
+        store.save();
+        S.logAudit(share, rotate ? 'viewer.link_rotated' : 'viewer.revoked', req, { by: admin.who, email: v.email });
+        return json(req, res, 200, { viewer: S.viewerView(req, share, v, rotate) });
+      }
+    }
+    if (sub === 'intro') {
+      if (method === 'PUT' || method === 'POST') {
+        const mime = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+        const kind = S.MEDIA_TYPES[mime];
+        if (!kind) throw httpError(415, `Unsupported media type ${mime || '(none)'}. Use ${Object.keys(S.MEDIA_TYPES).join(', ')}`);
+        if (+(req.headers['content-length'] || 0) > CONFIG.maxMediaBytes) throw httpError(413, `Media larger than ${Math.round(CONFIG.maxMediaBytes / 1048576)} MB`);
+        S.removeMedia(share.id);
+        const size = await M.storeIntro(req, share.id, CONFIG.maxMediaBytes);
+        const name = decodeURIComponent(String(req.headers['x-file-name'] || 'intro')).replace(/[^\w.\- ()]/g, '_').slice(0, 120);
+        share.intro = { kind, text: (share.intro && share.intro.text) || '', media: { mime, size, name, uploadedAt: S.iso(now()) } };
+        store.save();
+        S.logAudit(share, 'intro.media_uploaded', req, { by: admin.who, mime, size });
+        return view(req, res, share);
+      }
+      if (method === 'DELETE') {
+        S.removeMedia(share.id);
+        share.intro = { kind: share.intro && share.intro.text ? 'text' : 'default', text: (share.intro && share.intro.text) || '', media: null };
+        store.save();
+        S.logAudit(share, 'intro.media_removed', req, { by: admin.who });
+        return view(req, res, share);
+      }
+    }
+    if (sub === 'subtitles' && subId) {
+      const lang = subId.toLowerCase().slice(0, 12);
+      share.intro = share.intro || { kind: 'default', text: '', media: null };
+      share.intro.subtitles = (share.intro.subtitles || []).filter((x) => x.lang !== lang);
+      if (method === 'PUT' || method === 'POST') {
+        const buf = await readBody(req, 5 * 1048576);
+        if (!/^﻿?WEBVTT/.test(buf.toString('utf8'))) throw httpError(400, 'Subtitles must be a WebVTT file (starts with WEBVTT)');
+        M.writeSubtitle(share, lang, buf);
+        share.intro.subtitles.push({ lang, label: decodeURIComponent(String(req.headers['x-label'] || lang)).slice(0, 40), size: buf.length });
+        S.logAudit(share, 'intro.subtitles_uploaded', req, { by: admin.who, lang });
+      } else if (method === 'DELETE') M.removeSubtitle(share, lang);
+      else throw httpError(405, 'Method not allowed');
+      store.save();
+      return view(req, res, share);
+    }
+    if (sub === 'recordings') {
+      if (method === 'GET' && !subId) return json(req, res, 200, { recordings: S.shareView(req, share, true).recordings });
+      if (method === 'GET') return M.streamRecording(req, res, share, subId);
+      if (method === 'DELETE' && subId) {
+        M.removeRecording(share, subId); delete share.recordings[subId]; store.save();
+        S.logAudit(share, 'voice.deleted', req, { by: admin.who, session: subId });
+        return json(req, res, 200, { ok: true });
+      }
+    }
+    if (sub === 'notes' && method === 'POST') {
+      const b = await readJson(req, 65536);
+      const v = b.viewerId ? share.viewers[b.viewerId] : null;
+      const rec = { ts: S.iso(now()), kind: 'note', by: admin.who, viewer: v ? v.name : (b.viewer || ''), email: v ? v.email : '', session: String(b.session || ''), text: String(b.text || '').slice(0, 5000), location: String(b.location || '').slice(0, 500) };
+      if (!rec.text) throw httpError(400, 'text is required');
+      feedback.append(share.id, rec);
+      S.logAudit(share, 'note.added', req, { by: admin.who, viewerId: v ? v.id : null });
+      return json(req, res, 201, { note: rec });
+    }
+    if (method === 'GET') {
+      const fb = () => feedback.read(share.id), rows = () => events.read(share.id, 200000), au = () => audit.read(share.id);
+      if (sub === 'audit') return json(req, res, 200, { audit: au() });
+      if (sub === 'feedback') return json(req, res, 200, { feedback: fb() });
+      if (sub === 'summary') return json(req, res, 200, R.summary(share, fb(), rows()));
+      if (sub === 'events') {
+        if (url.searchParams.get('format') === 'csv') return send(req, res, 200, R.eventsCsv(rows()), { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="events-${share.id}.csv"` });
+        return json(req, res, 200, { events: rows() });
+      }
+      if (sub === 'report') {
+        if (url.searchParams.get('format') === 'json') return json(req, res, 200, { share: S.shareView(req, share, false), feedback: fb(), events: rows(), audit: au() });
+        return send(req, res, 200, R.report(share, fb(), rows(), au()), { 'Content-Type': 'text/markdown; charset=utf-8', 'Content-Disposition': `attachment; filename="report-${share.id}.md"` });
+      }
+    }
+    throw httpError(405, 'Method not allowed');
+  }
+
+  async function handleAdmin(req, res, url, admin) {
+    const p = url.pathname, method = req.method;
+    if (p === '/api/me') return json(req, res, 200, me(req, admin));
+    if (p === '/api/me/leave' && method === 'POST') return leave(req, res, admin);
+    const tm = p.match(/^\/api\/tokens(?:\/([A-Za-z0-9_-]+))?$/);
+    if (tm) return tokens(req, res, admin, tm[1]);
+    if (p === '/api/activity' && method === 'GET') return json(req, res, 200, { activity: audit.read('_admin', 5000).filter((r) => /^(token\.|admin\.|account\.|share\.(created|revoked|deleted))/.test(r.type)).slice(-100).reverse() });
+    if (p === '/api/shares' && method === 'GET') return json(req, res, 200, { shares: Object.values(store.data.shares).sort((a, b) => b.createdAt - a.createdAt).map((s) => S.shareView(req, s, false)) });
+    if (p === '/api/shares' && method === 'POST') return view(req, res, S.createShare(await readJson(req, CONFIG.maxUploadBytes), req, admin), 201);
+    if (p === '/api/shares/sample' && method === 'POST') return view(req, res, S.createSampleShare(await readJson(req), req, admin), 201);
+    const m = p.match(/^\/api\/shares\/([A-Za-z0-9_-]+)(?:\/(bundle|viewers|audit|events|feedback|summary|intro|notes|report|subtitles|recordings))?(?:\/([A-Za-z0-9_-]+))?(?:\/(rotate))?$/);
+    if (!m) throw httpError(404, 'Unknown API route');
+    return shareRoute(req, res, url, admin, S.requireShare(m[1]), m[2], m[3], m[4]);
+  }
+  return { handleAdmin, adminFromReq, authInfo };
+};

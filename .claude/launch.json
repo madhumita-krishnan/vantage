@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vault",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd server && DATA_DIR=/private/tmp/claude-501/-Users-madhumita-Desktop-Connector-for-designer-and-usability-testing/82cc5508-b888-47a1-8048-b2f31f6aecef/scratchpad/vault-data PORT=8787 node server.js"
+      ],
+      "port": 8787
+    },
+    {
+      "name": "mockups",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8790", "--directory", "design/screens"],
+      "port": 8790
+    },
+    {
+      "name": "screens",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8791", "--directory", "design/screens"],
+      "port": 8791
+    }
+  ]
+}
