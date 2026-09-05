@@ -390,7 +390,7 @@
           }
         }
         async function download(path, name) {
-          const r = await fetch('/api' + path, { headers: { Authorization: 'Bearer ' + token } });
+          const r = await fetch('/api' + path, { headers: token ? { Authorization: 'Bearer ' + token } : {} });
           if (!r.ok) {
             alert('Export failed');
             return;
@@ -402,7 +402,7 @@
           a.click();
         }
         async function blobUrl(path) {
-          const r = await fetch('/api' + path, { headers: { Authorization: 'Bearer ' + token } });
+          const r = await fetch('/api' + path, { headers: token ? { Authorization: 'Bearer ' + token } : {} });
           return URL.createObjectURL(await r.blob());
         }
         function b64(u8) {
@@ -448,7 +448,7 @@
           return new Promise((res, rej) => {
             const x = new XMLHttpRequest();
             x.open(method, '/api' + path);
-            x.setRequestHeader('Authorization', 'Bearer ' + token);
+            if (token) x.setRequestHeader('Authorization', 'Bearer ' + token);
             for (const k in headers) x.setRequestHeader(k, headers[k]);
             x.upload.onprogress = (e) => {
               if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
@@ -474,7 +474,7 @@
 
         // ---------- shell: nav + footer ----------
         function shell(content, active) {
-          return `<nav class="nav"><a class="brand" href="#" data-nav="list">${ic('lock', 'lg')}Prototype Vault</a><div class="links"><a href="#" data-nav="list" class="${active === 'list' ? 'on' : ''}">Prototypes</a><a href="#" data-nav="new" class="${active === 'new' ? 'on' : ''}">New share</a><a href="#" data-nav="server" class="${active === 'server' ? 'on' : ''}">Server</a></div><span class="spacer"></span><span class="hint">${me.server.encryptionAtRest ? 'Encrypted at rest' : '<span style="color:var(--warn)">Not encrypted at rest</span>'} · ${me.server.sso ? 'SSO' : 'personal links'}</span><a href="#" class="me ${active === 'account' ? 'on' : ''}" data-nav="account" title="Account"><span class="avatar">${esc(initials(me.identity.who))}</span><span>${esc(me.identity.who)}</span></a></nav><div class="wrap"><div class="content">${content}</div><footer class="footer"><span>Prototype Vault ${esc(me.server.version)}${me.server.google ? '' : ' · self-hosted, nothing leaves this server'}</span><span class="spacer"></span><a href="/docs/readme" target="_blank">Help</a><a href="/docs/security" target="_blank">Security overview</a><a href="/docs/deployment" target="_blank">Deployment</a><a href="/docs/design-system" target="_blank">Design system</a></footer></div>`;
+          return `<nav class="nav"><a class="brand" href="#" data-nav="list">${ic('lock', 'lg')}Prototype Vault</a><div class="links"><a href="#" data-nav="list" class="${active === 'list' ? 'on' : ''}">Prototypes</a><a href="#" data-nav="new" class="${active === 'new' ? 'on' : ''}">New share</a><a href="#" data-nav="server" class="${active === 'server' ? 'on' : ''}">Server</a></div><span class="spacer"></span><span class="hint">${me.server.encryptionAtRest ? 'Encrypted at rest' : '<span style="color:var(--warn)">Not encrypted at rest</span>'} · ${me.server.sso ? 'SSO' : 'personal links'}</span><a href="#" class="me ${active === 'account' ? 'on' : ''}" data-nav="account" title="Account"><span class="avatar">${esc(initials(me.identity.who))}</span><span>${esc(me.identity.who)}</span></a></nav><div class="wrap"><div class="content">${content}</div><footer class="footer"><span>Prototype Vault ${esc(me.server.version)}${me.server.google ? '' : ' · self-hosted, nothing leaves this server'}</span><span class="spacer"></span><a href="/docs/readme" target="_blank">Help</a><a href="/docs/security" target="_blank">Security overview</a><a href="/docs/deployment" target="_blank">Deployment</a><a href="/docs/limits" target="_blank">What it cannot do</a><a href="/docs/testing" target="_blank">How it was checked</a><a href="/docs/design-system" target="_blank">Design system</a></footer></div>`;
         }
         function wireShell() {
           document.querySelectorAll('[data-nav]').forEach(

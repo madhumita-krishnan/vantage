@@ -23,6 +23,8 @@ Prototype files are never served from the console's origin. They come from `CONT
 
 Any pair of hostnames works. A sibling subdomain (`content.vault.example.com` next to `vault.example.com`) keeps the session cookie same-site, which every browser handles well.
 
+**One origin per share.** `CONTENT_ORIGIN=https://*.content.example.com` (one `*`) gives every share its own hostname, so two prototypes open in the same browser cannot see each other. It needs a wildcard DNS record and a wildcard certificate; Cloud Run's domain mappings cannot do that on their own, so put Cloudflare or a load balancer in front, or use a single content hostname until then (the limitation is stated in [WHAT-IT-CANNOT-DO.md](WHAT-IT-CANNOT-DO.md)).
+
 ## Option A: Docker
 
 ```bash
@@ -152,11 +154,14 @@ With `CONTENT_ORIGIN=https://prototypes-content.internal.company.com` and `CONTE
 | `ADMIN_TOKEN` | generated | Admin secret (min 24 chars). Generated on first start when no admin mechanism is configured; set it yourself for a real deployment. |
 | `ADMIN_EMAILS` | (empty) | Comma-separated emails allowed into the console via the SSO header or Google sign-in. Empty with Google sign-in means anyone may sign in. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | (empty) | Enable "Sign in with Google". Redirect URI is `PUBLIC_URL/auth/google/callback`. |
+| `ALLOWED_SIGNIN_DOMAINS` | (empty) | Email domains allowed to sign in with Google, e.g. `company.com`. Combines with `ADMIN_EMAILS`; both empty means anyone. |
+| `ABUSE_EMAIL` | (empty) | Address testers see on the consent screen for reporting a link they were not expecting. |
 | `VAULT_ENCRYPTION_KEY` | generated in quick start | 64 hex chars. Encrypts files and metadata at rest. Cannot be changed later without re-uploading. |
 | `PUBLIC_URL` | derived from request | Address of the console and tester pages, e.g. `https://vault.example.com`. Set it. |
-| `CONTENT_ORIGIN` | `http://localhost:<CONTENT_PORT>` | Address prototypes are served from. A second hostname behind a proxy, or the second port's address. |
+| `CONTENT_ORIGIN` | `http://localhost:<CONTENT_PORT>` | Address prototypes are served from. A second hostname behind a proxy, the second port's address, or a wildcard (`https://*.content.example.com`) for one origin per share. |
 | `CONTENT_PORT` | `PORT + 1` | Second listener for prototype content. `0` disables it (hostname routing only). |
 | `TRUST_PROXY` | `0` | Trust `X-Forwarded-*` and the SSO header. |
+| `TRUSTED_PROXY_HOPS` | `1` | How many proxies append to `X-Forwarded-For` before the request reaches the server. The client address is read that many entries from the right, so a caller cannot choose its own. |
 | `TRUSTED_HEADER_EMAIL` | (empty) | Header name carrying the authenticated email (lower-case). |
 | `SSO_LOGOUT_URL` | (empty) | Your proxy's logout URL, for the console's sign-out button. |
 | `MAX_SHARES_PER_OWNER` | `0` | Shares one person may hold. `0` = unlimited. The server admin token is exempt. |
@@ -164,10 +169,10 @@ With `CONTENT_ORIGIN=https://prototypes-content.internal.company.com` and `CONTE
 | `ENTITLEMENTS_MODULE` | (empty) | Path to a module exporting `limits(owner) -> { shares, storageMb }`, replacing the two values above. |
 | `DEFAULT_EXPIRY_DAYS` | `7` | Expiry when a share does not specify one. |
 | `MAX_EXPIRY_DAYS` | `365` | Hard cap on share lifetime. |
-| `RETENTION_DAYS` | `30` | Days after expiry before prototype files are deleted, and the age at which admin-log lines are dropped. |
+| `RETENTION_DAYS` | `30` | Days after expiry before the whole share (files, viewers, recordings, events, feedback, its audit log) is deleted, and the age at which admin-log lines are dropped. |
 | `SESSION_HOURS` | `8` | Viewer session lifetime. |
 | `MAX_UPLOAD_MB` | `25` | Prototype upload cap. The whole upload is held in memory while it is decoded, so keep this modest. |
-| `MAX_MEDIA_MB` | `1024` | Intro media plus voice recordings, per share. |
+| `MAX_MEDIA_MB` | `200` | Intro media plus voice recordings, per share. Also counted toward `MAX_STORAGE_MB_PER_OWNER`. |
 | `ALLOWED_EXTERNAL_ORIGINS` | (empty) | Origins prototypes may load from, if a share opts in. Leave empty. |
 | `PORT` / `HOST` | `8787` / `0.0.0.0` (`127.0.0.1` in quick start) | Listen address. |
 | `DATA_DIR` | `./data` | Storage location. Back it up. |

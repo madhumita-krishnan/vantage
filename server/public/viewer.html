@@ -287,11 +287,7 @@
       <button class="btn small primary" id="btnFeedback">Feedback</button>
     </header>
     <main>
-      <iframe
-        id="frame"
-        title="Prototype"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
-      ></iframe>
+      <iframe id="frame" title="Prototype" sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
       <div id="wm" hidden></div>
       <aside id="panel">
         <h2>
@@ -645,7 +641,8 @@
         function start_() {
           document.title = meta.name;
           $('#name').textContent = meta.name;
-          $('#who').textContent = 'Viewing as ' + meta.viewer.name;
+          $('#who').textContent =
+            'Viewing as ' + meta.viewer.name + (meta.sharedBy ? ' · shared by ' + meta.sharedBy : '');
           if (meta.watermark) watermark(meta.viewer.email + ' · ' + new Date().toISOString().slice(0, 10));
           if (!meta.hasBundle) {
             $('#frame').srcdoc =
@@ -754,7 +751,7 @@
               (meta.mode === 'moderated'
                 ? 'Your moderator will guide you. The prototype would also like to record how you use it:'
                 : 'The designer would like to record how you use the prototype:') +
-              '</p><ul><li>Taps and clicks, and where on the screen</li><li>Screens you visit and how long you stay</li><li>Fields you focus on, never what you type</li>' +
+              '</p><ul><li>Taps and clicks, and where on the screen</li><li>Screens you visit and how long you stay</li><li>Fields you focus on, never what you type</li><li>Anything the prototype itself chooses to note, such as which option you picked</li>' +
               (meta.recordText
                 ? '<li>What you type into the prototype (it holds sample data, not your own)</li>'
                 : '') +
@@ -765,7 +762,15 @@
               (meta.voice
                 ? '<label class="opt"><input type="checkbox" id="voiceOpt" checked><span class="sw"></span><span>Record my voice so I can think aloud while I test</span></label>'
                 : '') +
-              '<p class="hint">Your visit is logged either way. Recording is optional.</p></div></div></div><div class="mfoot"><button class="btn" id="cNo">Don\'t record</button><button class="btn primary" id="cYes">Record my session</button></div>';
+              '<p class="hint">Your visit is logged either way. Recording is optional.' +
+              (meta.abuseEmail
+                ? ' Not expecting this link? Tell <a href="mailto:' +
+                  esc(meta.abuseEmail) +
+                  '">' +
+                  esc(meta.abuseEmail) +
+                  '</a>.'
+                : '') +
+              '</p></div></div></div><div class="mfoot"><button class="btn" id="cNo">Don\'t record</button><button class="btn primary" id="cYes">Record my session</button></div>';
           else h += '</div></div><div class="mfoot"><button class="btn primary" id="cGo">Start</button></div>';
           return h;
         }

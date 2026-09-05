@@ -1,6 +1,6 @@
 {
   "name": "prototype-vault-viewer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Opens Prototype Vault links in a window that is excluded from screenshots and screen sharing.",
   "private": true,
   "license": "MIT",

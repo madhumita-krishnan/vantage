@@ -54,7 +54,12 @@ function summary(share, fb, rows) {
   };
 }
 function eventsCsv(rows) {
-  const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  // Quote for CSV, and defuse spreadsheet formulas: a cell starting with = + - @ would run when opened in Excel or Sheets.
+  const q = (v) => {
+    // eslint-disable-next-line no-control-regex
+    const s = String(v ?? '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
+    return `"${(/^[=+\-@]/.test(s) ? "'" + s : s).replace(/"/g, '""')}"`;
+  };
   const head = ['ts', 'viewer', 'email', 'session', 't', 'type', 'path', 'target', 'x', 'y', 'detail'];
   return [head.join(',')]
     .concat(

@@ -22,6 +22,7 @@ function loadConfig(env = process.env, root = path.join(__dirname, '..')) {
     adminToken: env.ADMIN_TOKEN || '',
     adminEmails: list(env.ADMIN_EMAILS).map((e) => e.toLowerCase()),
     trustProxy: env.TRUST_PROXY === '1',
+    trustedProxyHops: +(env.TRUSTED_PROXY_HOPS || 1), // how many proxies append to X-Forwarded-For before us
     trustedHeaderEmail: (env.TRUSTED_HEADER_EMAIL || '').toLowerCase(),
     publicUrl: (env.PUBLIC_URL || '').replace(/\/$/, ''),
     // Prototypes are served from a second origin so a prototype's scripts can never touch the console or the tester
@@ -30,7 +31,7 @@ function loadConfig(env = process.env, root = path.join(__dirname, '..')) {
     contentPort: env.CONTENT_PORT === undefined ? null : +env.CONTENT_PORT,
     encryptionKey: env.VAULT_ENCRYPTION_KEY || '',
     maxUploadBytes: +(env.MAX_UPLOAD_MB || 25) * 1048576,
-    maxMediaBytes: +(env.MAX_MEDIA_MB || 1024) * 1048576, // intro audio/video and voice recordings, per share
+    maxMediaBytes: +(env.MAX_MEDIA_MB || 200) * 1048576, // intro audio/video and voice recordings, per share
     sessionHours: +(env.SESSION_HOURS || 8),
     allowedExternalOrigins: list(env.ALLOWED_EXTERNAL_ORIGINS),
     defaultExpiryDays: +(env.DEFAULT_EXPIRY_DAYS || 7),
@@ -39,6 +40,8 @@ function loadConfig(env = process.env, root = path.join(__dirname, '..')) {
     ssoLogoutUrl: env.SSO_LOGOUT_URL || '',
     // Google sign-in for a hosted deployment. Anyone with a Google account may sign in unless ADMIN_EMAILS restricts it.
     googleClientId: env.GOOGLE_CLIENT_ID || '',
+    allowedSigninDomains: list(env.ALLOWED_SIGNIN_DOMAINS).map((d) => d.toLowerCase().replace(/^@/, '')),
+    abuseEmail: env.ABUSE_EMAIL || '', // shown to testers as the place to report a misused link
     googleClientSecret: env.GOOGLE_CLIENT_SECRET || '',
     googleAuthUrl: env.GOOGLE_AUTH_URL || 'https://accounts.google.com/o/oauth2/v2/auth',
     googleTokenUrl: env.GOOGLE_TOKEN_URL || 'https://oauth2.googleapis.com/token',
@@ -76,7 +79,13 @@ function loadConfig(env = process.env, root = path.join(__dirname, '..')) {
   if (!cfg.host) cfg.host = cfg.quickstart ? '127.0.0.1' : '0.0.0.0';
   if (cfg.contentPort === null && !cfg.contentOrigin) cfg.contentPort = cfg.port + 1;
   if (!cfg.contentOrigin) cfg.contentOrigin = `http://localhost:${cfg.contentPort}`;
-  cfg.contentHost = new URL(cfg.contentOrigin).host;
+  // CONTENT_ORIGIN may hold one '*' (https://*.content.example.com): then every share gets its own origin.
+  const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const probe = new URL(cfg.contentOrigin.replace('*', 'wildcardlabel'));
+  const rx = (s) => new RegExp('^' + escapeRe(s).replace('wildcardlabel', '[a-z0-9_-]+') + '$', 'i');
+  cfg.contentHostRe = rx(probe.host);
+  cfg.contentOriginRe = rx(probe.origin);
+  cfg.contentOriginFor = (shareId) => cfg.contentOrigin.replace('*', String(shareId).toLowerCase());
   cfg.mainOrigin = cfg.publicUrl || `http://localhost:${cfg.port}`;
   return cfg;
 }

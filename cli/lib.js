@@ -248,6 +248,12 @@ async function publish(cfg, opts, log = () => {}) {
     inlineReport = await inlineExternal(root, log);
   }
   const { files } = collectFiles(root);
+  // A prototype has an .html file at its top level and a sane number of files. Anything else is probably not the
+  // folder the person meant, and for an AI agent it is the difference between a prototype and a home directory.
+  if (!files.some((f) => !f.path.includes('/') && /\.html?$/i.test(f.path)))
+    throw new Error(`${opts.path} has no .html file at its top level; is that the prototype folder?`);
+  if (files.length > 2000)
+    throw new Error(`${opts.path} holds ${files.length} files; a prototype should have far fewer`);
   const totalBytes = files.reduce((a, f) => a + f.data.length, 0);
   log(`Uploading ${files.length} files (${(totalBytes / 1024).toFixed(0)} KB)`);
   const body = {

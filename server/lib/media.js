@@ -126,6 +126,7 @@ module.exports = function media(ctx) {
       });
     if (Object.values(share.recordings).reduce((a, x) => a + x.size, 0) + buf.length > CONFIG.maxMediaBytes)
       throw H.httpError(413, 'Recording storage limit reached');
+    S.enforceLimits(share, buf.length);
     const dir = recordingDir(share.id, session);
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     fs.writeFileSync(path.join(dir, `${seq}.bin`), blob.encode(buf), { mode: 0o600 });

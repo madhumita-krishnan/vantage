@@ -15,7 +15,15 @@ const TOOLS = [
       type: 'object',
       required: ['path', 'name', 'viewers'],
       properties: {
-        path: { type: 'string', description: 'Absolute path to the prototype folder or .html file' },
+        path: {
+          type: 'string',
+          description:
+            'Absolute path to the prototype folder or .html file. Must be inside the current project folder unless allowAnyPath is true.',
+        },
+        allowAnyPath: {
+          type: 'boolean',
+          description: "Allow a path outside the current project folder. Only with the user's explicit say-so.",
+        },
         name: { type: 'string', description: 'Human-readable share name, e.g. "Checkout v3 — round 2"' },
         viewers: {
           type: 'array',
@@ -190,6 +198,11 @@ async function call(name, a) {
   const cfg = L.config();
   switch (name) {
     case 'vault_publish_prototype': {
+      const abs = path.resolve(String(a.path || ''));
+      if (!a.allowAnyPath && !abs.startsWith(process.cwd() + path.sep) && abs !== process.cwd())
+        throw new Error(
+          `${abs} is outside the current project folder (${process.cwd()}). Ask the user, then pass allowAnyPath: true.`
+        );
       const logs = [];
       const { share, inlineReport } = await L.publish(
         cfg,
@@ -314,7 +327,7 @@ async function handle(line) {
       return reply(id, {
         protocolVersion: (params && params.protocolVersion) || '2025-06-18',
         capabilities: { tools: {} },
-        serverInfo: { name: 'prototype-vault', version: '0.1.0' },
+        serverInfo: { name: 'prototype-vault', version: '0.2.0' },
       });
     if (method === 'notifications/initialized' || method === 'notifications/cancelled') return;
     if (method === 'ping') return reply(id, {});

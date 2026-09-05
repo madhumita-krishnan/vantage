@@ -46,6 +46,8 @@ function createApp(env = process.env) {
     security: '../docs/SECURITY.md',
     deployment: '../docs/DEPLOYMENT.md',
     readme: '../README.md',
+    limits: '../docs/WHAT-IT-CANNOT-DO.md',
+    testing: '../docs/TESTING.md',
     'design-system': '../design/DESIGN-SYSTEM.md',
   };
   const hostOf = (req) => (CONFIG.trustProxy && req.headers['x-forwarded-host']) || req.headers.host || '';
@@ -53,16 +55,16 @@ function createApp(env = process.env) {
   async function handle(req, res, onContentPort) {
     const url = new URL(req.url, 'http://x');
     const p = url.pathname;
-    const content = onContentPort || hostOf(req) === CONFIG.contentHost;
+    const content = onContentPort || CONFIG.contentHostRe.test(hostOf(req));
     try {
       if (p === '/healthz') return send(req, res, 200, 'ok', { 'Content-Type': 'text/plain' });
+      if (p === '/vault.css')
+        return send(req, res, 200, ctx.readPublic('vault.css'), { 'Content-Type': 'text/css; charset=utf-8' });
       const m = p.match(/^\/p\/([A-Za-z0-9_-]{6,32})(\/.*)?$/);
       if (m) return await handleViewer(req, res, url, m[1], m[2] || '', content);
       if (content) return ctx.gate(req, res, 404, 'Not found', 'Nothing here.');
       if (p === '/') return redirect(req, res, '/admin');
       if (p === '/admin' || p === '/admin/') return html(req, res, 200, ctx.readPublic('admin.html'));
-      if (p === '/vault.css')
-        return send(req, res, 200, ctx.readPublic('vault.css'), { 'Content-Type': 'text/css; charset=utf-8' });
       const dm = p.match(/^\/docs\/([a-z-]+)$/);
       if (dm && DOCS[dm[1]] && fs.existsSync(path.join(__dirname, DOCS[dm[1]])))
         return send(req, res, 200, fs.readFileSync(path.join(__dirname, DOCS[dm[1]])), {

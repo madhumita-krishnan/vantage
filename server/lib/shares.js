@@ -103,6 +103,13 @@ const ownsShare = (share, owner) => {
   const by = String(share.createdBy || '');
   return by === owner || by.startsWith(owner + ' via ');
 };
+// The person behind a share: "ana@x.com" or "ana@x.com via Claude Code" both belong to ana@x.com.
+const shareOwner = (share) => String(share.createdBy || '').split(' via ')[0];
+// Bytes a share holds: prototype files, intro media and voice recordings.
+const shareBytes = (s) =>
+  ((s.files && s.files.bytes) || 0) +
+  ((s.intro && s.intro.media && s.intro.media.size) || 0) +
+  Object.values(s.recordings || {}).reduce((a, r) => a + (r.size || 0), 0);
 
 module.exports = function shares(ctx) {
   const { CONFIG, store, blob, audit, events, feedback, H } = ctx;
@@ -147,33 +154,30 @@ module.exports = function shares(ctx) {
       data: Buffer.from(String(f.contentBase64 || ''), 'base64'),
     }));
   }
-  // Per-person limits (shares and prototype bytes). The server admin token is exempt; CONFIG.limits decides the numbers.
-  function enforceLimits(admin, share, addBytes) {
-    if (admin.kind === 'server-token') return;
-    const owner = admin.owner || admin.who;
+  // Per-person limits: shares, and bytes across prototype files, intro media and recordings. The owner is read from
+  // the share, so the same check serves designers uploading and testers recording. The server admin token is exempt.
+  function enforceLimits(share, addBytes) {
+    const owner = shareOwner(share);
+    if (owner === 'admin-token') return;
     const lim = CONFIG.limits(owner) || {};
     const mine = Object.values(store.data.shares).filter((s) => ownsShare(s, owner) && s.id !== share.id);
     if (lim.shares && !store.data.shares[share.id] && mine.length >= lim.shares)
       throw httpError(403, `Limit reached: ${lim.shares} shares per person. Delete one first.`);
-    const used = mine.reduce((a, s) => a + ((s.files && s.files.bytes) || 0), 0) + addBytes;
+    const used = mine.reduce((a, s) => a + shareBytes(s), 0) + shareBytes(share) + addBytes;
     if (lim.storageMb && used > lim.storageMb * 1048576)
-      throw httpError(403, `Limit reached: ${lim.storageMb} MB of prototype files per person.`);
+      throw httpError(403, `Limit reached: ${lim.storageMb} MB of files, media and recordings per person.`);
   }
-  function setBundle(share, files, entry, admin) {
+  function setBundle(share, files, entry) {
     let norm;
     try {
       norm = normalizeFiles(bufferFilesFromJson(files), entry);
     } catch (e) {
       throw e.status ? e : httpError(400, e.message);
     }
-    enforceLimits(
-      admin,
-      share,
-      norm.files.reduce((a, f) => a + f.data.length, 0)
-    );
+    const current = (share.files && share.files.bytes) || 0;
+    enforceLimits(share, norm.files.reduce((a, f) => a + f.data.length, 0) - current);
     share.files = writeBundle(share.id, norm.files);
     share.entry = norm.entry;
-    share.purgedAt = null;
   }
 
   function logAudit(share, type, req, extra = {}) {
@@ -190,11 +194,12 @@ module.exports = function shares(ctx) {
   }
 
   // A personal link's secret is stored only as a hash, like the API tokens, so a copy of the store cannot open
-  // prototypes. The link is returned once, when it is issued; "rotate" issues a new one.
+  // prototypes. The link is returned once, when it is issued; "rotate" issues a new one. The secret rides in the URL
+  // fragment, which browsers never send to a server, so it stays out of proxy and platform request logs.
   function issueLink(req, share, v) {
     const t = C.randomToken();
     v.token = C.sha256(t);
-    return `${baseUrl(req)}/p/${share.id}?k=${t}`;
+    return `${baseUrl(req)}/p/${share.id}#k=${t}`;
   }
   function viewerView(share, v, link) {
     const out = {
@@ -352,14 +357,9 @@ module.exports = function shares(ctx) {
         delete store.data.adminSessions[k];
         changed = true;
       }
-    for (const share of Object.values(store.data.shares)) {
-      if (share.files && share.expiresAt + CONFIG.retentionDays * 86400e3 < t) {
-        purgeFiles(share);
-        share.purgedAt = t;
-        changed = true;
-        logAudit(share, 'share.purged', null, { reason: 'retention' });
-      }
-    }
+    // Past the retention window a share goes entirely: files, viewers, sessions, events, feedback and its audit log.
+    for (const share of Object.values(store.data.shares))
+      if (share.expiresAt + CONFIG.retentionDays * 86400e3 < t) deleteShare(share, null, { who: 'retention' });
     audit.trim('_admin', iso(t - CONFIG.retentionDays * 86400e3));
     if (changed) store.save();
   }
@@ -395,7 +395,7 @@ module.exports = function shares(ctx) {
       .trim()
       .slice(0, 120);
     if (!name) throw httpError(400, 'name is required');
-    if (b.passcode && String(b.passcode).length < 4) throw httpError(400, 'passcode must be at least 4 characters');
+    if (b.passcode && String(b.passcode).length < 6) throw httpError(400, 'passcode must be at least 6 characters');
     const expiresAt = expiryFrom(b);
     if (expiresAt > now() + CONFIG.maxExpiryDays * 86400e3)
       throw httpError(400, `Expiry exceeds server maximum of ${CONFIG.maxExpiryDays} days`);
@@ -431,8 +431,8 @@ module.exports = function shares(ctx) {
       const viewer = addViewer(share, v, 'invite', b.maxOpensPerViewer);
       links[viewer.id] = issueLink(req, share, viewer);
     }
-    if (Array.isArray(b.files) && b.files.length) setBundle(share, b.files, b.entry, admin);
-    else enforceLimits(admin, share, 0);
+    if (Array.isArray(b.files) && b.files.length) setBundle(share, b.files, b.entry);
+    else enforceLimits(share, 0);
     store.data.shares[share.id] = share;
     store.save();
     logAudit(share, 'share.created', req, { by: admin.who, name, viewers: Object.keys(share.viewers).length });
@@ -470,6 +470,7 @@ module.exports = function shares(ctx) {
       changes.intro = share.intro.kind;
     }
     if (b.passcode !== undefined) {
+      if (b.passcode && String(b.passcode).length < 6) throw httpError(400, 'passcode must be at least 6 characters');
       share.passcode = b.passcode ? await C.hashPasscode(String(b.passcode)) : null;
       changes.passcode = !!b.passcode;
     }
@@ -531,6 +532,8 @@ module.exports = function shares(ctx) {
     removeMedia,
     readBundleFile,
     setBundle,
+    enforceLimits,
+    shareOwner,
     logAudit,
     issueLink,
     viewerView,
@@ -549,4 +552,12 @@ module.exports = function shares(ctx) {
     createSampleShare,
   };
 };
-Object.assign(module.exports, { MODES, MEDIA_TYPES, normalizeTasks, shareStatus, parseViewerSpec, ownsShare });
+Object.assign(module.exports, {
+  MODES,
+  MEDIA_TYPES,
+  normalizeTasks,
+  shareStatus,
+  parseViewerSpec,
+  ownsShare,
+  shareOwner,
+});

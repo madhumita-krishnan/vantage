@@ -13,9 +13,12 @@ const listen = (server) =>
 async function boot(env = {}, dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vault-test-'))) {
   const { server, contentServer, ctx } = createApp({ DATA_DIR: dataDir, PORT: '0', ...env });
   const base = await listen(server);
-  const content = await listen(contentServer);
-  ctx.CONFIG.contentOrigin = content;
-  ctx.CONFIG.contentHost = new URL(content).host;
+  const content = contentServer ? await listen(contentServer) : null;
+  if (content) {
+    ctx.CONFIG.contentOrigin = content;
+    ctx.CONFIG.contentHostRe = new RegExp('^' + new URL(content).host.replace('.', '\\.') + '$');
+    ctx.CONFIG.contentOriginRe = new RegExp('^' + content.replace(/[.]/g, '\\.') + '$');
+  }
   const call = async (method, p, body, headers = {}, token = ctx.CONFIG.adminToken, origin = base) => {
     const r = await fetch(origin + p, {
       method,
@@ -55,14 +58,17 @@ const FILES = [
   { path: 'app.js', contentBase64: b64('console.log(1)') },
 ];
 const cookieOf = (r) => ({ Cookie: String(r.headers.get('set-cookie')).split(';')[0] });
-// Redeems a personal link and returns the cookie for the resulting session.
+// Redeems a personal link the way the gate page does: the secret sits in the fragment and is POSTed, never sent as a URL.
 async function redeem(v, link) {
-  const r = await v.call('GET', link.replace(v.base, ''), null, {}, null);
-  assert.equal(r.status, 302);
+  const [pathPart, k] = link.replace(v.base, '').split('#k=');
+  assert.ok(k, 'link carries the secret in the fragment');
+  const r = await v.call('POST', pathPart + '/redeem', { k }, {}, null);
+  assert.equal(r.status, 200, JSON.stringify(r.data));
   const cookie = cookieOf(r);
   assert.match(cookie.Cookie, /^vs_/);
   return cookie;
 }
+const legacyLink = (link) => link.replace('#k=', '?k=');
 // Walks the shell -> ticket -> content-origin cookie path a browser takes when it loads the prototype iframe.
 async function enterContent(v, id, cookie) {
   const c = await v.call('GET', `/p/${id}/_vault/content`, null, cookie, null);
@@ -151,10 +157,12 @@ test('tester flow: redeem link, consent, events, feedback, results; prototype on
     files: FILES,
   });
   const link = share.viewers[0].link;
-  assert.match(link, /\/p\/[A-Za-z0-9_-]+\?k=/);
+  assert.match(link, /\/p\/[A-Za-z0-9_-]+#k=/);
   const id = share.id;
   // The link's secret is stored only as a hash, and is not returned again
   assert.equal(JSON.stringify(v.ctx.store.data).includes(link.split('k=')[1]), false, 'link token stored hashed');
+  // The gate page carries the script that posts the fragment
+  assert.match((await v.call('GET', `/p/${id}`, null, {}, null)).data, /\/redeem/);
   assert.equal((await v.call('GET', `/api/shares/${id}`)).data.share.viewers[0].link, undefined);
   // Nobody gets in without a link
   const anon = await v.call('GET', `/p/${id}`, null, {}, null);
@@ -177,7 +185,10 @@ test('tester flow: redeem link, consent, events, feedback, results; prototype on
   assert.equal(page.status, 200);
   assert.match(page.data, /_vault\/tracker\.js/);
   assert.match(page.headers.get('content-security-policy'), /connect-src 'self';/);
-  assert.match(page.headers.get('content-security-policy'), /frame-ancestors 'self' http:\/\/localhost/);
+  assert.ok(
+    page.headers.get('content-security-policy').includes(`frame-ancestors ${v.base};`),
+    'only the shell that framed it may frame it'
+  );
   assert.equal(page.headers.get('x-frame-options'), null);
   assert.equal((await v.callContent('GET', `/p/${id}/app/..%2F..%2Fstore.json`, null, ccookie)).status, 404);
   // The content origin knows nothing else: no shell, no console, no meta
@@ -261,7 +272,7 @@ test('tester flow: redeem link, consent, events, feedback, results; prototype on
   // Revoking the viewer kills the link and both sessions
   const viewerId = share.viewers[0].id;
   assert.equal((await v.call('DELETE', `/api/shares/${id}/viewers/${viewerId}`)).status, 200);
-  assert.equal((await v.call('GET', link.replace(v.base, ''), null, {}, null)).status, 403);
+  assert.equal((await v.call('POST', `/p/${id}/redeem`, { k: link.split('#k=')[1] }, {}, null)).status, 403);
   assert.equal((await v.call('GET', `/p/${id}`, null, cookie, null)).status, 403);
   assert.equal((await v.callContent('GET', `/p/${id}/app/index.html`, null, ccookie)).status, 401);
   const audit = await v.call('GET', `/api/shares/${id}/audit`);
@@ -304,12 +315,20 @@ test('passcode, rotation, expiry and revocation', async () => {
     data: { share },
   } = await v.call('POST', '/api/shares', {
     name: 'Locked',
-    passcode: '4321',
+    passcode: '654321',
     viewers: ['a@example.com'],
     files: FILES,
   });
   const id = share.id;
-  const cookie = await redeem(v, share.viewers[0].link);
+  assert.equal(
+    (await v.call('POST', '/api/shares', { name: 'Short', passcode: '4321' })).status,
+    400,
+    'six characters'
+  );
+  // A link in the older ?k= form is still accepted
+  const old = await v.call('GET', legacyLink(share.viewers[0].link).replace(v.base, ''), null, {}, null);
+  assert.equal(old.status, 302);
+  const cookie = cookieOf(old);
   const gate = await v.call('GET', `/p/${id}`, null, cookie, null);
   assert.equal(gate.status, 200);
   assert.match(gate.data, /needs the passcode/);
@@ -319,7 +338,7 @@ test('passcode, rotation, expiry and revocation', async () => {
       await v.call(
         'POST',
         `/p/${id}/passcode`,
-        'passcode=0000',
+        'passcode=000000',
         { ...cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
         null
       )
@@ -331,7 +350,7 @@ test('passcode, rotation, expiry and revocation', async () => {
       await v.call(
         'POST',
         `/p/${id}/passcode`,
-        'passcode=4321',
+        'passcode=654321',
         { ...cookie, 'Content-Type': 'application/x-www-form-urlencoded' },
         null
       )
@@ -343,14 +362,17 @@ test('passcode, rotation, expiry and revocation', async () => {
   const rot = await v.call('POST', `/api/shares/${id}/viewers/${share.viewers[0].id}/rotate`);
   assert.ok(rot.data.viewer.link);
   assert.notEqual(rot.data.viewer.link, share.viewers[0].link);
-  assert.equal((await v.call('GET', share.viewers[0].link.replace(v.base, ''), null, {}, null)).status, 403);
+  assert.equal(
+    (await v.call('GET', legacyLink(share.viewers[0].link).replace(v.base, ''), null, {}, null)).status,
+    403
+  );
   assert.equal((await v.call('GET', `/p/${id}`, null, cookie, null)).status, 403);
   // Expiry in the past: links stop working with 410
   assert.equal(
     (await v.call('PATCH', `/api/shares/${id}`, { expiresAt: new Date(Date.now() - 1000).toISOString() })).status,
     200
   );
-  assert.equal((await v.call('GET', rot.data.viewer.link.replace(v.base, ''), null, {}, null)).status, 410);
+  assert.equal((await v.call('GET', legacyLink(rot.data.viewer.link).replace(v.base, ''), null, {}, null)).status, 410);
   assert.equal((await v.call('GET', `/api/shares/${id}`)).data.share.status, 'expired');
   // Revoke whole share, then delete it
   assert.equal((await v.call('PATCH', `/api/shares/${id}`, { revoked: true })).data.share.status, 'revoked');
@@ -575,12 +597,45 @@ test('storage limit per person applies to uploads', async () => {
   const big = await v.call('POST', '/api/shares', { name: 'Big', files: FILES }, ana, null);
   assert.equal(big.status, 403);
   assert.match(big.data.error, /MB/);
+  // Media counts toward the same limit: a tester's recording is refused once the owner is over it
+  const small = await v.call(
+    'POST',
+    '/api/shares',
+    { name: 'Voice', voice: true, tasks: ['x'], viewers: ['t@example.com'] },
+    ana,
+    null
+  );
+  assert.equal(small.status, 201);
+  const cookie = await redeem(v, small.data.share.viewers[0].link);
+  await v.call('POST', `/p/${small.data.share.id}/_vault/consent`, { accept: true }, cookie, null);
+  const rec = await v.call(
+    'POST',
+    `/p/${small.data.share.id}/_vault/recording?seq=0`,
+    'x'.repeat(64),
+    { ...cookie, 'Content-Type': 'audio/webm' },
+    null
+  );
+  assert.equal(rec.status, 403);
   await v.close();
   g.close();
 });
 
-test('housekeeping: admin log is trimmed to the retention window; rate limiter survives a key flood', async () => {
+test('housekeeping: retention deletes whole shares, admin log trimmed, store keeps a backup, limiter survives a flood', async () => {
   const v = await boot({ RETENTION_DAYS: '1' });
+  const {
+    data: { share },
+  } = await v.call('POST', '/api/shares', {
+    name: 'Old',
+    viewers: ['a@example.com'],
+    files: FILES,
+    expiresAt: new Date(Date.now() - 2 * 86400e3).toISOString(),
+  });
+  v.ctx.S.sweep();
+  assert.equal((await v.call('GET', `/api/shares/${share.id}`)).status, 404, 'expired share gone after retention');
+  assert.equal(fs.existsSync(path.join(v.dataDir, 'bundles', share.id)), false);
+  v.ctx.store.flush();
+  v.ctx.store.flush();
+  assert.ok(fs.existsSync(path.join(v.dataDir, 'store.json.bak')), 'previous store kept as backup');
   v.ctx.audit.append('_admin', { ts: '2000-01-01T00:00:00.000Z', type: 'old' });
   v.ctx.audit.append('_admin', { ts: new Date().toISOString(), type: 'fresh' });
   v.ctx.S.sweep();
@@ -591,5 +646,64 @@ test('housekeeping: admin log is trimmed to the retention window; rate limiter s
   for (let i = 0; i < 60000; i++) rl('flood' + i, 1, 60e3);
   assert.equal(rl('after', 1, 60e3), true);
   assert.equal(rl('after', 1, 60e3), false, 'a key made after the flood is still limited');
+  await v.close();
+});
+
+test('hardening: proxy IP from the right, framed-only pages, CSV formulas defused, oversized event data kept', async () => {
+  const v = await boot({ ADMIN_TOKEN: 'w'.repeat(32), TRUST_PROXY: '1' });
+  const {
+    data: { share },
+  } = await v.call('POST', '/api/shares', { name: 'Hard', tasks: ['t'], viewers: ['a@example.com'], files: FILES });
+  const id = share.id;
+  // A client-supplied X-Forwarded-For prefix is ignored; the proxy-appended last entry is the address
+  const [p, k] = share.viewers[0].link.replace(v.base, '').split('#k=');
+  const r = await v.call('POST', p + '/redeem', { k }, { 'X-Forwarded-For': '9.9.9.9, 1.1.1.1' }, null);
+  assert.equal(r.status, 200);
+  const cookie = cookieOf(r);
+  const audit = (await v.call('GET', `/api/shares/${id}/audit`)).data.audit;
+  assert.equal(audit.find((a) => a.type === 'link.redeemed').ip, '1.1.1.1');
+  // Content pages open only inside a frame
+  const { cookie: ccookie } = await enterContent(v, id, cookie);
+  assert.equal(
+    (await v.callContent('GET', `/p/${id}/app/index.html`, null, { ...ccookie, 'Sec-Fetch-Dest': 'document' })).status,
+    403
+  );
+  assert.equal(
+    (await v.callContent('GET', `/p/${id}/app/index.html`, null, { ...ccookie, 'Sec-Fetch-Dest': 'iframe' })).status,
+    200
+  );
+  assert.equal(
+    (await v.callContent('GET', `/p/${id}/app/app.js`, null, { ...ccookie, 'Sec-Fetch-Dest': 'script' })).status,
+    200
+  );
+  assert.doesNotMatch(
+    (await v.callContent('GET', `/p/${id}/app/index.html`, null, ccookie)).headers.get('content-security-policy'),
+    /frame-ancestors 'self'/
+  );
+  // Oversized event data is kept, truncated, instead of failing the batch; CSV defuses formulas
+  await v.call('POST', `/p/${id}/_vault/consent`, { accept: true }, cookie, null);
+  const posted = await v.callContent(
+    'POST',
+    `/p/${id}/_vault/events`,
+    [
+      { type: 'click', path: '/', data: { target: '=1+1' } },
+      { type: 'custom:big', path: '/', data: { big: 'x'.repeat(5000) } },
+    ],
+    ccookie
+  );
+  assert.equal(posted.data.ok, 2);
+  const csv = (await v.call('GET', `/api/shares/${id}/events?format=csv`)).data;
+  assert.match(csv, /"'=1\+1"/);
+  assert.match(csv, /truncated/);
+  await v.close();
+});
+
+test('wildcard content origin gives every share its own host', async () => {
+  const v = await boot({ ADMIN_TOKEN: 'w'.repeat(32), CONTENT_ORIGIN: 'https://*.content.example', CONTENT_PORT: '0' });
+  assert.equal(v.ctx.CONFIG.contentOriginFor('AbC'), 'https://abc.content.example');
+  assert.ok(v.ctx.CONFIG.contentHostRe.test('abc.content.example'));
+  assert.ok(!v.ctx.CONFIG.contentHostRe.test('content.example'));
+  assert.ok(!v.ctx.CONFIG.contentHostRe.test('abc.content.example.evil'));
+  assert.ok(v.ctx.CONFIG.contentOriginRe.test('https://abc.content.example'));
   await v.close();
 });

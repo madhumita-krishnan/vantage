@@ -52,10 +52,23 @@ module.exports = function httpHelpers(CONFIG) {
       String(req.headers['x-forwarded-proto'] || '')
         .split(',')[0]
         .trim() === 'https');
-  const clientIp = (req) =>
-    CONFIG.trustProxy && req.headers['x-forwarded-for']
-      ? String(req.headers['x-forwarded-for']).split(',')[0].trim()
-      : req.socket.remoteAddress || '';
+  // Proxies append the caller's address to X-Forwarded-For, so the trustworthy entry is counted from the right:
+  // with one proxy in front of us it is the last one. Anything a client sends itself sits to the left of that.
+  const clientIp = (req) => {
+    if (!CONFIG.trustProxy || !req.headers['x-forwarded-for']) return req.socket.remoteAddress || '';
+    const parts = String(req.headers['x-forwarded-for'])
+      .split(',')
+      .map((s) => s.trim());
+    return parts[Math.max(0, parts.length - CONFIG.trustedProxyHops)] || '';
+  };
+  // decodeURIComponent that returns the input unchanged instead of throwing on a bad percent sequence.
+  const dec = (s) => {
+    try {
+      return decodeURIComponent(s);
+    } catch {
+      return String(s);
+    }
+  };
   const baseUrl = (req) =>
     CONFIG.publicUrl ||
     `${isHttps(req) ? 'https' : 'http'}://${(CONFIG.trustProxy && req.headers['x-forwarded-host']) || req.headers.host || `localhost:${CONFIG.port}`}`;
@@ -112,12 +125,8 @@ module.exports = function httpHelpers(CONFIG) {
     const o = req.headers.origin;
     return (
       !o ||
-      [
-        CONFIG.mainOrigin,
-        CONFIG.contentOrigin,
-        baseUrl(req),
-        `${isHttps(req) ? 'https' : 'http'}://${req.headers.host}`,
-      ].includes(o)
+      CONFIG.contentOriginRe.test(o) ||
+      [CONFIG.mainOrigin, baseUrl(req), `${isHttps(req) ? 'https' : 'http'}://${req.headers.host}`].includes(o)
     );
   }
   function setCookie(res, name, value, opts = {}) {
@@ -149,5 +158,6 @@ module.exports = function httpHelpers(CONFIG) {
     rateLimit,
     sameOrigin,
     setCookie,
+    dec,
   };
 };

@@ -22,10 +22,15 @@ module.exports = function viewer(ctx) {
     ssoEmail,
     sameOrigin,
     parseCookies,
+    baseUrl,
+    dec,
   } = H;
   const now = Date.now;
   // One-time tickets carry a main-origin session over to the content origin. ponytail: in memory, so single process.
   const tickets = new Map();
+  // Per-session ceilings for recorded events, so one tester cannot fill the disk.
+  const MAX_EVENTS = 20000;
+  const MAX_EVENT_BYTES = 5 * 1048576;
 
   const gone = (req, res, status) =>
     gate(
@@ -37,8 +42,14 @@ module.exports = function viewer(ctx) {
     );
   const passcodeForm = (share) =>
     `<form method="post" action="/p/${esc(share.id)}/passcode" class="form"><input type="password" name="passcode" placeholder="Passcode" autocomplete="off" autofocus required><button type="submit">Continue</button></form>`;
-  // Prototypes may load only from the content origin plus origins allowed by both server and share. Egress control, not XSS defence.
-  function appCsp(share) {
+  // The gate shown without a session. If the address carries a personal link secret in its fragment, this script
+  // hands it to the server with a POST (fragments never travel in a request, so the secret stays out of logs).
+  const REDEEM_SCRIPT =
+    '<script>(function(){var m=location.hash.match(/(?:^#|&)k=([^&]+)/);if(!m)return;history.replaceState(null,"",location.pathname);' +
+    'fetch(location.pathname+"/redeem",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({k:decodeURIComponent(m[1])}),credentials:"same-origin"})' +
+    '.then(function(r){if(r.ok){location.replace(location.pathname);return}return r.text().then(function(t){document.open();document.write(t);document.close()})})})()</script>';
+  // Prototypes may load only from their own origin plus origins allowed by both server and share. Egress control, not XSS defence.
+  function appCsp(share, shell) {
     const ext = (share.externalOrigins || []).join(' ');
     return [
       `default-src 'self' ${ext}`,
@@ -50,7 +61,7 @@ module.exports = function viewer(ctx) {
       `media-src 'self' data: blob: ${ext}`,
       "worker-src 'self' blob:",
       `frame-src 'self' ${ext}`,
-      `frame-ancestors 'self' ${CONFIG.mainOrigin}`,
+      `frame-ancestors ${shell}`,
       "form-action 'self'",
       "base-uri 'self'",
     ]
@@ -64,14 +75,53 @@ module.exports = function viewer(ctx) {
     const at = head >= 0 ? src.indexOf('>', head) + 1 : (src.match(/^\s*<!doctype[^>]*>/i) || [''])[0].length;
     return Buffer.from(src.slice(0, at) + tag + src.slice(at));
   }
-  function admit(req, res, share, viewer, type, to) {
+  function admit(req, res, share, viewer, type) {
     viewer.opens = (viewer.opens || 0) + 1;
     viewer.lastSeenAt = now();
     S.setSessionCookie(req, res, share, S.createSession(req, share, viewer));
     S.logAudit(share, type, req, { email: viewer.email, viewerId: viewer.id });
-    return redirect(req, res, to);
   }
   const recording = (share, sess) => share.recordSessions && (!share.requireConsent || sess.consent === true);
+  // Where the shell that framed this prototype lives: recorded on the session when the ticket is minted, so Docker
+  // and LAN setups work without PUBLIC_URL.
+  const shellOf = (sess) => (sess && sess.shell) || CONFIG.mainOrigin;
+
+  // Personal link redemption. Sends a gate page and returns true on failure; sets the session cookie and returns
+  // false when the person is admitted (the caller then answers).
+  function redeem(req, res, share, k) {
+    const ip = clientIp(req);
+    if (!rateLimit(`redeem:${ip}`, 30, 600e3)) {
+      gate(req, res, 429, 'Slow down', 'Too many attempts. Try again in a few minutes.');
+      return true;
+    }
+    const status = S.shareStatus(share);
+    const hash = C.sha256(String(k));
+    const v = Object.values(share.viewers).find((x) => x.token && C.safeEqual(x.token, hash));
+    const reject = (reason, extra) => S.logAudit(share, 'link.rejected', req, { reason, ...extra });
+    if (!v || v.revoked) {
+      reject(v ? 'viewer_revoked' : 'bad_token');
+      gate(
+        req,
+        res,
+        403,
+        'Link not valid',
+        'This invitation link is not valid or has been revoked. Ask the person who shared it for a new link.'
+      );
+      return true;
+    }
+    if (status !== 'active') {
+      reject(status, { email: v.email });
+      gone(req, res, status);
+      return true;
+    }
+    if (v.maxOpens && v.opens >= v.maxOpens) {
+      reject('open_limit', { email: v.email });
+      gate(req, res, 403, 'Open limit reached', 'This invitation has been used the maximum number of times.');
+      return true;
+    }
+    admit(req, res, share, v, 'link.redeemed');
+    return false;
+  }
 
   async function vaultEndpoint(req, res, url, ep, share, sess, viewer, content) {
     if (req.method === 'POST' && !sameOrigin(req)) throw httpError(403, 'Cross-origin request rejected');
@@ -84,7 +134,7 @@ module.exports = function viewer(ctx) {
           share: share.id,
           endpoint: `/p/${share.id}/_vault/events`,
           appBase: `/p/${share.id}/app/`,
-          shell: CONFIG.mainOrigin,
+          shell: shellOf(sess),
         };
         return send(req, res, 200, `window.__VAULT_CFG=${JSON.stringify(cfg)};\n${readPublic('tracker.js')}`, {
           'Content-Type': 'text/javascript; charset=utf-8',
@@ -95,7 +145,13 @@ module.exports = function viewer(ctx) {
         if (!rateLimit(`ev:${sess.id}`, 600, 60e3)) return json(req, res, 429, { error: 'rate' });
         const b = await readJson(req, 512 * 1024);
         const arr = (Array.isArray(b) ? b : []).slice(0, 500);
-        for (const e of arr)
+        const bytes = JSON.stringify(arr).length;
+        if ((sess.events || 0) + arr.length > MAX_EVENTS || (sess.eventBytes || 0) + bytes > MAX_EVENT_BYTES)
+          return json(req, res, 200, { ok: 0, limit: true });
+        sess.events = (sess.events || 0) + arr.length;
+        sess.eventBytes = (sess.eventBytes || 0) + bytes;
+        for (const e of arr) {
+          const raw = typeof e.data === 'object' && e.data ? JSON.stringify(e.data) : '{}';
           events.append(share.id, {
             ts: S.iso(now()),
             viewer: viewer.name,
@@ -104,16 +160,20 @@ module.exports = function viewer(ctx) {
             t: +e.t || 0,
             type: String(e.type || '').slice(0, 60),
             path: String(e.path || '').slice(0, 500),
-            data: typeof e.data === 'object' && e.data ? JSON.parse(JSON.stringify(e.data).slice(0, 2000)) : {},
+            data: raw.length > 2000 ? { truncated: raw.slice(0, 2000) } : JSON.parse(raw),
           });
+        }
         return json(req, res, 200, { ok: arr.length });
       }
       throw httpError(404, 'Unknown endpoint');
     }
     if (ep === 'meta' && req.method === 'GET') {
       const intro = share.intro || { kind: 'default', text: '', media: null };
+      const owner = S.shareOwner(share);
       return json(req, res, 200, {
         name: share.name,
+        sharedBy: owner === 'admin-token' ? '' : owner,
+        abuseEmail: CONFIG.abuseEmail,
         tasks: share.tasks,
         entry: share.entry,
         watermark: share.watermark,
@@ -129,7 +189,7 @@ module.exports = function viewer(ctx) {
         dictation: !!share.dictation,
         recordText: !!share.recordText,
         voiceActive: !!(share.recordings || {})[sess.id],
-        contentOrigin: CONFIG.contentOrigin,
+        contentOrigin: CONFIG.contentOriginFor(share.id),
         intro: {
           kind: intro.kind,
           text: intro.text,
@@ -140,11 +200,14 @@ module.exports = function viewer(ctx) {
     }
     // The shell asks for a content URL; the ticket in it becomes the session cookie on the content origin.
     if (ep === 'content' && req.method === 'GET') {
+      if (!rateLimit(`ticket:${sess.id}`, 20, 60e3)) return json(req, res, 429, { error: 'rate' });
       if (tickets.size > 1000) for (const [k, v] of tickets) if (v.exp < now()) tickets.delete(k);
+      sess.shell = baseUrl(req);
+      store.save();
       const t = C.randomToken();
       tickets.set(t, { tok: parseCookies(req)[`vs_${share.id}`], exp: now() + 60e3 });
       return json(req, res, 200, {
-        url: `${CONFIG.contentOrigin}/p/${share.id}/enter?t=${t}&to=${encodeURIComponent(share.entry || '')}`,
+        url: `${CONFIG.contentOriginFor(share.id)}/p/${share.id}/enter?t=${t}&to=${encodeURIComponent(share.entry || '')}`,
       });
     }
     if (ep === 'intro' && (req.method === 'GET' || req.method === 'HEAD')) return M.streamIntro(req, res, share);
@@ -170,6 +233,7 @@ module.exports = function viewer(ctx) {
     if (ep === 'recording' && req.method === 'POST') {
       if (!share.voice || (share.requireConsent && sess.consent !== true))
         throw httpError(403, 'Voice recording is not enabled for this share, or consent was not given');
+      if (!rateLimit(`rec:${sess.id}`, 60, 60e3)) return json(req, res, 429, { error: 'rate' });
       const mime = String(req.headers['content-type'] || '')
         .split(';')[0]
         .trim()
@@ -209,7 +273,7 @@ module.exports = function viewer(ctx) {
     }
     throw httpError(404, 'Unknown endpoint');
   }
-  function serveFile(req, res, share, rel) {
+  function serveFile(req, res, share, sess, rel) {
     if (!share.files) return gate(req, res, 404, 'No content', 'The prototype files for this share have been removed.');
     if (rel === '' || rel.endsWith('/')) rel += 'index.html';
     let data = S.readBundleFile(share.id, rel);
@@ -218,9 +282,20 @@ module.exports = function viewer(ctx) {
         rel += suffix;
     if (data == null) return send(req, res, 404, 'Not found', { 'Content-Type': 'text/plain' });
     const type = mimeFor(rel);
+    // Pages are for the shell's frame only. A browser that says it is loading a top-level document (a pasted address,
+    // a popup) is turned away, because outside the frame there is no watermark and no consent record.
+    const dest = req.headers['sec-fetch-dest'];
+    if (type.startsWith('text/html') && dest && dest !== 'iframe' && dest !== 'frame')
+      return gate(
+        req,
+        res,
+        403,
+        'Open it from your link',
+        'This prototype only opens inside the page your personal link leads to.'
+      );
     return send(req, res, 200, type.startsWith('text/html') ? injectTracker(data, share) : data, {
       'Content-Type': type,
-      'Content-Security-Policy': appCsp(share),
+      'Content-Security-Policy': appCsp(share, shellOf(sess)),
     });
   }
 
@@ -240,7 +315,7 @@ module.exports = function viewer(ctx) {
       return send(req, res, 401, 'No session', { 'Content-Type': 'text/plain' });
     const viewer = share.viewers[sess.viewerId];
     if (rest.startsWith('/_vault/')) return vaultEndpoint(req, res, url, rest.slice(8), share, sess, viewer, true);
-    if (rest.startsWith('/app/')) return serveFile(req, res, share, decodeURIComponent(rest.slice(5)));
+    if (rest.startsWith('/app/')) return serveFile(req, res, share, sess, dec(rest.slice(5)));
     throw httpError(404, 'Not found');
   }
 
@@ -258,35 +333,17 @@ module.exports = function viewer(ctx) {
     const ip = clientIp(req);
     const status = S.shareStatus(share);
 
-    // 1) Personal link redemption: /p/:id?k=TOKEN. The token is consumed into a session and dropped from the URL.
+    // 1) Personal link redemption. Links carry the secret in the fragment; the gate page posts it here. Older links
+    //    carried it in the query string, and those still work.
+    if (rest === '/redeem' && req.method === 'POST') {
+      if (!sameOrigin(req)) throw httpError(403, 'Cross-origin request rejected');
+      if (redeem(req, res, share, (await readJson(req, 4096)).k || '')) return;
+      return json(req, res, 200, { ok: true });
+    }
     const k = url.searchParams.get('k');
     if (!rest && k) {
-      if (!rateLimit(`redeem:${ip}`, 30, 600e3))
-        return gate(req, res, 429, 'Slow down', 'Too many attempts. Try again in a few minutes.');
-      const hash = C.sha256(k);
-      const v = Object.values(share.viewers).find((x) => x.token && C.safeEqual(x.token, hash));
-      const reject = (reason, extra) => {
-        S.logAudit(share, 'link.rejected', req, { reason, ...extra });
-      };
-      if (!v || v.revoked) {
-        reject(v ? 'viewer_revoked' : 'bad_token');
-        return gate(
-          req,
-          res,
-          403,
-          'Link not valid',
-          'This invitation link is not valid or has been revoked. Ask the person who shared it for a new link.'
-        );
-      }
-      if (status !== 'active') {
-        reject(status, { email: v.email });
-        return gone(req, res, status);
-      }
-      if (v.maxOpens && v.opens >= v.maxOpens) {
-        reject('open_limit', { email: v.email });
-        return gate(req, res, 403, 'Open limit reached', 'This invitation has been used the maximum number of times.');
-      }
-      return admit(req, res, share, v, 'link.redeemed', `/p/${share.id}`);
+      if (redeem(req, res, share, k)) return;
+      return redirect(req, res, `/p/${share.id}`);
     }
     // 2) Existing session, or an identity from the SSO proxy that the share allows
     let sess = S.getSession(req, share);
@@ -297,15 +354,10 @@ module.exports = function viewer(ctx) {
           Object.values(share.viewers).some((v) => v.email === email && !v.revoked) ||
           (share.ssoAllow.emails || []).includes(email) ||
           (share.ssoAllow.domains || []).includes(email.split('@')[1]);
-        if (allowed)
-          return admit(
-            req,
-            res,
-            share,
-            S.addViewer(share, { email, name: email.split('@')[0] }, 'sso'),
-            'sso.authorized',
-            url.pathname
-          );
+        if (allowed) {
+          admit(req, res, share, S.addViewer(share, { email, name: email.split('@')[0] }, 'sso'), 'sso.authorized');
+          return redirect(req, res, url.pathname);
+        }
         S.logAudit(share, 'sso.denied', req, { email });
         return gate(
           req,
@@ -321,16 +373,17 @@ module.exports = function viewer(ctx) {
         res,
         403,
         'Invitation required',
-        'This prototype is confidential. Open it using the personal link you were sent. If you do not have one, ask the person who shared it.'
+        'This prototype is confidential. Open it using the personal link you were sent. If you do not have one, ask the person who shared it.',
+        REDEEM_SCRIPT
       );
     }
     const viewer = share.viewers[sess.viewerId];
     if (status !== 'active') return gone(req, res, status);
-    // 3) Passcode gate (optional second factor)
+    // 3) Passcode gate (optional second factor). Limited per address and, so a spoofed address does not help, per share.
     if (share.passcode && !sess.passcodeOk) {
       if (rest === '/passcode' && req.method === 'POST') {
-        if (!rateLimit(`pass:${share.id}:${ip}`, 8, 900e3))
-          return gate(req, res, 429, 'Too many attempts', 'Wait 15 minutes and try again.');
+        if (!rateLimit(`pass:${share.id}:${ip}`, 8, 900e3) || !rateLimit(`pass-share:${share.id}`, 100, 3600e3))
+          return gate(req, res, 429, 'Too many attempts', 'Wait a while and try again.');
         const ok = await C.verifyPasscode(
           new URLSearchParams((await readBody(req, 4096)).toString('utf8')).get('passcode') || '',
           share.passcode

@@ -15,8 +15,15 @@ class Store {
   }
   load() {
     if (!fs.existsSync(this.file)) return;
-    const raw = this.blob.decode(fs.readFileSync(this.file));
-    const parsed = JSON.parse(raw.toString('utf8'));
+    let parsed;
+    try {
+      parsed = JSON.parse(this.blob.decode(fs.readFileSync(this.file)).toString('utf8'));
+    } catch (e) {
+      throw new Error(
+        `${this.file} cannot be read (${e.message}). The previous copy is ${this.file}.bak; restore it and start again.`,
+        { cause: e }
+      );
+    }
     this.data = {
       shares: parsed.shares || {},
       sessions: parsed.sessions || {},
@@ -38,6 +45,7 @@ class Store {
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     const tmp = this.file + '.tmp';
     fs.writeFileSync(tmp, this.blob.encode(Buffer.from(JSON.stringify(this.data))), { mode: 0o600 });
+    if (fs.existsSync(this.file)) fs.copyFileSync(this.file, this.file + '.bak'); // one step back, for a crash mid-rename
     fs.renameSync(tmp, this.file);
   }
 }

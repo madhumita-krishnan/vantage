@@ -42,7 +42,7 @@ Secrets live in `server/data/local-secrets.json`, and the server answers on loca
 
 ## Status: a working proof of concept, not an audited product
 
-Built in a few days with Claude Code. It has an end-to-end test suite (`cd server && npm test`, 14 tests covering both origins, sign-in, limits and the tester flow), a written threat model, a linter and a formatter in CI, and no third-party code in the server. It has not been penetration tested or reviewed by an independent security team. Read [docs/SECURITY.md](docs/SECURITY.md), run the tests, and have your own security people look at it before trusting it with anything that matters. Known weaknesses and the order they will be fixed in are in [docs/OBJECTIONS.md](docs/OBJECTIONS.md). Found something? See "Reporting a vulnerability" in the security document.
+Built in a few days with Claude Code. It has an end-to-end test suite (`cd server && npm test`, 16 tests covering both origins, sign-in, limits and the tester flow), a written threat model, a linter and a formatter in CI, and no third-party code in the server. What was checked and how is in [docs/TESTING.md](docs/TESTING.md). It has not been penetration tested or reviewed by an independent security team. Read [docs/SECURITY.md](docs/SECURITY.md), run the tests, and have your own security people look at it before trusting it with anything that matters. Known weaknesses and the order they will be fixed in are in [docs/OBJECTIONS.md](docs/OBJECTIONS.md). Found something? See "Reporting a vulnerability" in the security document.
 
 ## What you get
 
@@ -60,14 +60,14 @@ Built in a few days with Claude Code. It has an end-to-end test suite (`cd serve
 
 - **Nothing leaves your network** when you run it yourself. The server makes no outbound calls. With Google sign-in enabled, the one exception is the token exchange with Google during sign-in. Prototypes are served with a Content Security Policy that stops them loading from or sending to anywhere else.
 - **Prototypes run on their own origin.** The files are served from a second hostname or port, so a prototype's scripts cannot reach the console, the tester shell, or another share. This is the same separation GitHub Pages and CodePen use.
-- **Named access only.** Every viewer gets a personal link tied to their email. The link's secret is stored only as a hash, shown once when issued, and can be revoked or re-issued at any time. Optional passcode as a second factor. Optional SSO through your identity-aware proxy (Cloudflare Access, Google IAP, Azure AD App Proxy, oauth2-proxy).
+- **Named access only.** Every viewer gets a personal link tied to their email. The link's secret travels in the URL fragment so it never reaches a log, is stored only as a hash, shown once when issued, and can be revoked or re-issued at any time. Optional passcode as a second factor. Optional SSO through your identity-aware proxy (Cloudflare Access, Google IAP, Azure AD App Proxy, oauth2-proxy).
 - **Encrypted at rest.** Prototype files and metadata are AES-256-GCM encrypted with a key you hold.
 - **Each person sees only their own shares.** Sign in with Google or a personal token and the console shows what you created. The server admin token sees everything.
 - **Auditable.** Who opened what, when, from where, plus every rejected attempt and every admin action, in append-only logs trimmed to your retention window.
 - **Research is opt-in at every level.** A share is view only unless you set up a test. Interaction recording needs the tester's consent. Voice recording, dictation and typed-text capture are each off unless you turn them on for a share.
 - **Reviewable in an afternoon.** Ten small modules and no npm packages, so there is no supply chain to vet.
 
-What it is *not*: DRM. In a browser, a tester who can see a prototype can screenshot it. The watermark (viewer email over every screen) and the access log make that traceable. The optional [viewer app](viewer-app/README.md) uses the operating system's content-protection flag so screenshots and screen sharing of its window come out black on macOS and Windows. Nothing stops a phone camera.
+What it is *not*: DRM. In a browser, a tester who can see a prototype can screenshot it. The watermark (viewer email over every screen) and the access log make that traceable, and prototype pages open only inside the watermarked frame. The plain-language list of limits is [docs/WHAT-IT-CANNOT-DO.md](docs/WHAT-IT-CANNOT-DO.md). The optional [viewer app](viewer-app/README.md) uses the operating system's content-protection flag so screenshots and screen sharing of its window come out black on macOS and Windows. Nothing stops a phone camera.
 
 ## Sharing from the terminal or from Claude
 
@@ -132,7 +132,10 @@ docs/SECURITY.md           threat model, controls, review checklist
 docs/DEPLOYMENT.md         Docker, Cloud Run, reverse proxy, SSO and Google sign-in setup
 docs/PROCESS.md            how it was built: decisions, trade-offs, working with AI
 docs/OBJECTIONS.md         known weaknesses and the fix order
-docs/AUDIT.md              line-by-line code audit of 0.1.0 with findings and fixes
+docs/AUDIT.md              line-by-line code audit with findings, fixes and status
+docs/WHAT-IT-CANNOT-DO.md  the limits, in plain language, for designers
+docs/TESTING.md            how the code was checked, in plain language
+NEEDS-YOU.md               the owner's to-do list (delete when empty)
 design/                    design system and canvas mockups
 examples/sample-prototype  the prototype behind "Try it with the sample prototype"
 viewer-app/                optional desktop viewer with screenshot protection

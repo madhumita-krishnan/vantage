@@ -8,20 +8,20 @@ A personal token sees only the shares its owner created. Deleting a share is not
 
 ## Tools
 
-| Tool | Purpose |
-|---|---|
+| Tool                      | Purpose                                                                                                                                |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `vault_publish_prototype` | Upload a folder or HTML file; vendors CDN assets first; returns a personal link per viewer. View only unless tasks or a mode are given |
-| `vault_list_shares` | Shares with status, viewers, expiry |
-| `vault_get_share` | One share with its viewers. Links are shown once, when issued, and are not stored |
-| `vault_add_viewers` | Invite more people; returns their links |
-| `vault_revoke` | Revoke a share or one viewer |
-| `vault_extend` | Extend expiry |
-| `vault_set_intro` | Set the "Before you start" text or media |
-| `vault_add_subtitles` | Add captions or a translation to the intro video |
-| `vault_add_note` | Add a moderator note |
-| `vault_get_results` | Task outcomes, per-tester interaction summary, feedback |
-| `vault_get_activity` | Access log |
-| `vault_get_events` | Raw interaction events |
+| `vault_list_shares`       | Shares with status, viewers, expiry                                                                                                    |
+| `vault_get_share`         | One share with its viewers. Links are shown once, when issued, and are not stored                                                      |
+| `vault_add_viewers`       | Invite more people; returns their links                                                                                                |
+| `vault_revoke`            | Revoke a share or one viewer                                                                                                           |
+| `vault_extend`            | Extend expiry                                                                                                                          |
+| `vault_set_intro`         | Set the "Before you start" text or media                                                                                               |
+| `vault_add_subtitles`     | Add captions or a translation to the intro video                                                                                       |
+| `vault_add_note`          | Add a moderator note                                                                                                                   |
+| `vault_get_results`       | Task outcomes, per-tester interaction summary, feedback                                                                                |
+| `vault_get_activity`      | Access log                                                                                                                             |
+| `vault_get_events`        | Raw interaction events                                                                                                                 |
 
 ## Claude Code
 

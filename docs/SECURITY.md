@@ -26,8 +26,8 @@ A single Node.js process with no third-party packages that:
 |---|---|---|---|
 | Outsider guessing links | Nothing | 256-bit random link secrets, rate limit on redemption, every miss logged | |
 | Ex-tester with an old link | A link that was valid | Expiry, per-viewer revocation, link rotation, open limits | A link that is still valid and not yet revoked |
-| Tester who leaks content | A valid session | Watermark with their email on every screen, access log, viewer app with OS content protection | A phone camera; a browser screenshot |
-| Malicious or tampered prototype | Designer uploaded it | Runs on its own origin, cannot reach console or shell, CSP blocks all other origins | Whatever the prototype does inside its own frame |
+| Tester who leaks content | A valid session | Watermark with their email on every screen, pages served only inside the frame, access log, viewer app with OS content protection | A phone camera; a browser screenshot |
+| Malicious or tampered prototype | Designer uploaded it | Runs on its own origin, cannot reach console or shell, CSP blocks all other origins, no popups or downloads | Whatever the prototype does inside its own frame; another share open in the same browser, unless each share has its own hostname |
 | Stolen personal token | A token for one designer | Sees and changes only that designer's shares; revocable from the Account page; hashed at rest | Everything that designer could do until revoked |
 | Stolen server admin token | The shared token | Nothing inside the vault | Rotate `ADMIN_TOKEN` and revoke personal tokens |
 | Copy of the data directory | The disk without the key | AES-256-GCM on files and metadata; link secrets, tokens and passcodes stored as hashes | With the key, everything |
@@ -60,7 +60,7 @@ There are no passwords stored in the vault. Four ways in:
 
 **Visibility.** Everyone except the server admin token sees, changes and deletes only the shares they created. Personal tokens inherit their creator's view.
 
-**Limits.** `MAX_SHARES_PER_OWNER` and `MAX_STORAGE_MB_PER_OWNER` cap what one person can hold (0 = unlimited). `ENTITLEMENTS_MODULE` can point at a module exporting `limits(owner)` to decide per person; that is where a paid tier would plug in, outside this repository.
+**Limits.** `MAX_SHARES_PER_OWNER` and `MAX_STORAGE_MB_PER_OWNER` cap what one person can hold, counting prototype files, intro media and voice recordings (0 = unlimited). `ENTITLEMENTS_MODULE` can point at a module exporting `limits(owner)` to decide per person; that is where a paid tier would plug in, outside this repository.
 
 **Leaving.** A person can delete everything they made in one step (`POST /api/me/leave`, the Account page's "Delete everything I made and leave"): every share they created, with files, viewers, sessions, recordings, events and feedback, plus their tokens and sign-in sessions. Audit entries stay for the retention period.
 
@@ -72,8 +72,8 @@ A share is **view only** unless the creator sets up a usability test. A view-onl
 ### Viewers
 Three mechanisms, usable together:
 
-1. **Personal links** (default). Each invited person gets a 256-bit random secret bound to their email. The server keeps only its hash; the link is shown once when issued. Redeeming it creates a server-side session (HttpOnly, SameSite=Lax cookie scoped to that share's path) and the secret is removed from the URL by redirect. Links can be revoked individually, rotated, limited to N opens, and all die when the share expires or is revoked.
-2. **Passcode** (optional second factor). scrypt-hashed, checked asynchronously so a guess cannot stall the server. 8 attempts per IP per 15 minutes.
+1. **Personal links** (default). Each invited person gets a 256-bit random secret bound to their email. The server keeps only its hash; the link is shown once when issued. The secret rides in the URL fragment (`#k=`), which browsers never send to a server, so it stays out of proxy and platform request logs; the gate page posts it to the server over the same origin. Redeeming it creates a server-side session (HttpOnly, SameSite=Lax cookie scoped to that share's path). Links can be revoked individually, rotated, limited to N opens, and all die when the share expires or is revoked.
+2. **Passcode** (optional second factor). Six characters or more, scrypt-hashed, checked asynchronously so a guess cannot stall the server. 8 attempts per address per 15 minutes and 100 per share per hour, so a spoofed address does not help.
 3. **SSO header** (optional). With `TRUST_PROXY=1` and `TRUSTED_HEADER_EMAIL`, a viewer authenticated by your proxy is admitted if their email is on the share's viewer list or their domain is on the share's allowlist.
 
 Sessions expire after `SESSION_HOURS` (default 8) or when the share expires, whichever is first.
@@ -81,7 +81,11 @@ Sessions expire after `SESSION_HOURS` (default 8) or when the share expires, whi
 ### Two origins
 The console, the tester shell (consent, tasks, feedback, watermark) and the API live on the main origin. Prototype files and the interaction tracker are served **only** on the content origin (`CONTENT_ORIGIN`: a second port in quick start, a second hostname behind a proxy). The shell embeds the prototype in an iframe pointing at the content origin, handing over the tester's session through a one-time ticket that becomes a cookie there.
 
-Result: a prototype's scripts run on an origin that holds nothing but that prototype. They cannot read the shell's page, remove the watermark, call the console API, or touch another share. The prototype tells the shell which screen the tester is on through `postMessage`, and the shell accepts those messages only from the content origin.
+Result: a prototype's scripts run on an origin that holds nothing but that prototype. They cannot read the shell's page, remove the watermark, or call the console API. The prototype tells the shell which screen the tester is on through `postMessage`, and the shell accepts those messages only from the content origin.
+
+Pages on the content origin are served only to framed requests: a browser that reports a top-level navigation (`Sec-Fetch-Dest` other than `iframe`) is turned away, so pasting the content address into a new tab does not produce an unwatermarked copy. Browsers that do not send that header (Safari before 16.4) are not covered.
+
+With a single content hostname, shares are separated only by cookie path, which is not a security boundary: a hostile prototype could read another share that the same browser has open. `CONTENT_ORIGIN` with a wildcard gives each share its own hostname and closes that; see DEPLOYMENT.md.
 
 ### Content isolation
 Every prototype response carries a Content Security Policy that permits loading only from the content origin (`'self'`), plus any origins explicitly allowed by both the server (`ALLOWED_EXTERNAL_ORIGINS`) and the share. `frame-ancestors` names the main origin so the prototype cannot be embedded elsewhere. All responses are `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`, `X-Content-Type-Options: nosniff`. `'unsafe-inline'` and `'unsafe-eval'` are allowed for scripts because prototypes are single-file by nature; the CSP's job here is egress control.
@@ -90,7 +94,7 @@ Every prototype response carries a Content Security Policy that permits loading 
 Bundle paths are normalised; `..`, absolute paths and control characters are rejected at upload and at serve time. Serving resolves within the share's directory and checks the prefix.
 
 ### Rate limits
-In-memory per-process limits on link redemption (30 per IP per 10 min), passcode attempts (8 per IP per 15 min), event and feedback posts per session. Over 50,000 tracked keys the oldest is dropped. Behind a proxy, let the proxy be the primary limiter.
+In-memory per-process limits on link redemption (30 per address per 10 min), passcode attempts (8 per address per 15 min, 100 per share per hour), tickets, voice segments, event and feedback posts per session, plus a per-session ceiling on recorded events (20,000 or 5 MB). Over 50,000 tracked keys the oldest is dropped. Behind a proxy the client address is read `TRUSTED_PROXY_HOPS` entries from the right of `X-Forwarded-For`, so a caller cannot choose it. Let the proxy be the primary limiter.
 
 ### CSRF
 Viewer and content-origin POSTs check the `Origin` header against the vault's own origins. Cookie-authenticated console requests that change anything do the same. Bearer tokens are not attached by browsers automatically.
@@ -127,7 +131,8 @@ TRUSTED_HEADER_EMAIL=<your proxy's email header>
 ADMIN_EMAILS=designer1@company.com,designer2@company.com
 VAULT_ENCRYPTION_KEY=<64 hex chars, from a secrets manager>
 PUBLIC_URL=https://prototypes.internal.company.com
-CONTENT_ORIGIN=https://prototypes-content.internal.company.com
+CONTENT_ORIGIN=https://*.prototypes-content.internal.company.com   (a wildcard, one origin per share; or a single hostname)
+TRUSTED_PROXY_HOPS=1
 DEFAULT_EXPIRY_DAYS=7
 MAX_EXPIRY_DAYS=30
 RETENTION_DAYS=7
@@ -158,4 +163,4 @@ ALLOWED_EXTERNAL_ORIGINS=          (empty)
 - Testers are told, before anything is recorded, what is captured and that access is logged regardless. They can decline recording and still use the prototype.
 - Recorded data is tied to the invited email; treat it as personal data. Voice recordings and click-level behaviour recording of individuals are the kind of processing that triggers a Data Protection Impact Assessment in Europe; sections 2, 3 and 4 give the inputs.
 - Recording employees' interactions may need works-council or equivalent agreement in some countries regardless of individual consent. View-only mode records nothing and needs none.
-- Deleting a share removes its files, metadata, audit, events and feedback. The `_admin.ndjson` log keeps admin actions and access events until they age out of `RETENTION_DAYS`.
+- Deleting a share removes its files, metadata, audit, events and feedback. `RETENTION_DAYS` after a share expires the server deletes it the same way, on its own. The `_admin.ndjson` log keeps admin actions and access events until they age out of the same window.

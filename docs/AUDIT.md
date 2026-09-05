@@ -30,9 +30,13 @@ Severity: **High** = exploitable now with real impact; **Medium** = exploitable 
 
 Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 5 are the ones a security reviewer will lead with.
 
+**Update, version 0.2.0 (same day):** seventeen findings fixed, two (1 and 18) done on the code side and waiting on infrastructure or a product decision. Each finding below carries its status.
+
 ---
 
 ## 1. One content origin for every share (High, M)
+
+**Status, 0.2.0:** code side done. `CONTENT_ORIGIN` accepts a wildcard and each share then gets its own hostname; the content policy no longer allows one share to frame another. The wildcard DNS and certificate are the owner's to set up (NEEDS-YOU.md).
 
 **Where.** `server/lib/config.js:77-79` (one `CONTENT_ORIGIN`), `server/lib/viewer.js:228-245` (`handleContent`), `server/lib/shares.js:304-311` (content cookie scoped by path).
 
@@ -44,6 +48,8 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 
 ## 2. Spoofable client IP behind a proxy (High on Cloud Run, S)
 
+**Status, 0.2.0:** fixed. Address read from the right (`TRUSTED_PROXY_HOPS`), per-share passcode cap, six-character minimum. Tested.
+
 **Where.** `server/lib/http.js:55-58`.
 
 **What is wrong.** With `TRUST_PROXY=1` the client IP is the *first* value of `X-Forwarded-For`. Google's front end, like most load balancers, appends the real client address to whatever the client already sent. So a client that sends `X-Forwarded-For: 1.2.3.4` is recorded as `1.2.3.4`, and every rate limit keyed by IP (link redemption, passcode attempts) resets with each new fake value. A four-digit passcode has ten thousand combinations; the eight-per-fifteen-minutes limit becomes no limit. The audit log's IP column is also attacker-chosen.
@@ -51,6 +57,8 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 **Fix.** Take the address from the right-hand end: with one trusted proxy, the last entry. Add `TRUSTED_PROXY_HOPS` (default 1) and use `parts[parts.length - hops]`. Behind Cloudflare, prefer `CF-Connecting-IP`. Separately, add a per-share failure cap on passcodes that does not depend on IP (for example, 50 failures per share per hour locks the passcode until the designer rotates it), and require six characters instead of four.
 
 ## 3. Google sign-in cannot download, play or upload (Medium bug, S)
+
+**Status, 0.2.0:** fixed in the three console helpers.
 
 **Where.** `server/public/admin.html`, functions `download`, `blobUrl` and `uploadXhr`. They send `Authorization: Bearer ` + token unconditionally. A Google-signed-in session has no token, so the header is `Bearer ` with nothing after it. `adminFromReq` (`server/lib/admin.js:28-33`) sees a Bearer header, finds no matching token, and returns null before it ever looks at the cookie.
 
@@ -60,6 +68,8 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 
 ## 4. Watermark bypass by direct navigation (Medium, S)
 
+**Status, 0.2.0:** fixed. `Sec-Fetch-Dest` check on content pages; popups and downloads removed from the sandbox. Tested.
+
 **Where.** `server/lib/viewer.js:212-225` (`serveFile`), `server/public/viewer.html` (sandbox attribute).
 
 **What is wrong.** After the shell loads a prototype, the tester's browser holds a content-origin cookie. Nothing stops the tester from pasting `https://content…/p/<id>/app/index.html` into a new tab, or the prototype from calling `window.open` on itself (the sandbox grants `allow-popups`). Either way the prototype renders full-screen with no shell, no watermark, no Feedback button. The watermark is the one leak deterrent the README promises.
@@ -67,6 +77,8 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 **Fix.** Serve HTML on the content origin only to framed requests: refuse when `Sec-Fetch-Dest` is present and is not `iframe` or `frame` (Chrome, Firefox and Safari 16.4+ send it). Return a small page saying "open this from your link". Subresources carry other destinations and are unaffected. Remove `allow-popups` from the sandbox. Old browsers without the header still get through; this is a deterrent, and the docs should say so.
 
 ## 5. Link secret in the query string (Medium on hosted, S)
+
+**Status, 0.2.0:** fixed. Links use `#k=` and a same-origin POST; `?k=` still accepted. Tested.
 
 **Where.** `server/lib/shares.js:194-198` (`issueLink`), `server/lib/viewer.js:262-290` (redemption reads `?k=`).
 
@@ -76,6 +88,8 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 
 ## 6. Oversized event data returns 500 (Medium bug, S)
 
+**Status, 0.2.0:** fixed and tested.
+
 **Where.** `server/lib/viewer.js:107`: `JSON.parse(JSON.stringify(e.data).slice(0, 2000))`.
 
 **What is wrong.** Slicing a JSON string at 2,000 characters produces invalid JSON whenever the data is longer, and `JSON.parse` throws. The whole batch of up to 500 events is lost and the tester's tracker gets a 500. A prototype with a long `aria-label` or a `custom` event with a big payload triggers it by accident; a tester triggers it on purpose.
@@ -83,6 +97,8 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 **Fix.** Keep the data as a string if it is over the limit, or drop it: `const raw = JSON.stringify(e.data); data = raw.length > 2000 ? { truncated: raw.slice(0, 2000) } : e.data`.
 
 ## 7. CSV formula injection (Medium, S)
+
+**Status, 0.2.0:** fixed and tested.
 
 **Where.** `server/lib/results.js:56-79` (`eventsCsv`).
 
@@ -92,6 +108,8 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 
 ## 8. Storage limit does not count media (Medium on hosted, S)
 
+**Status, 0.2.0:** fixed. Media and recordings count toward the owner's limit, recording uploads are rate-limited, `MAX_MEDIA_MB` defaults to 200. Tested.
+
 **Where.** `server/lib/shares.js:151-161` (`enforceLimits` sums only `files.bytes`), `server/lib/media.js:115-136` (`appendRecording` caps at `MAX_MEDIA_MB`, default 1,024 per share).
 
 **What is wrong.** A person capped at 200 MB of prototypes can still upload a 1 GB intro video per share, and every invited tester can stream up to the same 1 GB of voice segments into a share whether the designer wants them or not (the endpoint has no rate limit). On a free hosted tier this is how the disk fills.
@@ -99,6 +117,8 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 **Fix.** Count intro media and recordings toward the owner's storage in `enforceLimits`, check it in `storeIntro` and `appendRecording`, lower `MAX_MEDIA_MB` to 200 by default, and rate-limit the recording endpoint per session.
 
 ## 9. Events are limited by count, not size (Medium on hosted, S)
+
+**Status, 0.2.0:** fixed. 20,000 events or 5 MB per session.
 
 **Where.** `server/lib/viewer.js:93-110`.
 
@@ -108,11 +128,15 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 
 ## 10. Activity filter prefix match (Low, S)
 
+**Status, 0.2.0:** fixed.
+
 **Where.** `server/lib/admin.js:442-443`: `String(r.by || '').startsWith(ownerOf(admin))`.
 
 **What is wrong.** `ana@x.co` is a prefix of `ana@x.com`, so a person with the shorter address sees the longer address's account activity (share names, token names). `ownsShare` in `shares.js:102-105` gets this right by requiring `owner + ' via '`; the activity filter should reuse it.
 
 ## 11. Unbounded ticket minting (Low, S)
+
+**Status, 0.2.0:** fixed. 20 tickets per session per minute.
 
 **Where.** `server/lib/viewer.js:142-149`.
 
@@ -120,11 +144,15 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 
 ## 12. Retention keeps metadata, events and feedback forever (Low, privacy, S)
 
+**Status, 0.2.0:** fixed. The whole share is deleted after the retention window. Tested.
+
 **Where.** `server/lib/shares.js:345-365` (`sweep` purges only files).
 
 **What is wrong.** The docs say data is retained for `RETENTION_DAYS` after expiry. Prototype files are; viewer names and emails, sessions, recorded events and feedback text stay until someone deletes the share by hand. Delete the whole share (metadata and logs) once the retention window passes, and say so in SECURITY.md.
 
 ## 13. No recovery path for a damaged store (Low, ops, S)
+
+**Status, 0.2.0:** fixed. `store.json.bak` is kept and the error names it. Tested.
 
 **Where.** `server/lib/store.js:16-29` (`load` has no error handling), `37-42` (`flush` writes then renames).
 
@@ -132,11 +160,15 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 
 ## 14. Sandbox flags the prototype does not need (Low, S)
 
+**Status, 0.2.0:** fixed.
+
 **Where.** `server/public/viewer.html`, the iframe's `sandbox` attribute grants `allow-popups` and `allow-downloads`.
 
 **What is wrong.** Popups are the watermark bypass in finding 4. Downloads let a prototype push a file at the tester. Neither is something a usability prototype needs. Drop both; keep `allow-scripts allow-same-origin allow-forms allow-modals`.
 
 ## 15. Unhandled `decodeURIComponent` (Low, S)
+
+**Status, 0.2.0:** fixed.
 
 **Where.** `server/lib/admin.js:327` and `:362` (headers `x-file-name`, `x-label`), `server/lib/viewer.js:243` (`rest.slice(5)`).
 
@@ -144,11 +176,15 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 
 ## 16. Framing depends on `PUBLIC_URL` (Low, bug, S)
 
+**Status, 0.2.0:** fixed. The shell's origin is recorded on the session when the frame is opened.
+
 **Where.** `server/lib/config.js:80` (`mainOrigin` falls back to `http://localhost:<port>`), used by `viewer.js:53` (`frame-ancestors`) and `:87` (tracker's `shell` origin).
 
 **What is wrong.** In Docker or on a LAN without `PUBLIC_URL`, the console is opened as `http://192.168.x.y:8787` but the content origin only allows `http://localhost:8787` to frame it, and the tracker posts location messages to the wrong origin. Prototypes render blank. The server already knows the shell's real origin when it mints the ticket (`baseUrl(req)`); store it on the session and use it for both headers.
 
 ## 17. MCP publish takes any path (Low, AI agent, S)
+
+**Status, 0.2.0:** fixed. Paths outside the working directory need `allowAnyPath`; a top-level HTML file and under 2,000 files are required.
 
 **Where.** `mcp/server.js:192-217` passes `a.path` straight to `cli/lib.js:243` (`publish`), which walks the folder and uploads every file.
 
@@ -156,11 +192,15 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 
 ## 18. Phishing through the hosted service (Low, abuse, M)
 
+**Status, 0.2.0:** partly. The shell shows who shared the prototype, the consent text names custom events, and `ABUSE_EMAIL` puts a report address in front of testers. Open sign-up itself is a product decision; `ALLOWED_SIGNIN_DOMAINS` exists for teams that want it closed.
+
 **Where.** Open sign-up (`config.js:40`), custom events (`server/public/tracker.js`, `window.vault.event`).
 
 **What is wrong.** Anyone with a Google account can publish an arbitrary page on your content domain and send "personal links" to victims. The CSP stops the page sending anything to the internet, but `window.vault.event('pw', value)` records typed values into the events log that the page's owner reads back. So the service can host credential-harvesting pages that look legitimate. Mitigations: show the sharing designer's email in the shell header so the tester sees who sent it, offer a report-abuse link on every tester page, and keep `recordText` and custom events off unless consent was given (they are, through `recording`, but the consent text should name custom events).
 
 ## 19. No sign-in domain allowlist (Low, feature, S)
+
+**Status, 0.2.0:** fixed (`ALLOWED_SIGNIN_DOMAINS`).
 
 **Where.** `server/lib/admin.js:123`.
 

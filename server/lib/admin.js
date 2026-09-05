@@ -19,6 +19,7 @@ module.exports = function admin(ctx) {
     setCookie,
     isHttps,
     clientIp,
+    dec,
   } = H;
   const now = Date.now;
   const ownerOf = (admin) => admin.owner || admin.who;
@@ -120,7 +121,8 @@ module.exports = function admin(ctx) {
       !email
     )
       throw httpError(403, 'Sign-in could not be verified');
-    if (CONFIG.adminEmails.length && !CONFIG.adminEmails.includes(email)) {
+    const listed = CONFIG.adminEmails.includes(email) || CONFIG.allowedSigninDomains.includes(email.split('@')[1]);
+    if ((CONFIG.adminEmails.length || CONFIG.allowedSigninDomains.length) && !listed) {
       S.logAudit(null, 'admin.denied', req, { email });
       return gate(
         req,
@@ -277,7 +279,7 @@ module.exports = function admin(ctx) {
     }
     if (sub === 'bundle' && (method === 'PUT' || method === 'POST')) {
       const b = await readJson(req, CONFIG.maxUploadBytes);
-      S.setBundle(share, b.files, b.entry, admin);
+      S.setBundle(share, b.files, b.entry);
       store.save();
       S.logAudit(share, 'bundle.replaced', req, { by: admin.who, files: share.files.count, bytes: share.files.bytes });
       return view(req, res, share);
@@ -322,9 +324,19 @@ module.exports = function admin(ctx) {
           );
         if (+(req.headers['content-length'] || 0) > CONFIG.maxMediaBytes)
           throw httpError(413, `Media larger than ${Math.round(CONFIG.maxMediaBytes / 1048576)} MB`);
+        const declared = +(req.headers['content-length'] || 0);
+        S.enforceLimits(share, declared - ((share.intro && share.intro.media && share.intro.media.size) || 0));
         S.removeMedia(share.id);
+        share.intro = { kind: 'default', text: (share.intro && share.intro.text) || '', media: null };
         const size = await M.storeIntro(req, share.id, CONFIG.maxMediaBytes);
-        const name = decodeURIComponent(String(req.headers['x-file-name'] || 'intro'))
+        try {
+          S.enforceLimits(share, size); // the declared length was the client's word; this is the real one
+        } catch (e) {
+          S.removeMedia(share.id);
+          store.save();
+          throw e;
+        }
+        const name = dec(String(req.headers['x-file-name'] || 'intro'))
           .replace(/[^\w.\- ()]/g, '_')
           .slice(0, 120);
         share.intro = {
@@ -359,7 +371,7 @@ module.exports = function admin(ctx) {
         M.writeSubtitle(share, lang, buf);
         share.intro.subtitles.push({
           lang,
-          label: decodeURIComponent(String(req.headers['x-label'] || lang)).slice(0, 40),
+          label: dec(String(req.headers['x-label'] || lang)).slice(0, 40),
           size: buf.length,
         });
         S.logAudit(share, 'intro.subtitles_uploaded', req, { by: admin.who, lang });
@@ -439,8 +451,12 @@ module.exports = function admin(ctx) {
     const tm = p.match(/^\/api\/tokens(?:\/([A-Za-z0-9_-]+))?$/);
     if (tm) return tokens(req, res, admin, tm[1]);
     if (p === '/api/activity' && method === 'GET') {
+      const owner = ownerOf(admin);
       const own = (r) =>
-        admin.kind === 'server-token' || String(r.by || '').startsWith(ownerOf(admin)) || r.email === ownerOf(admin);
+        admin.kind === 'server-token' ||
+        r.by === owner ||
+        String(r.by || '').startsWith(owner + ' via ') ||
+        r.email === owner;
       return json(req, res, 200, {
         activity: audit
           .read('_admin', 5000)
