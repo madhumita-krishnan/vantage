@@ -132,6 +132,7 @@ docs/SECURITY.md           threat model, controls, review checklist
 docs/DEPLOYMENT.md         Docker, Cloud Run, reverse proxy, SSO and Google sign-in setup
 docs/PROCESS.md            how it was built: decisions, trade-offs, working with AI
 docs/OBJECTIONS.md         known weaknesses and the fix order
+docs/AUDIT.md              line-by-line code audit of 0.1.0 with findings and fixes
 design/                    design system and canvas mockups
 examples/sample-prototype  the prototype behind "Try it with the sample prototype"
 viewer-app/                optional desktop viewer with screenshot protection
