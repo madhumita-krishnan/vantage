@@ -12,9 +12,9 @@ I've hit a wall, and even Claude itself can't seem to solve this:
 - Chat artifacts only allow internal sharing.
 - I tried Figma plugins, but the best one I found only imports HTML page by page, without interactions.
 
-## What this really asks for
+## What this asks for
 
-Reading between the lines, an enterprise designer needs all of the following at once:
+An enterprise designer needs all of the following at once:
 
 | Need | Why the usual options fail |
 |---|---|

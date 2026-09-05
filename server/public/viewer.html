@@ -1,94 +1,861 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><title>Prototype</title><link rel="stylesheet" href="/vault.css">
-<style>
-body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
-header{height:44px;display:flex;align-items:center;gap:var(--s3);padding:0 var(--s3);background:var(--panel);border-bottom:1px solid var(--line);flex:none;z-index:5}header .btn.small{height:32px}
-header .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-header .spacer{flex:1}header .who{color:var(--muted);font-size:12px;white-space:nowrap}
-main{position:relative;flex:1;min-height:0;display:flex}
-iframe{flex:1;border:0;width:100%;height:100%;background:#fff}
-#wm{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:.09;background-repeat:repeat}
-@media (prefers-color-scheme:dark){#wm{opacity:.12}}
-aside{width:var(--panel-w);max-width:90vw;flex:none;background:var(--panel);border-left:1px solid var(--line);display:none;flex-direction:column;z-index:4}
-aside.open{display:flex}aside h2{font-size:14px;line-height:20px;margin:0;padding:var(--s3) var(--gutter);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:var(--s2)}
-aside .body{padding:var(--gutter) var(--gutter) calc(var(--gutter-b) + var(--safe-b));display:flex;flex-direction:column;gap:var(--s3)}
-.task{border:1px solid var(--line);border-radius:var(--r-control);padding:var(--s3);display:flex;flex-direction:column;gap:var(--s2)}.task .t{font-weight:500}.task.done{opacity:.55}.task .actions{display:flex;gap:var(--s2)}.task textarea{min-height:56px}.task .btn{min-height:var(--touch)}.task.new{border-color:var(--accent)}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:20;padding:var(--gutter)}
-.modal .card{max-width:560px;width:100%;max-height:calc(100dvh - 2*var(--gutter));padding:0;display:flex;flex-direction:column;overflow:hidden}
-.modal h1{font-size:18px;line-height:24px;margin:0;padding:var(--gutter) var(--gutter) var(--s3);flex:none}
-.modal .mbody{padding:0 var(--gutter) var(--gutter-b);display:flex;flex-direction:column;gap:var(--s4)}
-.modal .mfoot{flex:none;padding:var(--s3) var(--gutter) calc(var(--gutter) + var(--safe-b));border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:var(--s2);flex-wrap:wrap}
-.modal h2{font-size:14px;line-height:20px;font-weight:600;margin:0}.modal p{color:var(--muted);margin:0}.modal ul{margin:0;padding-left:18px;color:var(--muted);display:flex;flex-direction:column;gap:var(--s1)}.modal .btn{min-height:var(--touch)}
-.intro{display:flex;flex-direction:column;gap:var(--s2);color:var(--ink)}.intro p{color:var(--ink)}.intro ul{color:var(--ink)}
-.modal .consent{display:flex;flex-direction:column;gap:var(--s3)}.intro+.consent{border-top:1px solid var(--line);padding-top:var(--s4)}
-.badge{font-size:11px;background:var(--accent);color:var(--accent-ink);border-radius:99px;padding:0 6px;margin-left:4px}
-@media (max-width:700px){
-  .modal{align-items:flex-end;padding:0}.modal .card{max-width:none;max-height:88dvh;border-radius:var(--r-sheet) var(--r-sheet) 0 0;border-bottom:0}
-  .modal h1{font-size:16px;line-height:24px;padding:var(--s3) var(--gutter);border-bottom:1px solid var(--line)}.modal .mbody{padding-top:var(--gutter)}
-  aside{position:absolute;left:0;right:0;bottom:0;width:100%;max-width:none;height:55%;border-left:0;border-top:1px solid var(--line);border-radius:var(--r-sheet) var(--r-sheet) 0 0;box-shadow:0 -8px 24px rgba(0,0,0,.15)}
-  header{padding:0 var(--s2);gap:var(--s2)}header .who{display:none}header .pill{display:none}header .rec span{display:none}
-}
-</style></head>
-<body>
-<header><svg class="i lg" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg><span class="name" id="name">Loading…</span><span class="pill">Confidential</span><span class="spacer"></span><span class="rec" id="recInd" hidden><i></i><span>Recording voice</span><button class="btn small" id="recStop" style="height:22px;padding:0 6px;font-size:11px">Stop</button></span><span class="who" id="who"></span><button class="btn small" id="btnTasks" hidden>Tasks<span class="badge" id="taskCount"></span></button><button class="btn small primary" id="btnFeedback">Feedback</button></header>
-<main><iframe id="frame" title="Prototype" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"></iframe><div id="wm" hidden></div>
-<aside id="panel"><h2><span id="panelTitle">Feedback</span><span class="row"><button class="btn small" id="btnHide" hidden title="Hide the task list for this session">Hide tasks</button><button class="btn small" id="btnClose">Close</button></span></h2><div class="scrollwrap"><div class="body scroll" id="panelBody"></div></div></aside></main>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script>
-(function(){
-  var id=location.pathname.split('/')[2]; var base='/p/'+id; var meta=null; var panelMode='feedback'; var results={}; var revealed={}; var tasksHidden=false; var start=Date.now(); var rec=null;
-  var MIC='<svg class="i" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>';
-  function $(s){return document.querySelector(s)}
-  function api(ep,body){return fetch(base+'/_vault/'+ep,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,credentials:'same-origin'}).then(function(r){if(r.status===401||r.status===410){location.reload();throw new Error('session')}return r.json()})}
-  function toast(m,ms){var t=$('#toast');t.innerHTML='<span></span><button type="button" class="x" aria-label="Dismiss">\u00d7</button>';t.firstChild.textContent=m;t.classList.add('show');clearTimeout(t._h);function hide(){t.classList.remove('show')}t._h=setTimeout(hide,ms||Math.min(8000,Math.max(3000,1000+m.length*50)));t.lastChild.onclick=hide;t.onmouseenter=function(){clearTimeout(t._h)};t.onmouseleave=function(){t._h=setTimeout(hide,1500)}}
-  function cues(){document.querySelectorAll('.scrollwrap>.scroll').forEach(function(el){if(!el._cue){el._cue=1;el.addEventListener('scroll',cues)}el.parentElement.classList.toggle('more',el.scrollHeight-el.scrollTop-el.clientHeight>4)})}
-  document.addEventListener('scroll',cues,true);window.addEventListener('resize',cues);
-  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-  function frameLocation(){try{var l=$('#frame').contentWindow.location;return l.pathname.replace(base+'/app/','')+l.search+l.hash}catch(e){return ''}}
-  function watermark(text){var svg='<svg xmlns="http://www.w3.org/2000/svg" width="360" height="200"><text x="0" y="110" font-family="Helvetica,Arial,sans-serif" font-size="15" fill="#000" transform="rotate(-24 180 100)">'+text.replace(/[<>&]/g,'')+'</text></svg>';var w=$('#wm');w.style.backgroundImage='url("data:image/svg+xml;utf8,'+encodeURIComponent(svg)+'")';w.hidden=false}
-  // ---- dictation (speech to text) ----
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  function withMic(html){if(!(meta.dictation&&SR))return html;return '<div class="withmic">'+html+'<button type="button" class="mic" title="Dictate">'+MIC+'</button></div>'}
-  function wireMics(root){if(!(meta.dictation&&SR))return;root.querySelectorAll('.mic').forEach(function(b){var ta=b.parentElement.querySelector('textarea');var r=null;b.onclick=function(){if(r){r.stop();return}r=new SR();r.lang=navigator.language||'en';r.continuous=true;r.interimResults=true;var baseText=ta.value;r.onresult=function(e){var fin='',tmp='';for(var i=0;i<e.results.length;i++){(e.results[i].isFinal?fin+=e.results[i][0].transcript:tmp+=e.results[i][0].transcript)}ta.value=(baseText?baseText+' ':'')+fin+tmp};r.onend=function(){b.classList.remove('on');r=null};r.onerror=function(){b.classList.remove('on');r=null;toast('Dictation is not available here. You can still type.')};b.classList.add('on');r.start()}})}
-  // ---- think-aloud voice recording ----
-  function startVoice(){if(!navigator.mediaDevices||!window.MediaRecorder){toast('Voice recording is not supported in this browser');return}
-    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){var mime=['audio/webm;codecs=opus','audio/webm','audio/mp4'].filter(function(m){return MediaRecorder.isTypeSupported(m)})[0];var mr=new MediaRecorder(stream,mime?{mimeType:mime,audioBitsPerSecond:32000}:undefined);var seq=0;
-      mr.ondataavailable=function(e){if(!e.data||!e.data.size)return;var n=seq++;fetch(base+'/_vault/recording?seq='+n,{method:'POST',headers:{'Content-Type':(mr.mimeType||'audio/webm').split(';')[0]},body:e.data,credentials:'same-origin',keepalive:true}).catch(function(){})};
-      mr.start(5000);rec={mr:mr,stream:stream};$('#recInd').hidden=false;toast('Recording your voice. Think aloud as you go. Press Stop in the header to end it.');api('events',[{t:Date.now()-start,type:'voice.start',path:frameLocation(),data:{}}]).catch(function(){})}).catch(function(){toast('Microphone access was not allowed. Continuing without voice recording.',4000)})}
-  function stopVoice(){if(!rec)return;try{rec.mr.stop();rec.stream.getTracks().forEach(function(t){t.stop()})}catch(e){}rec=null;$('#recInd').hidden=true;toast('Voice recording stopped')}
-  $('#recStop').onclick=stopVoice;window.addEventListener('pagehide',function(){if(rec){try{rec.mr.requestData();rec.mr.stop()}catch(e){}}});
-  // ---- tasks & questions with schedule ----
-  function tasks(){return (meta.tasks||[]).map(function(t,i){t.index=i;return t})}
-  function visibleTasks(){return tasks().filter(function(t){return revealed[t.index]})}
-  function reveal(i,announce){if(revealed[i])return;revealed[i]=true;var t=tasks()[i];var left=visibleTasks().filter(function(x){return !results[x.index]}).length;$('#taskCount').textContent=left||'';if(announce){toast((t.kind==='question'?'New question: ':'New task: ')+t.text,5000);if(panelMode==='tasks'&&$('#panel').classList.contains('open'))render()}}
-  function checkTriggers(){if(!meta.showTasks)return;var loc=frameLocation();var mins=(Date.now()-start)/60000;tasks().forEach(function(t){if(revealed[t.index])return;var w=t.when||{type:'start'};if(w.type==='start')reveal(t.index,false);else if(w.type==='after'&&results[w.value])reveal(t.index,true);else if(w.type==='minutes'&&mins>=w.value)reveal(t.index,true);else if(w.type==='screen'&&w.value&&loc.indexOf(w.value)>=0)reveal(t.index,true)})}
-  function openPanel(mode){panelMode=mode;$('#panel').classList.add('open');$('#panelTitle').textContent=mode==='tasks'?'Tasks':'Feedback';$('#btnHide').hidden=mode!=='tasks';render();cues()}
-  function render(){var b=$('#panelBody');if(panelMode==='feedback'){b.innerHTML='<p class="muted" style="margin:0">Tell the designer what you noticed. Where you are in the prototype is attached automatically.</p>'+withMic('<textarea id="fbText" placeholder="What happened? What did you expect?"></textarea>')+'<div class="row" style="justify-content:flex-end"><button class="btn primary" id="fbSend" style="min-height:44px">Send feedback</button></div>';wireMics(b);$('#fbSend').onclick=function(){var t=$('#fbText').value.trim();if(!t)return;api('feedback',{kind:'feedback',text:t,location:frameLocation()}).then(function(){$('#fbText').value='';toast('Thanks, feedback sent')})};return}
-    var list=visibleTasks();var pendingCount=tasks().length-list.length;
-    b.innerHTML='<p class="muted" style="margin:0">'+(list.length?'Try each one in the prototype, then mark how it went.':'Tasks will appear here as you go.')+'</p>'+list.map(function(t){var r=results[t.index];var n=t.index+1;
-      if(t.kind==='question')return '<div class="task'+(r?' done':'')+'" data-i="'+t.index+'"><div class="t">'+n+'. '+esc(t.text)+'</div>'+(r?'<div class="muted">Answered</div>':withMic('<textarea placeholder="Your answer"></textarea>')+'<div class="actions"><button class="btn" data-r="answer">Send answer</button></div>')+'</div>';
-      return '<div class="task'+(r?' done':'')+'" data-i="'+t.index+'"><div class="t">'+n+'. '+esc(t.text)+'</div>'+(r?'<div class="muted">Marked as '+(r==='done'?'completed':'could not complete')+'</div>':'<div class="actions"><button class="btn" data-r="done">Completed</button><button class="btn" data-r="stuck">Couldn\'t do it</button></div>'+withMic('<textarea placeholder="Optional note"></textarea>'))+'</div>'}).join('')+(pendingCount?'<p class="muted" style="margin:0">'+pendingCount+' more will appear as you go.</p>':'');
-    wireMics(b);cues();
-    b.querySelectorAll('.task button[data-r]').forEach(function(btn){btn.onclick=function(){var card=btn.closest('.task');var i=+card.dataset.i;var note=(card.querySelector('textarea')||{value:''}).value.trim();if(btn.dataset.r==='answer'&&!note){toast('Type or dictate an answer first');return}api('feedback',{kind:'task',taskIndex:i,result:btn.dataset.r,text:note,location:frameLocation()}).then(function(){results[i]=btn.dataset.r;checkTriggers();var left=visibleTasks().filter(function(x){return !results[x.index]}).length;$('#taskCount').textContent=left||'';render();toast(left?left+' left':'All done, thank you')})}})}
-  function start_(){document.title=meta.name;$('#name').textContent=meta.name;$('#who').textContent='Viewing as '+meta.viewer.name;
-    if(meta.watermark)watermark(meta.viewer.email+' · '+new Date().toISOString().slice(0,10));
-    if(!meta.hasBundle){$('#frame').srcdoc='<p style="font-family:sans-serif;padding:20px">The prototype files have not been uploaded yet.</p>';return}
-    $('#frame').src=base+'/app/'+meta.entry;
-    if(meta.showTasks&&tasks().length){$('#btnTasks').hidden=false;checkTriggers();setInterval(checkTriggers,1000);var n=visibleTasks().length;if(n){if(window.innerWidth>700&&meta.mode!=='moderated')openPanel('tasks');else toast(n+(n>1?' tasks':' task')+' to try — tap Tasks')}}}
-  // ---- intro + consent ----
-  function fmtText(t){function inline(x){return esc(x).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}return String(t||'').split(/\n\s*\n/).map(function(block){var lines=block.split('\n');if(lines.every(function(l){return /^\s*-\s+/.test(l)}))return '<ul>'+lines.map(function(l){return '<li>'+inline(l.replace(/^\s*-\s+/,''))+'</li>'}).join('')+'</ul>';return '<p>'+inline(block).replace(/\n/g,'<br>')+'</p>'}).join('')}
-  function introHtml(){var i=meta.intro||{kind:'default'};var h='';
-    if(i.kind==='video'&&i.media){var subs=i.subtitles||[];var lang=(navigator.language||'en').toLowerCase();h+='<div class="media"><video id="introVideo" controls playsinline preload="metadata" crossorigin="use-credentials" src="'+base+'/_vault/intro">'+subs.map(function(s){return '<track kind="subtitles" srclang="'+esc(s.lang)+'" label="'+esc(s.label)+'" src="'+base+'/_vault/subtitles/'+encodeURIComponent(s.lang)+'"'+(lang.indexOf(s.lang.toLowerCase())===0?' default':'')+'>'}).join('')+'</video><div class="controls">'+(subs.length?'<label class="hint">Captions</label><select id="ccSel"><option value="">Off</option>'+subs.map(function(s){return '<option value="'+esc(s.lang)+'"'+(lang.indexOf(s.lang.toLowerCase())===0?' selected':'')+'>'+esc(s.label)+'</option>'}).join('')+'</select>':'')+'<button type="button" class="btn small" id="fsBtn">Full screen</button></div></div>'}
-    if(i.kind==='audio'&&i.media)h+='<div class="media"><audio controls preload="metadata" src="'+base+'/_vault/intro"></audio></div>';
-    if(i.text)h+=fmtText(i.text);return h?'<div class="intro">'+h+'</div>':''}
-  function consentBody(){var needs=meta.recordSessions&&meta.requireConsent&&meta.consent===null;var h='<h1>Before you start</h1><div class="scrollwrap"><div class="mbody scroll">'+introHtml();
-    if(needs)h+='<div class="consent"><h2>What gets recorded</h2><p>'+(meta.mode==='moderated'?'Your moderator will guide you. The prototype would also like to record how you use it:':'The designer would like to record how you use the prototype:')+'</p><ul><li>Taps and clicks, and where on the screen</li><li>Screens you visit and how long you stay</li><li>Fields you focus on, never what you type</li>'+(meta.recordText?'<li>What you type into the prototype (it holds sample data, not your own)</li>':'')+(meta.voice?'<li>Your voice, if you leave the switch on. A red Recording pill stays in the header and you can stop it at any time.</li>':'')+'</ul>'+(meta.voice?'<label class="opt"><input type="checkbox" id="voiceOpt" checked><span class="sw"></span><span>Record my voice so I can think aloud while I test</span></label>':'')+'<p class="hint">Your visit is logged either way. Recording is optional.</p></div></div></div><div class="mfoot"><button class="btn" id="cNo">Don\'t record</button><button class="btn primary" id="cYes">Record my session</button></div>';
-    else h+='</div></div><div class="mfoot"><button class="btn primary" id="cGo">Start</button></div>';return h}
-  function consent(){var m=document.createElement('div');m.className='modal';m.innerHTML='<div class="card">'+consentBody()+'</div>';document.body.appendChild(m);cues();
-    var v=m.querySelector('#introVideo');if(v){var cc=m.querySelector('#ccSel');function applyCC(){for(var i=0;i<v.textTracks.length;i++)v.textTracks[i].mode=(cc&&v.textTracks[i].language===cc.value)?'showing':'hidden'}if(cc){cc.onchange=applyCC;v.addEventListener('loadedmetadata',applyCC)}m.querySelector('#fsBtn').onclick=function(){if(v.requestFullscreen)v.requestFullscreen();else if(v.webkitEnterFullscreen)v.webkitEnterFullscreen()}}
-    function done(a){var med=m.querySelector('video,audio');if(med){try{med.pause()}catch(e){}}var wantVoice=!!(m.querySelector('#voiceOpt')&&m.querySelector('#voiceOpt').checked);if(a===undefined){m.remove();start_();return}api('consent',{accept:a}).then(function(){m.remove();start_();if(a&&wantVoice)startVoice()})}
-    var y=m.querySelector('#cYes'),n=m.querySelector('#cNo'),g=m.querySelector('#cGo');if(y)y.onclick=function(){done(true)};if(n)n.onclick=function(){done(false)};if(g)g.onclick=function(){done(undefined)}}
-  $('#btnFeedback').onclick=function(){openPanel('feedback')};$('#btnTasks').onclick=function(){openPanel('tasks')};$('#btnClose').onclick=function(){$('#panel').classList.remove('open')};
-  $('#btnHide').onclick=function(){tasksHidden=true;$('#panel').classList.remove('open');$('#btnTasks').hidden=true;toast('Tasks hidden for this session. Reload the page to see them again.',4000)};
-  api('meta').then(function(m){meta=m;if(m.mode==='view'){$('#btnFeedback').hidden=true}var needsConsent=m.recordSessions&&m.requireConsent&&m.consent===null;var hasIntro=m.intro&&(m.intro.text||m.intro.media)&&m.consent===null;if(needsConsent||hasIntro)consent();else start_()}).catch(function(){$('#name').textContent='Could not load prototype'})
-})();
-</script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Prototype</title>
+    <link rel="stylesheet" href="/vault.css" />
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+        overflow: hidden;
+      }
+      header {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: var(--s3);
+        padding: 0 var(--s3);
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+        flex: none;
+        z-index: 5;
+      }
+      header .btn.small {
+        height: 32px;
+      }
+      header .name {
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      header .spacer {
+        flex: 1;
+      }
+      header .who {
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      main {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        display: flex;
+      }
+      iframe {
+        flex: 1;
+        border: 0;
+        width: 100%;
+        height: 100%;
+        background: #fff;
+      }
+      #wm {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 3;
+        opacity: 0.09;
+        background-repeat: repeat;
+      }
+      @media (prefers-color-scheme: dark) {
+        #wm {
+          opacity: 0.12;
+        }
+      }
+      aside {
+        width: var(--panel-w);
+        max-width: 90vw;
+        flex: none;
+        background: var(--panel);
+        border-left: 1px solid var(--line);
+        display: none;
+        flex-direction: column;
+        z-index: 4;
+      }
+      aside.open {
+        display: flex;
+      }
+      aside h2 {
+        font-size: 14px;
+        line-height: 20px;
+        margin: 0;
+        padding: var(--s3) var(--gutter);
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--s2);
+      }
+      aside .body {
+        padding: var(--gutter) var(--gutter) calc(var(--gutter-b) + var(--safe-b));
+        display: flex;
+        flex-direction: column;
+        gap: var(--s3);
+      }
+      .task {
+        border: 1px solid var(--line);
+        border-radius: var(--r-control);
+        padding: var(--s3);
+        display: flex;
+        flex-direction: column;
+        gap: var(--s2);
+      }
+      .task .t {
+        font-weight: 500;
+      }
+      .task.done {
+        opacity: 0.55;
+      }
+      .task .actions {
+        display: flex;
+        gap: var(--s2);
+      }
+      .task textarea {
+        min-height: 56px;
+      }
+      .task .btn {
+        min-height: var(--touch);
+      }
+      .task.new {
+        border-color: var(--accent);
+      }
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 20;
+        padding: var(--gutter);
+      }
+      .modal .card {
+        max-width: 560px;
+        width: 100%;
+        max-height: calc(100dvh - 2 * var(--gutter));
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .modal h1 {
+        font-size: 18px;
+        line-height: 24px;
+        margin: 0;
+        padding: var(--gutter) var(--gutter) var(--s3);
+        flex: none;
+      }
+      .modal .mbody {
+        padding: 0 var(--gutter) var(--gutter-b);
+        display: flex;
+        flex-direction: column;
+        gap: var(--s4);
+      }
+      .modal .mfoot {
+        flex: none;
+        padding: var(--s3) var(--gutter) calc(var(--gutter) + var(--safe-b));
+        border-top: 1px solid var(--line);
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--s2);
+        flex-wrap: wrap;
+      }
+      .modal h2 {
+        font-size: 14px;
+        line-height: 20px;
+        font-weight: 600;
+        margin: 0;
+      }
+      .modal p {
+        color: var(--muted);
+        margin: 0;
+      }
+      .modal ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        display: flex;
+        flex-direction: column;
+        gap: var(--s1);
+      }
+      .modal .btn {
+        min-height: var(--touch);
+      }
+      .intro {
+        display: flex;
+        flex-direction: column;
+        gap: var(--s2);
+        color: var(--ink);
+      }
+      .intro p {
+        color: var(--ink);
+      }
+      .intro ul {
+        color: var(--ink);
+      }
+      .modal .consent {
+        display: flex;
+        flex-direction: column;
+        gap: var(--s3);
+      }
+      .intro + .consent {
+        border-top: 1px solid var(--line);
+        padding-top: var(--s4);
+      }
+      .badge {
+        font-size: 11px;
+        background: var(--accent);
+        color: var(--accent-ink);
+        border-radius: 99px;
+        padding: 0 6px;
+        margin-left: 4px;
+      }
+      @media (max-width: 700px) {
+        .modal {
+          align-items: flex-end;
+          padding: 0;
+        }
+        .modal .card {
+          max-width: none;
+          max-height: 88dvh;
+          border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+          border-bottom: 0;
+        }
+        .modal h1 {
+          font-size: 16px;
+          line-height: 24px;
+          padding: var(--s3) var(--gutter);
+          border-bottom: 1px solid var(--line);
+        }
+        .modal .mbody {
+          padding-top: var(--gutter);
+        }
+        aside {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          width: 100%;
+          max-width: none;
+          height: 55%;
+          border-left: 0;
+          border-top: 1px solid var(--line);
+          border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+          box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.15);
+        }
+        header {
+          padding: 0 var(--s2);
+          gap: var(--s2);
+        }
+        header .who {
+          display: none;
+        }
+        header .pill {
+          display: none;
+        }
+        header .rec span {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <svg class="i lg" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+        <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
+      </svg>
+      <span class="name" id="name">Loading…</span>
+      <span class="pill">Confidential</span>
+      <span class="spacer"></span>
+      <span class="rec" id="recInd" hidden>
+        <i></i>
+        <span>Recording voice</span>
+        <button class="btn small" id="recStop" style="height: 22px; padding: 0 6px; font-size: 11px">Stop</button>
+      </span>
+      <span class="who" id="who"></span>
+      <button class="btn small" id="btnTasks" hidden>
+        Tasks
+        <span class="badge" id="taskCount"></span>
+      </button>
+      <button class="btn small primary" id="btnFeedback">Feedback</button>
+    </header>
+    <main>
+      <iframe
+        id="frame"
+        title="Prototype"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
+      ></iframe>
+      <div id="wm" hidden></div>
+      <aside id="panel">
+        <h2>
+          <span id="panelTitle">Feedback</span>
+          <span class="row">
+            <button class="btn small" id="btnHide" hidden title="Hide the task list for this session">
+              Hide tasks
+            </button>
+            <button class="btn small" id="btnClose">Close</button>
+          </span>
+        </h2>
+        <div class="scrollwrap"><div class="body scroll" id="panelBody"></div></div>
+      </aside>
+    </main>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script>
+      (function () {
+        var id = location.pathname.split('/')[2];
+        var base = '/p/' + id;
+        var meta = null;
+        var panelMode = 'feedback';
+        var results = {};
+        var revealed = {};
+        var tasksHidden = false;
+        var start = Date.now();
+        var rec = null;
+        var frameLoc = '';
+        var MIC =
+          '<svg class="i" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>';
+        function $(s) {
+          return document.querySelector(s);
+        }
+        function api(ep, body) {
+          return fetch(base + '/_vault/' + ep, {
+            method: body ? 'POST' : 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            body: body ? JSON.stringify(body) : undefined,
+            credentials: 'same-origin',
+          }).then(function (r) {
+            if (r.status === 401 || r.status === 410) {
+              location.reload();
+              throw new Error('session');
+            }
+            return r.json();
+          });
+        }
+        function toast(m, ms) {
+          var t = $('#toast');
+          t.innerHTML = '<span></span><button type="button" class="x" aria-label="Dismiss">\u00d7</button>';
+          t.firstChild.textContent = m;
+          t.classList.add('show');
+          clearTimeout(t._h);
+          function hide() {
+            t.classList.remove('show');
+          }
+          t._h = setTimeout(hide, ms || Math.min(8000, Math.max(3000, 1000 + m.length * 50)));
+          t.lastChild.onclick = hide;
+          t.onmouseenter = function () {
+            clearTimeout(t._h);
+          };
+          t.onmouseleave = function () {
+            t._h = setTimeout(hide, 1500);
+          };
+        }
+        function cues() {
+          document.querySelectorAll('.scrollwrap>.scroll').forEach(function (el) {
+            if (!el._cue) {
+              el._cue = 1;
+              el.addEventListener('scroll', cues);
+            }
+            el.parentElement.classList.toggle('more', el.scrollHeight - el.scrollTop - el.clientHeight > 4);
+          });
+        }
+        document.addEventListener('scroll', cues, true);
+        window.addEventListener('resize', cues);
+        function esc(s) {
+          return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+          });
+        }
+        function frameLocation() {
+          return frameLoc;
+        }
+        // The prototype runs on another origin; its tracker posts the screen it is on.
+        window.addEventListener('message', function (e) {
+          if (meta && e.origin === meta.contentOrigin && e.data && e.data.vault === 'location') {
+            frameLoc = String(e.data.path || '');
+            checkTriggers();
+          }
+        });
+        function watermark(text) {
+          var svg =
+            '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="200"><text x="0" y="110" font-family="Helvetica,Arial,sans-serif" font-size="15" fill="#000" transform="rotate(-24 180 100)">' +
+            text.replace(/[<>&]/g, '') +
+            '</text></svg>';
+          var w = $('#wm');
+          w.style.backgroundImage = 'url("data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '")';
+          w.hidden = false;
+        }
+        // ---- dictation (speech to text) ----
+        var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        function withMic(html) {
+          if (!(meta.dictation && SR)) return html;
+          return (
+            '<div class="withmic">' +
+            html +
+            '<button type="button" class="mic" title="Dictate">' +
+            MIC +
+            '</button></div>'
+          );
+        }
+        function wireMics(root) {
+          if (!(meta.dictation && SR)) return;
+          root.querySelectorAll('.mic').forEach(function (b) {
+            var ta = b.parentElement.querySelector('textarea');
+            var r = null;
+            b.onclick = function () {
+              if (r) {
+                r.stop();
+                return;
+              }
+              r = new SR();
+              r.lang = navigator.language || 'en';
+              r.continuous = true;
+              r.interimResults = true;
+              var baseText = ta.value;
+              r.onresult = function (e) {
+                var fin = '',
+                  tmp = '';
+                for (var i = 0; i < e.results.length; i++) {
+                  e.results[i].isFinal ? (fin += e.results[i][0].transcript) : (tmp += e.results[i][0].transcript);
+                }
+                ta.value = (baseText ? baseText + ' ' : '') + fin + tmp;
+              };
+              r.onend = function () {
+                b.classList.remove('on');
+                r = null;
+              };
+              r.onerror = function () {
+                b.classList.remove('on');
+                r = null;
+                toast('Dictation is not available here. You can still type.');
+              };
+              b.classList.add('on');
+              r.start();
+            };
+          });
+        }
+        // ---- think-aloud voice recording ----
+        function startVoice() {
+          if (!navigator.mediaDevices || !window.MediaRecorder) {
+            toast('Voice recording is not supported in this browser');
+            return;
+          }
+          navigator.mediaDevices
+            .getUserMedia({ audio: true })
+            .then(function (stream) {
+              var mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].filter(function (m) {
+                return MediaRecorder.isTypeSupported(m);
+              })[0];
+              var mr = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : undefined);
+              var seq = 0;
+              mr.ondataavailable = function (e) {
+                if (!e.data || !e.data.size) return;
+                var n = seq++;
+                fetch(base + '/_vault/recording?seq=' + n, {
+                  method: 'POST',
+                  headers: { 'Content-Type': (mr.mimeType || 'audio/webm').split(';')[0] },
+                  body: e.data,
+                  credentials: 'same-origin',
+                  keepalive: true,
+                }).catch(function () {});
+              };
+              mr.start(5000);
+              rec = { mr: mr, stream: stream };
+              $('#recInd').hidden = false;
+              toast('Recording your voice. Think aloud as you go. Press Stop in the header to end it.');
+              api('events', [{ t: Date.now() - start, type: 'voice.start', path: frameLocation(), data: {} }]).catch(
+                function () {}
+              );
+            })
+            .catch(function () {
+              toast('Microphone access was not allowed. Continuing without voice recording.', 4000);
+            });
+        }
+        function stopVoice() {
+          if (!rec) return;
+          try {
+            rec.mr.stop();
+            rec.stream.getTracks().forEach(function (t) {
+              t.stop();
+            });
+          } catch (e) {}
+          rec = null;
+          $('#recInd').hidden = true;
+          toast('Voice recording stopped');
+        }
+        $('#recStop').onclick = stopVoice;
+        window.addEventListener('pagehide', function () {
+          if (rec) {
+            try {
+              rec.mr.requestData();
+              rec.mr.stop();
+            } catch (e) {}
+          }
+        });
+        // ---- tasks & questions with schedule ----
+        function tasks() {
+          return (meta.tasks || []).map(function (t, i) {
+            t.index = i;
+            return t;
+          });
+        }
+        function visibleTasks() {
+          return tasks().filter(function (t) {
+            return revealed[t.index];
+          });
+        }
+        function reveal(i, announce) {
+          if (revealed[i]) return;
+          revealed[i] = true;
+          var t = tasks()[i];
+          var left = visibleTasks().filter(function (x) {
+            return !results[x.index];
+          }).length;
+          $('#taskCount').textContent = left || '';
+          if (announce) {
+            toast((t.kind === 'question' ? 'New question: ' : 'New task: ') + t.text, 5000);
+            if (panelMode === 'tasks' && $('#panel').classList.contains('open')) render();
+          }
+        }
+        function checkTriggers() {
+          if (!meta.showTasks) return;
+          var loc = frameLocation();
+          var mins = (Date.now() - start) / 60000;
+          tasks().forEach(function (t) {
+            if (revealed[t.index]) return;
+            var w = t.when || { type: 'start' };
+            if (w.type === 'start') reveal(t.index, false);
+            else if (w.type === 'after' && results[w.value]) reveal(t.index, true);
+            else if (w.type === 'minutes' && mins >= w.value) reveal(t.index, true);
+            else if (w.type === 'screen' && w.value && loc.indexOf(w.value) >= 0) reveal(t.index, true);
+          });
+        }
+        function openPanel(mode) {
+          panelMode = mode;
+          $('#panel').classList.add('open');
+          $('#panelTitle').textContent = mode === 'tasks' ? 'Tasks' : 'Feedback';
+          $('#btnHide').hidden = mode !== 'tasks';
+          render();
+          cues();
+        }
+        function render() {
+          var b = $('#panelBody');
+          if (panelMode === 'feedback') {
+            b.innerHTML =
+              '<p class="muted" style="margin:0">Tell the designer what you noticed. Where you are in the prototype is attached automatically.</p>' +
+              withMic('<textarea id="fbText" placeholder="What happened? What did you expect?"></textarea>') +
+              '<div class="row" style="justify-content:flex-end"><button class="btn primary" id="fbSend" style="min-height:44px">Send feedback</button></div>';
+            wireMics(b);
+            $('#fbSend').onclick = function () {
+              var t = $('#fbText').value.trim();
+              if (!t) return;
+              api('feedback', { kind: 'feedback', text: t, location: frameLocation() }).then(function () {
+                $('#fbText').value = '';
+                toast('Thanks, feedback sent');
+              });
+            };
+            return;
+          }
+          var list = visibleTasks();
+          var pendingCount = tasks().length - list.length;
+          b.innerHTML =
+            '<p class="muted" style="margin:0">' +
+            (list.length
+              ? 'Try each one in the prototype, then mark how it went.'
+              : 'Tasks will appear here as you go.') +
+            '</p>' +
+            list
+              .map(function (t) {
+                var r = results[t.index];
+                var n = t.index + 1;
+                if (t.kind === 'question')
+                  return (
+                    '<div class="task' +
+                    (r ? ' done' : '') +
+                    '" data-i="' +
+                    t.index +
+                    '"><div class="t">' +
+                    n +
+                    '. ' +
+                    esc(t.text) +
+                    '</div>' +
+                    (r
+                      ? '<div class="muted">Answered</div>'
+                      : withMic('<textarea placeholder="Your answer"></textarea>') +
+                        '<div class="actions"><button class="btn" data-r="answer">Send answer</button></div>') +
+                    '</div>'
+                  );
+                return (
+                  '<div class="task' +
+                  (r ? ' done' : '') +
+                  '" data-i="' +
+                  t.index +
+                  '"><div class="t">' +
+                  n +
+                  '. ' +
+                  esc(t.text) +
+                  '</div>' +
+                  (r
+                    ? '<div class="muted">Marked as ' + (r === 'done' ? 'completed' : 'could not complete') + '</div>'
+                    : '<div class="actions"><button class="btn" data-r="done">Completed</button><button class="btn" data-r="stuck">Couldn\'t do it</button></div>' +
+                      withMic('<textarea placeholder="Optional note"></textarea>')) +
+                  '</div>'
+                );
+              })
+              .join('') +
+            (pendingCount
+              ? '<p class="muted" style="margin:0">' + pendingCount + ' more will appear as you go.</p>'
+              : '');
+          wireMics(b);
+          cues();
+          b.querySelectorAll('.task button[data-r]').forEach(function (btn) {
+            btn.onclick = function () {
+              var card = btn.closest('.task');
+              var i = +card.dataset.i;
+              var note = (card.querySelector('textarea') || { value: '' }).value.trim();
+              if (btn.dataset.r === 'answer' && !note) {
+                toast('Type or dictate an answer first');
+                return;
+              }
+              api('feedback', {
+                kind: 'task',
+                taskIndex: i,
+                result: btn.dataset.r,
+                text: note,
+                location: frameLocation(),
+              }).then(function () {
+                results[i] = btn.dataset.r;
+                checkTriggers();
+                var left = visibleTasks().filter(function (x) {
+                  return !results[x.index];
+                }).length;
+                $('#taskCount').textContent = left || '';
+                render();
+                toast(left ? left + ' left' : 'All done, thank you');
+              });
+            };
+          });
+        }
+        function start_() {
+          document.title = meta.name;
+          $('#name').textContent = meta.name;
+          $('#who').textContent = 'Viewing as ' + meta.viewer.name;
+          if (meta.watermark) watermark(meta.viewer.email + ' · ' + new Date().toISOString().slice(0, 10));
+          if (!meta.hasBundle) {
+            $('#frame').srcdoc =
+              '<p style="font-family:sans-serif;padding:20px">The prototype files have not been uploaded yet.</p>';
+            return;
+          }
+          api('content').then(function (r) {
+            $('#frame').src = r.url;
+          });
+          if (meta.showTasks && tasks().length) {
+            $('#btnTasks').hidden = false;
+            checkTriggers();
+            setInterval(checkTriggers, 1000);
+            var n = visibleTasks().length;
+            if (n) {
+              if (window.innerWidth > 700 && meta.mode !== 'moderated') openPanel('tasks');
+              else toast(n + (n > 1 ? ' tasks' : ' task') + ' to try — tap Tasks');
+            }
+          }
+        }
+        // ---- intro + consent ----
+        function fmtText(t) {
+          function inline(x) {
+            return esc(x).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+          }
+          return String(t || '')
+            .split(/\n\s*\n/)
+            .map(function (block) {
+              var lines = block.split('\n');
+              if (
+                lines.every(function (l) {
+                  return /^\s*-\s+/.test(l);
+                })
+              )
+                return (
+                  '<ul>' +
+                  lines
+                    .map(function (l) {
+                      return '<li>' + inline(l.replace(/^\s*-\s+/, '')) + '</li>';
+                    })
+                    .join('') +
+                  '</ul>'
+                );
+              return '<p>' + inline(block).replace(/\n/g, '<br>') + '</p>';
+            })
+            .join('');
+        }
+        function introHtml() {
+          var i = meta.intro || { kind: 'default' };
+          var h = '';
+          if (i.kind === 'video' && i.media) {
+            var subs = i.subtitles || [];
+            var lang = (navigator.language || 'en').toLowerCase();
+            h +=
+              '<div class="media"><video id="introVideo" controls playsinline preload="metadata" crossorigin="use-credentials" src="' +
+              base +
+              '/_vault/intro">' +
+              subs
+                .map(function (s) {
+                  return (
+                    '<track kind="subtitles" srclang="' +
+                    esc(s.lang) +
+                    '" label="' +
+                    esc(s.label) +
+                    '" src="' +
+                    base +
+                    '/_vault/subtitles/' +
+                    encodeURIComponent(s.lang) +
+                    '"' +
+                    (lang.indexOf(s.lang.toLowerCase()) === 0 ? ' default' : '') +
+                    '>'
+                  );
+                })
+                .join('') +
+              '</video><div class="controls">' +
+              (subs.length
+                ? '<label class="hint">Captions</label><select id="ccSel"><option value="">Off</option>' +
+                  subs
+                    .map(function (s) {
+                      return (
+                        '<option value="' +
+                        esc(s.lang) +
+                        '"' +
+                        (lang.indexOf(s.lang.toLowerCase()) === 0 ? ' selected' : '') +
+                        '>' +
+                        esc(s.label) +
+                        '</option>'
+                      );
+                    })
+                    .join('') +
+                  '</select>'
+                : '') +
+              '<button type="button" class="btn small" id="fsBtn">Full screen</button></div></div>';
+          }
+          if (i.kind === 'audio' && i.media)
+            h += '<div class="media"><audio controls preload="metadata" src="' + base + '/_vault/intro"></audio></div>';
+          if (i.text) h += fmtText(i.text);
+          return h ? '<div class="intro">' + h + '</div>' : '';
+        }
+        function consentBody() {
+          var needs = meta.recordSessions && meta.requireConsent && meta.consent === null;
+          var h = '<h1>Before you start</h1><div class="scrollwrap"><div class="mbody scroll">' + introHtml();
+          if (needs)
+            h +=
+              '<div class="consent"><h2>What gets recorded</h2><p>' +
+              (meta.mode === 'moderated'
+                ? 'Your moderator will guide you. The prototype would also like to record how you use it:'
+                : 'The designer would like to record how you use the prototype:') +
+              '</p><ul><li>Taps and clicks, and where on the screen</li><li>Screens you visit and how long you stay</li><li>Fields you focus on, never what you type</li>' +
+              (meta.recordText
+                ? '<li>What you type into the prototype (it holds sample data, not your own)</li>'
+                : '') +
+              (meta.voice
+                ? '<li>Your voice, if you leave the switch on. A red Recording pill stays in the header and you can stop it at any time.</li>'
+                : '') +
+              '</ul>' +
+              (meta.voice
+                ? '<label class="opt"><input type="checkbox" id="voiceOpt" checked><span class="sw"></span><span>Record my voice so I can think aloud while I test</span></label>'
+                : '') +
+              '<p class="hint">Your visit is logged either way. Recording is optional.</p></div></div></div><div class="mfoot"><button class="btn" id="cNo">Don\'t record</button><button class="btn primary" id="cYes">Record my session</button></div>';
+          else h += '</div></div><div class="mfoot"><button class="btn primary" id="cGo">Start</button></div>';
+          return h;
+        }
+        function consent() {
+          var m = document.createElement('div');
+          m.className = 'modal';
+          m.innerHTML = '<div class="card">' + consentBody() + '</div>';
+          document.body.appendChild(m);
+          cues();
+          var v = m.querySelector('#introVideo');
+          if (v) {
+            var cc = m.querySelector('#ccSel');
+            function applyCC() {
+              for (var i = 0; i < v.textTracks.length; i++)
+                v.textTracks[i].mode = cc && v.textTracks[i].language === cc.value ? 'showing' : 'hidden';
+            }
+            if (cc) {
+              cc.onchange = applyCC;
+              v.addEventListener('loadedmetadata', applyCC);
+            }
+            m.querySelector('#fsBtn').onclick = function () {
+              if (v.requestFullscreen) v.requestFullscreen();
+              else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+            };
+          }
+          function done(a) {
+            var med = m.querySelector('video,audio');
+            if (med) {
+              try {
+                med.pause();
+              } catch (e) {}
+            }
+            var wantVoice = !!(m.querySelector('#voiceOpt') && m.querySelector('#voiceOpt').checked);
+            if (a === undefined) {
+              m.remove();
+              start_();
+              return;
+            }
+            api('consent', { accept: a }).then(function () {
+              m.remove();
+              start_();
+              if (a && wantVoice) startVoice();
+            });
+          }
+          var y = m.querySelector('#cYes'),
+            n = m.querySelector('#cNo'),
+            g = m.querySelector('#cGo');
+          if (y)
+            y.onclick = function () {
+              done(true);
+            };
+          if (n)
+            n.onclick = function () {
+              done(false);
+            };
+          if (g)
+            g.onclick = function () {
+              done(undefined);
+            };
+        }
+        $('#btnFeedback').onclick = function () {
+          openPanel('feedback');
+        };
+        $('#btnTasks').onclick = function () {
+          openPanel('tasks');
+        };
+        $('#btnClose').onclick = function () {
+          $('#panel').classList.remove('open');
+        };
+        $('#btnHide').onclick = function () {
+          tasksHidden = true;
+          $('#panel').classList.remove('open');
+          $('#btnTasks').hidden = true;
+          toast('Tasks hidden for this session. Reload the page to see them again.', 4000);
+        };
+        api('meta')
+          .then(function (m) {
+            meta = m;
+            if (m.mode === 'view') {
+              $('#btnFeedback').hidden = true;
+            }
+            var needsConsent = m.recordSessions && m.requireConsent && m.consent === null;
+            var hasIntro = m.intro && (m.intro.text || m.intro.media) && m.consent === null;
+            if (needsConsent || hasIntro) consent();
+            else start_();
+          })
+          .catch(function () {
+            $('#name').textContent = 'Could not load prototype';
+          });
+      })();
+    </script>
+  </body>
+</html>

@@ -28,7 +28,7 @@ If there is no vault anywhere yet, point the user to `README.md` ("Try it in thr
    ```bash
    node cli/vault.js publish <path> --name "<name>" --viewers "<Name <email>>,<email>" --expires <days> [--passcode <code>] [--tasks "task 1|task 2"]
    ```
-5. **Report** the personal links, one per viewer, and remind the user: send each link only to its owner, through the usual channel; if a passcode was set, send it by a different channel; links stop working on the expiry date and can be revoked at any time.
+5. **Report** the personal links, one per viewer, and remind the user: each link is shown only now (the vault keeps a hash, not the link), so copy it; send each link only to its owner, through the usual channel; if a passcode was set, send it by a different channel; links stop working on the expiry date and can be revoked or re-issued (`vault rotate`) at any time.
 
 ### Test design options (ask only when the user mentions them)
 - **Tasks and questions with timing.** `--tasks "Pick a plan|?What did you expect @after:1|Add a member @screen:#team|?Anything confusing @min:5"`. `?` makes a question (free-text answer, dictation available). `@after:N` shows it once task N is done, `@screen:<path or #hash>` when the tester reaches that screen, `@min:N` after N minutes. Default is at the start.
@@ -45,7 +45,7 @@ If there is no vault anywhere yet, point the user to `README.md` ("Try it in thr
 - "Add X" → `node cli/vault.js add-viewer <shareId> "Name <email>"`.
 - "Revoke / stop sharing" → `node cli/vault.js revoke <shareId>` (whole share) or `--viewer <viewerId>` (one person). Confirm first; it is immediate.
 - "Extend" → `node cli/vault.js extend <shareId> --days N`.
-- "Delete everything" → `node cli/vault.js delete <shareId>`. Confirm first; it removes results too.
+- "Delete everything" → `node cli/vault.js delete <shareId>`. Confirm first; it removes results too. A personal token can only delete shares its owner created.
 
 Find share IDs with `node cli/vault.js list`.
 

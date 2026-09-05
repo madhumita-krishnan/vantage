@@ -4,11 +4,15 @@ A senior engineer, a security reviewer, a privacy officer and an engineering dir
 
 Effort: **S** = an hour or two, **M** = a day, **L** = several days or a design change.
 
+**Status, 5 September 2026 (version 0.1.0):** items 1.1 to 1.13 are fixed except where marked *open* below. Parts 2 to 4 are answered in the security document where marked, and otherwise remain on the roadmap.
+
 ---
 
 ## Part 1. What a senior or staff engineer will say
 
 ### 1.1 "Your sandbox is not a sandbox." (verified, the most important finding)
+
+**Fixed in 0.1.0.** Prototypes are served from `CONTENT_ORIGIN` (a second port by default, a second hostname behind a proxy). The shell hands over the session with a one-time ticket; the prototype reports its screen by `postMessage`. Covered by the tester-flow test.
 
 **What they will say.** The prototype iframe in `server/public/viewer.html` uses `sandbox="allow-scripts allow-same-origin …"`. The HTML specification warns that this combination lets the framed page remove its own sandbox attribute, because it is same-origin with the parent. On top of that, prototypes are served from the vault's own origin (`/p/<id>/app/…`), the same origin as the designer console at `/admin`. So the browser's same-origin policy, the strongest boundary a browser has, does not separate a prototype from the console or from other prototypes.
 
@@ -22,6 +26,8 @@ Effort: **S** = an hour or two, **M** = a day, **L** = several days or a design 
 
 ### 1.2 "You hash the API tokens but store viewer link tokens in plaintext." (verified)
 
+**Fixed in 0.1.0.** Link secrets are SHA-256 hashed; the link is returned once when issued and on rotate. Old stores are converted on load.
+
 `server/lib/shares.js`, `addViewer`: `token: C.randomToken()` is stored as is. Personal access tokens in `admin.js` are stored as SHA-256 hashes. The store is encrypted at rest, so the exposure is a decrypted store or a running process, but the inconsistency will be noticed.
 
 **Why it is this way.** The console needs to show "copy link" again later.
@@ -30,11 +36,15 @@ Effort: **S** = an hour or two, **M** = a day, **L** = several days or a design 
 
 ### 1.3 "scryptSync blocks the event loop." (verified)
 
+**Fixed in 0.1.0.** `crypto.scrypt`, awaited.
+
 `server/lib/crypto.js`, `verifyPasscode` uses `crypto.scryptSync`. Every passcode attempt stalls every other request for the duration of the hash. The per-IP rate limit does not help against many IPs.
 
 **Design response (S).** Use the async `crypto.scrypt`. Ten-line change.
 
 ### 1.4 "The rate limiter can be reset by the attacker." (verified)
+
+**Fixed in 0.1.0.** The oldest bucket is dropped; still single-process by design.
 
 `server/lib/http.js`, `rateLimit`: when the bucket map exceeds 50,000 keys it calls `buckets.clear()`. Spraying junk keys wipes everyone's limits. It is also per process (useless across replicas) and keyed by IP, which behind a proxy without `TRUST_PROXY` means every tester shares one limit.
 
@@ -42,11 +52,15 @@ Effort: **S** = an hour or two, **M** = a day, **L** = several days or a design 
 
 ### 1.5 "Uploads are base64 JSON held entirely in memory." (verified)
 
+**Open.** Default cap lowered to 25 MB; streaming upload is on the roadmap.
+
 `POST /api/shares` reads up to `MAX_UPLOAD_MB` (default 100) of JSON with `readJson`, parses it, then base64-decodes each file. Peak memory is roughly three times the upload. Two concurrent uploads by legitimate admins can take the process down. The media path (`lib/media.js`) streams properly in 1 MiB chunks, so the project already knows how to do this; the bundle path just was not given the same care.
 
 **Design response (M).** Upload files one at a time with `PUT /api/shares/:id/bundle/<path>` streaming to disk, or accept multipart. Lower the default cap to 25 MB in the meantime.
 
 ### 1.6 "A single JSON file rewritten on every change is not a database."
+
+**Documented in 0.1.0.** Single instance, small team; the Cloud Run recipe pins `--max-instances 1`.
 
 `server/lib/store.js` keeps all shares, sessions and tokens in one object, rewrites the whole file 150 ms after any change, and has no locking. Two instances on one volume would corrupt it. A crash inside the debounce window loses the last write.
 
@@ -56,11 +70,15 @@ Effort: **S** = an hour or two, **M** = a day, **L** = several days or a design 
 
 ### 1.7 "Every admin can see, modify and delete every share." (verified)
 
+**Fixed in 0.1.0.** `canSee` in `admin.js`: everyone except the server token sees only their own shares, tokens and activity.
+
 `server/lib/admin.js`, `shareRoute` fetches the share with `requireShare` and never checks ownership. The `ownsShare` helper exists but is only used for counts and for "leave". A designer with a personal token on team A can read team B's viewer links and download team B's voice recordings.
 
 **Design response (S).** Enforce `ownsShare` in `shareRoute` for personal-token and SSO identities; let the server token see everything. Add an optional `ADMIN_EMAILS` "owner" role later if teams want a lead who sees all.
 
 ### 1.8 "Your AI agent holds a token that can delete shares and download recordings." (verified)
+
+**Partly done.** The delete tool is gone from the MCP server. Scoped tokens are still open.
 
 Personal access tokens have no scopes. The MCP server exposes `vault_delete_share` and `vault_get_events`. A prompt-injected Claude session holding that token can do anything the designer can.
 
@@ -68,11 +86,15 @@ Personal access tokens have no scopes. The MCP server exposes `vault_delete_shar
 
 ### 1.9 "The tracker injection can break a page."
 
+**Fixed in 0.1.0.** Covered by a test.
+
 `server/lib/viewer.js`, `injectTracker`: when the HTML has no `<head>` tag the script is prepended before `<!DOCTYPE html>`, which drops the page into quirks mode. Rare, but a bug.
 
 **Design response (S).** Insert after the doctype, or after `<html>`, before falling back to prepending.
 
 ### 1.10 "The admin audit log grows forever and is never purged." (verified)
+
+**Fixed in 0.1.0.** The sweep trims `_admin.ndjson` to `RETENTION_DAYS`.
 
 Per-share audit files are deleted with the share; `_admin.ndjson` is appended to and never rotated or trimmed. It holds tester emails and IPs past any retention window. SECURITY.md admits it.
 
@@ -80,17 +102,23 @@ Per-share audit files are deleted with the share; `_admin.ndjson` is appended to
 
 ### 1.11 "Zero dependencies is a nice line, but the code is compressed, not small." (verified)
 
+**Fixed in 0.1.0.** Prettier at 120 columns; the README no longer quotes a line count.
+
 `public/admin.html` is 60 KB in 229 lines; its longest line is 1,241 characters and 129 lines exceed 160 characters. `lib/viewer.js` has a 711-character line. Engineers read line counts as a proxy for size, and they will feel misled when they open the file.
 
 **Design response (S).** Run Prettier at 120 columns and let the line count triple. Change the README to say "about 60 KB of server code" or drop the number. Never optimise a metric that a reviewer can falsify in one `wc`.
 
 ### 1.12 "No CI, no lint, no browser tests, and it says version 1.0.0."
 
+**Fixed in 0.1.0.** CI on Node 20 and 22 with ESLint, Prettier and the tests; version 0.1.0; this changelog.
+
 There are ten end-to-end tests, which is more than most proof-of-concepts have, but nothing runs them automatically, there is no linter, the console and tester UI are not tested in a browser, and `package.json` calls a two-day proof of concept 1.0.0.
 
 **Design response (S).** GitHub Actions running `npm test` on Node 20 and 22, ESLint with the recommended rules, version `0.1.0`, a CHANGELOG. Add one Playwright test for the tester flow when time allows (M).
 
 ### 1.13 Smaller things they will list
+
+**Fixed in 0.1.0** except the encryption key id and AAD, which stay open. Node 20+, docs match the code, `/api/me` trimmed, Electron wording in the README.
 
 - **Node 18 is end-of-life** (April 2025); `engines` should say 20 or newer. (S)
 - **Docs drift.** DEPLOYMENT.md says `MAX_EXPIRY_DAYS` defaults to 90; `lib/config.js` says 365. README claimed zip upload after it was removed (fixed 5 Sept). A test that prints the config defaults into the docs would stop this. (S)
@@ -105,15 +133,15 @@ There are ten end-to-end tests, which is more than most proof-of-concepts have, 
 
 Most of Part 1 applies. Beyond it:
 
-**"Who is the threat?"** Make the threat model explicit in one table: outsider with a guessed link; ex-tester with an old link; insider with a stolen admin token; malicious prototype; compromised host; the vault operator themselves. Say which controls address each and which do not. SECURITY.md has the pieces; it does not have the table. (S)
+**"Who is the threat?"** Done in 0.1.0 (SECURITY.md section 2). The ask was: make the threat model explicit in one table: outsider with a guessed link; ex-tester with an old link; insider with a stolen admin token; malicious prototype; compromised host; the vault operator themselves. Say which controls address each and which do not. SECURITY.md has the pieces; it does not have the table. (S)
 
-**"Unaudited means unaudited."** Do not argue. The answer is: small, readable, tested, threat-modelled, with a disclosure route, and looking for reviewers. Ask them to be one.
+**"Unaudited means unaudited."** The answer is: small, readable, tested, threat-modelled, with a disclosure route, and looking for reviewers. Ask them to be one.
 
-**"Dictation sends audio to Google by default."** It is per share and documented, but default-on for usability tests will get quoted. Default it off. (S)
+**"Dictation sends audio to Google by default."** Fixed in 0.1.0: off by default per share.
 
 **"Logging tester IP and user agent is personal data."** True, and it is a security record, not research data. Keep it, shorten retention for the audit log to match `RETENTION_DAYS`, and say why it exists (attribution of leaks). (S, wording plus 1.10)
 
-**"Incident response?"** Write the four-line runbook: rotate `ADMIN_TOKEN`, revoke all personal tokens, revoke affected shares, rotate viewer links. All four are single actions today; they just are not written down together. (S)
+**"Incident response?"** Done in 0.1.0 (SECURITY.md section 6). The ask was: write the four-line runbook: rotate `ADMIN_TOKEN`, revoke all personal tokens, revoke affected shares, rotate viewer links. All four are single actions today; they just are not written down together. (S)
 
 ---
 
@@ -133,7 +161,7 @@ Most of Part 1 applies. Beyond it:
 
 **"Why not Cloudflare Access in front of a static bucket?"** Fair, and the honest answer is that the hosting and sign-in half of Prototype Vault is commodity. Any identity-aware proxy gives SSO, MFA and an access log for internal viewers in an afternoon. What it does not give is per-person expiring links for external testers, a consent screen, tasks, interaction recording and feedback with no data leaving the network. Position the product as the research layer that happens to include hosting, not as hosting. The DEPLOYMENT.md path "behind your proxy" should be the headline path, and the laptop quick start should be labelled as a demo.
 
-**"You built a usability-testing product, not a sharing tool."** Also fair. Seven passes added moderated mode, timed questions, intro video with subtitles and translation, dictation and think-aloud audio before the core was tested by anyone. A director will call it scope creep. Own it: the first pass was sharing; the design passes turned it into Lookback without the SaaS. The design response is to tier it: a **core** profile (share, view only, links, expiry, audit) and a **research** profile (everything else), so a security review of the core is a short read. (M, mostly configuration and docs)
+**"You built a usability-testing product, not a sharing tool."** Also fair. Seven passes added moderated mode, timed questions, intro video with subtitles and translation, dictation and think-aloud audio before the core was tested by anyone. A director will call it scope creep. Say so: the first pass was sharing; the design passes turned it into Lookback without the SaaS. The design response is to tier it: a **core** profile (share, view only, links, expiry, audit) and a **research** profile (everything else), so a security review of the core is a short read. (M, mostly configuration and docs)
 
 **"Who owns this in a year?"** Bus factor of one, written largely by an AI, security-adjacent. The only honest answer is an adoption path: MIT licence, fork into the company's own org, their platform team owns the deployment, I own the upstream. A tool nobody owns should not hold confidential data, and I will say that in the pitch.
 
@@ -141,7 +169,7 @@ Most of Part 1 applies. Beyond it:
 
 **"Multi-team?"** See 1.7. Today the answer is one deployment per team. Ownership enforcement is a small change; real tenancy is not on the roadmap.
 
-**"What did two days of engineering cost the design work?"** Answer with the outcome: a design org that can run confidential usability tests on coded prototypes without a vendor, and a designer who now knows what the security team will ask. Then stop talking.
+**"What did two days of engineering cost the design work?"** Answer with the outcome: a design org that can run confidential usability tests on coded prototypes without a vendor, and a designer who now knows what the security team will ask.
 
 **"Are you a developer or a designer?"** Do not claim to have written the code line by line; the process document says the AI did most of that. Claim what is true and verifiable: requirements, the design system, the security and privacy decisions, the reversals, the testing, and the ability to read the code well enough to have found the items in Part 1. "Designer who ships" or "design engineer" survives questioning; "front-end developer" invites the question "walk me through `crypto.js`", so be ready to.
 
@@ -167,14 +195,14 @@ If you present this, someone will ask one of these. Short answers:
 
 | Priority | Item | Effort | Why first |
 |---|---|---|---|
-| 1 | Separate content origin, drop `allow-same-origin` (1.1) | M | The one finding that turns into a headline |
-| 2 | Ownership check in `shareRoute` (1.7) | S | Privacy of other teams' testers |
-| 3 | Async scrypt, rate-limiter eviction (1.3, 1.4) | S | Cheap, and both are "obvious" to reviewers |
-| 4 | Hash viewer link tokens (1.2) | S | Consistency with the token story |
-| 5 | Prettier, ESLint, CI, version 0.1.0, Node 20+ (1.11, 1.12, 1.13) | S | Removes every cosmetic dunk in one commit |
-| 6 | Trim `/api/me`, purge `_admin.ndjson`, dictation off by default, doc drift (1.10, 1.13, Part 2) | S | Half a day of small things |
-| 7 | Scoped tokens, drop delete from MCP (1.8) | M | AI-agent governance is the question of the year |
-| 8 | Streaming bundle upload (1.5) | M | Only matters once real teams use it |
-| 9 | Core vs research profile, threat-model table, DPIA inputs, erasure and export (Parts 2 to 4) | M | What makes the security and privacy conversations short |
+| 1 | Separate content origin (1.1) | M | Done |
+| 2 | Ownership check (1.7) | S | Done |
+| 3 | Async scrypt, rate-limiter eviction (1.3, 1.4) | S | Done |
+| 4 | Hash viewer link tokens (1.2) | S | Done |
+| 5 | Prettier, ESLint, CI, version 0.1.0, Node 20+ (1.11, 1.12, 1.13) | S | Done |
+| 6 | Trim `/api/me`, purge `_admin.ndjson`, dictation off by default, doc drift (1.10, 1.13, Part 2) | S | Done |
+| 7 | Scoped tokens (1.8) | M | Open. The MCP delete tool is already gone |
+| 8 | Streaming bundle upload (1.5) | M | Open |
+| 9 | Core vs research profile, DPIA inputs, erasure and export (Parts 3 and 4) | M | Open. Threat-model table and runbook are done |
 
-Do items 1 to 6 before posting anything. Items 7 to 9 can be the public roadmap, which is itself an answer: a roadmap shows you know where the gaps are.
+Items 1 to 6 were done on 5 September 2026. Items 7 to 9 are the public roadmap.

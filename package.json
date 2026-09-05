@@ -1,0 +1,17 @@
+{
+  "name": "prototype-vault-workspace",
+  "private": true,
+  "description": "Development tooling only (formatter, linter). The server itself has no dependencies: see server/package.json.",
+  "scripts": {
+    "format": "prettier --write \"server/**/*.{js,html,css}\" \"cli/*.js\" \"mcp/*.js\" \"viewer-app/main.js\"",
+    "format:check": "prettier --check \"server/**/*.{js,html,css}\" \"cli/*.js\" \"mcp/*.js\" \"viewer-app/main.js\"",
+    "lint": "eslint server cli mcp viewer-app/main.js",
+    "test": "cd server && npm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.10.0",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.6"
+  }
+}

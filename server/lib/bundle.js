@@ -9,15 +9,14 @@ function cleanPath(p) {
   while (s.startsWith('/')) s = s.slice(1);
   const parts = s.split('/').filter((x) => x.length && x !== '.');
   if (parts.some((x) => x === '..')) throw new Error(`Unsafe path in bundle: ${p}`);
+  // eslint-disable-next-line no-control-regex
   if (parts.some((x) => /[\x00-\x1f]/.test(x))) throw new Error(`Invalid characters in path: ${p}`);
   return parts.join('/');
 }
 
 // files: [{path, data:Buffer}] -> {files, entry}
 function normalizeFiles(files, requestedEntry) {
-  let list = files
-    .map((f) => ({ path: cleanPath(f.path), data: f.data }))
-    .filter((f) => f.path && !JUNK.test(f.path));
+  let list = files.map((f) => ({ path: cleanPath(f.path), data: f.data })).filter((f) => f.path && !JUNK.test(f.path));
   if (!list.length) throw new Error('Bundle contains no files');
 
   // Strip a single common top-level folder (e.g. "my-prototype/index.html" -> "index.html").
@@ -42,14 +41,38 @@ function normalizeFiles(files, requestedEntry) {
 }
 
 const MIME = {
-  '.html': 'text/html; charset=utf-8', '.htm': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
-  '.map': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif', '.webp': 'image/webp', '.avif': 'image/avif', '.ico': 'image/x-icon', '.woff': 'font/woff',
-  '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.otf': 'font/otf', '.mp4': 'video/mp4', '.webm': 'video/webm',
-  '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.txt': 'text/plain; charset=utf-8', '.md': 'text/plain; charset=utf-8',
-  '.csv': 'text/csv; charset=utf-8', '.pdf': 'application/pdf', '.wasm': 'application/wasm', '.xml': 'application/xml',
+  '.html': 'text/html; charset=utf-8',
+  '.htm': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.map': 'application/json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.txt': 'text/plain; charset=utf-8',
+  '.md': 'text/plain; charset=utf-8',
+  '.csv': 'text/csv; charset=utf-8',
+  '.pdf': 'application/pdf',
+  '.wasm': 'application/wasm',
+  '.xml': 'application/xml',
 };
-function mimeFor(p) { return MIME[path.extname(p).toLowerCase()] || 'application/octet-stream'; }
+function mimeFor(p) {
+  return MIME[path.extname(p).toLowerCase()] || 'application/octet-stream';
+}
 
 module.exports = { normalizeFiles, cleanPath, mimeFor };

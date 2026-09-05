@@ -6,7 +6,7 @@
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "cd server && DATA_DIR=/private/tmp/claude-501/-Users-madhumita-Desktop-Connector-for-designer-and-usability-testing/82cc5508-b888-47a1-8048-b2f31f6aecef/scratchpad/vault-data PORT=8787 node server.js"
+        "cd server && PORT=8787 node server.js"
       ],
       "port": 8787
     },

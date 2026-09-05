@@ -1,18 +1,24 @@
 # Prototype Vault
 
-**Share coded prototypes with specific people, inside your company's own walls, and learn from how they use them.**
+Share coded prototypes with named people through private, expiring links, and learn from how they use them.
 
-Built for product designers who prototype with Claude (or any tool that produces HTML/JS) inside large enterprises where public hosting, third-party SaaS and "just send them the file" are all off the table. The full problem statement is in [PROBLEM.md](PROBLEM.md).
+Built for product designers who prototype with Claude or any tool that produces HTML and JavaScript. Each viewer gets a personal link that can be revoked. A share is view only unless you set up a usability test, and then testers see a consent screen before anything is recorded. The post that started this is in [PROBLEM.md](PROBLEM.md).
 
 ```
-Designer ──(Claude / CLI / console)──▶ Prototype Vault ◀──(personal link)── Tester
-                                       runs on your infra
-                                       encrypted, audited, expiring
+Designer ──(console / CLI / Claude)──▶ Prototype Vault ◀──(personal link)── Tester
 ```
+
+## Two ways to use it
+
+**Run it yourself.** One Node process, no third-party packages, files encrypted on disk, nothing sent anywhere. For teams whose policy forbids third-party hosting, and for anyone who wants to read every line before trusting it. Start with the three steps below; deploy with [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+**Use a hosted copy.** The same server deployed with Google sign-in and per-person limits, for teams without such a policy. There is no public hosted instance yet; the deployment doc has the Cloud Run recipe, and the free tiers cover a small team.
+
+Either way the code is the same. Which one fits you depends on one question: may your prototypes sit on someone else's server?
 
 ## Try it in three steps
 
-Needs Node 18 or newer. Nothing to install, nothing to configure.
+Needs Node 20 or newer. Nothing to install, nothing to configure.
 
 **1. Start it.**
 
@@ -20,9 +26,9 @@ Needs Node 18 or newer. Nothing to install, nothing to configure.
 node server/server.js
 ```
 
-The first start makes its own admin token and encryption key, listens on your machine only, and prints two lines: a link to the console that signs you in, and a Claude Code command.
+The first start makes its own admin token and encryption key, listens on your machine only, and prints a link to the console that signs you in, plus a Claude Code command.
 
-**2. Open the printed link and click "Try it with the sample prototype".** Enter your email, then open your own personal link. You will see exactly what a tester sees: the consent note, the tasks, the feedback button, the watermark. Back in the console, the share's **Feedback & results** tab fills in as you click around. To share your own work, click **New share** and drop a folder.
+**2. Open the printed link and click "Try it with the sample prototype".** Enter your email, then open your own personal link. You see what a tester sees: the consent note, the tasks, the feedback button, the watermark. Back in the console, the share's **Feedback & results** tab fills in as you click around. To share your own work, click **New share** and drop a folder.
 
 **3. Connect Claude** by pasting the printed command:
 
@@ -30,37 +36,38 @@ The first start makes its own admin token and encryption key, listens on your ma
 claude mcp add prototype-vault -- node "/path/to/mcp/server.js"
 ```
 
-Then tell Claude "share this prototype with Priya and Tom for a week" and it publishes, confirms the people and expiry with you, and hands you the links. The CLI works the same way with no settings: `node cli/vault.js list`.
+Then tell Claude "share this prototype with Priya and Tom for a week". It publishes, confirms the people and expiry with you, and hands you the links. The CLI works the same way with no settings: `node cli/vault.js list`.
 
-That is the whole local setup. Secrets live in `server/data/local-secrets.json`, and the server only answers on localhost until you configure it. To let other people open links, or for a real server, set the values yourself: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Secrets live in `server/data/local-secrets.json`, and the server answers on localhost only until you configure it. For other devices or a real server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Status: a working proof of concept, not an audited product
 
-This was built in a few days with Claude. It has an end-to-end test suite (`cd server && npm test`), a written threat model, and no third-party code, but it has not been penetration tested or reviewed by an independent security team. Read [docs/SECURITY.md](docs/SECURITY.md), run the tests, and have your own security people look at it before trusting it with anything that matters. Found something? See "Reporting a vulnerability" in that document.
+Built in a few days with Claude Code. It has an end-to-end test suite (`cd server && npm test`, 14 tests covering both origins, sign-in, limits and the tester flow), a written threat model, a linter and a formatter in CI, and no third-party code in the server. It has not been penetration tested or reviewed by an independent security team. Read [docs/SECURITY.md](docs/SECURITY.md), run the tests, and have your own security people look at it before trusting it with anything that matters. Known weaknesses and the order they will be fixed in are in [docs/OBJECTIONS.md](docs/OBJECTIONS.md). Found something? See "Reporting a vulnerability" in the security document.
 
 ## What you get
 
 | Piece | What it does |
 |---|---|
-| **`server/`** | A self-hosted web server (Node, **zero third-party dependencies**, one Docker image, about 1,100 lines across small modules). Stores prototypes encrypted, gates them behind personal links, a passcode, or your SSO, serves them in a locked-down sandbox, records access and, for usability tests, interactions and feedback. |
+| **`server/`** | The vault: a Node server with no third-party packages, one Docker image. Stores prototypes encrypted, gates them behind personal links, a passcode, your SSO, or Google sign-in, serves them from a separate origin in a locked-down frame, records access and, for usability tests, interactions and feedback. |
 | **Console** (`/admin`) | Upload a folder, invite people, copy their links, revoke, extend, read results. |
-| **`cli/vault.js`** | Publish from the terminal. Also `vault inline`, which pulls CDN scripts, styles and fonts into the bundle so the prototype works with no internet access. |
-| **`mcp/server.js`** | An MCP server so Claude Code, Claude Desktop or Cursor can publish, invite, revoke and read usability results directly. |
-| **`skill/prototype-share/`** | Optional Claude Code skill with the full checked workflow (make self-contained, confirm viewers, publish, report). |
+| **`cli/vault.js`** | Publish from the terminal. `vault inline` pulls CDN scripts, styles and fonts into the bundle so the prototype works with no internet access. |
+| **`mcp/server.js`** | An MCP server so Claude Code, Claude Desktop or Cursor can publish, invite, revoke and read usability results. |
+| **`skill/prototype-share/`** | Optional Claude Code skill with the checked workflow (make self-contained, confirm viewers, publish, report). |
 | **`viewer-app/`** | Optional desktop viewer (Electron) whose window is excluded from screenshots and screen sharing on macOS and Windows. |
-| **`docs/`** | [SECURITY.md](docs/SECURITY.md) for your security review; [DEPLOYMENT.md](docs/DEPLOYMENT.md) for IT. |
+| **`docs/`** | [SECURITY.md](docs/SECURITY.md) for your security review, [DEPLOYMENT.md](docs/DEPLOYMENT.md) for IT, [PROCESS.md](docs/PROCESS.md) on how it was built, [OBJECTIONS.md](docs/OBJECTIONS.md) on what is still weak. |
 
 ## What a security review will find
 
-- **Nothing leaves your network.** The server makes no outbound calls. Ever. Prototypes are served with a Content Security Policy that blocks them from loading or sending anything outside the vault.
-- **Named access only.** Every viewer gets their own link tied to their email. Links expire, can be revoked one at a time, and can be re-issued if leaked. Optional passcode as a second factor. Optional SSO via your identity-aware proxy (Cloudflare Access, Google IAP, Azure AD App Proxy, oauth2-proxy).
+- **Nothing leaves your network** when you run it yourself. The server makes no outbound calls. With Google sign-in enabled, the one exception is the token exchange with Google during sign-in. Prototypes are served with a Content Security Policy that stops them loading from or sending to anywhere else.
+- **Prototypes run on their own origin.** The files are served from a second hostname or port, so a prototype's scripts cannot reach the console, the tester shell, or another share. This is the same separation GitHub Pages and CodePen use.
+- **Named access only.** Every viewer gets a personal link tied to their email. The link's secret is stored only as a hash, shown once when issued, and can be revoked or re-issued at any time. Optional passcode as a second factor. Optional SSO through your identity-aware proxy (Cloudflare Access, Google IAP, Azure AD App Proxy, oauth2-proxy).
 - **Encrypted at rest.** Prototype files and metadata are AES-256-GCM encrypted with a key you hold.
-- **Auditable.** Who opened what, when, from where, plus every rejected attempt and every admin action, in append-only logs.
-- **Retention built in.** Shares expire; files are purged automatically after a retention window.
-- **Reviewable in an afternoon.** About 1,100 lines of plain Node in small modules, no npm packages, so there is no supply chain to vet. `npm test` exercises the whole tester flow.
-- **Research is opt-in at every level.** A share is view only unless you set up a test. Interaction recording needs the tester's consent, voice recording is off unless you turn it on for a share, and typed text is never captured unless you turn that on too.
+- **Each person sees only their own shares.** Sign in with Google or a personal token and the console shows what you created. The server admin token sees everything.
+- **Auditable.** Who opened what, when, from where, plus every rejected attempt and every admin action, in append-only logs trimmed to your retention window.
+- **Research is opt-in at every level.** A share is view only unless you set up a test. Interaction recording needs the tester's consent. Voice recording, dictation and typed-text capture are each off unless you turn them on for a share.
+- **Reviewable in an afternoon.** Ten small modules and no npm packages, so there is no supply chain to vet.
 
-What it is *not*: DRM. In a browser, a tester who can see a prototype can screenshot it; the watermark (viewer email over every screen) and the audit trail make that traceable rather than impossible. The optional [viewer app](viewer-app/README.md) goes further: its window is excluded from screenshots, screen recording and screen sharing on macOS and Windows, the way banking apps do it. Nothing stops a phone camera. See [docs/SECURITY.md](docs/SECURITY.md).
+What it is *not*: DRM. In a browser, a tester who can see a prototype can screenshot it. The watermark (viewer email over every screen) and the access log make that traceable. The optional [viewer app](viewer-app/README.md) uses the operating system's content-protection flag so screenshots and screen sharing of its window come out black on macOS and Windows. Nothing stops a phone camera.
 
 ## Sharing from the terminal or from Claude
 
@@ -68,9 +75,9 @@ What it is *not*: DRM. In a browser, a tester who can see a prototype can screen
 node cli/vault.js publish ./my-prototype --name "Checkout v3" --viewers "Priya <priya@customer.com>,tom@partner.org" --expires 7 --tasks "Find the annual price|Add a team member"
 ```
 
-A share is **view only** by default: nothing about how it is used is recorded, only who opened it. Giving tasks (or `--mode unmoderated|moderated`) turns it into a usability test with consent, tasks and interaction recording. `--voice` additionally offers think-aloud voice recording.
+A share is **view only** by default: nothing about how it is used is recorded, only who opened it. Giving tasks (or `--mode unmoderated|moderated`) turns it into a usability test with consent, tasks and interaction recording. `--voice` offers think-aloud voice recording.
 
-**Remote vault.** When the vault runs on a company server instead of your laptop, the CLI and MCP server need to know where and who: open the console's **Account** page, click *Connect a tool*, and copy the setup it shows. It amounts to two environment variables:
+**Remote vault.** When the vault runs somewhere other than your laptop, open the console's **Account** page, click *Connect a tool*, and copy the setup it shows. It amounts to two environment variables:
 
 ```bash
 export VAULT_URL=https://prototypes.internal.company.com VAULT_ADMIN_TOKEN=...
@@ -79,42 +86,53 @@ claude mcp add prototype-vault -e VAULT_URL=$VAULT_URL -e VAULT_ADMIN_TOKEN=$VAU
 
 *Disconnect* on the same page revokes a tool's token. Other MCP clients are covered in [mcp/README.md](mcp/README.md).
 
-**Skill (optional).** Copy `skill/prototype-share` into `~/.claude/skills/` if you want Claude to follow the full checked workflow even without the MCP server connected.
-
-There is no sign-up. On a real deployment designers get in through the company sign-in (SSO) and IT lists them in `ADMIN_EMAILS`; the admin token is the fallback for a server you run yourself.
+There is no password store. Designers get in through the company sign-in (SSO), through Google sign-in on a hosted copy, or with the admin token on a server they run themselves.
 
 ## The tester's experience
 
-1. They click their personal link. The token is consumed and dropped from the address bar.
+1. They click their personal link. The secret is consumed and dropped from the address bar.
 2. If a passcode is set, they enter it.
-3. They see a short consent note about interaction recording and choose.
-4. The prototype opens full-screen, watermarked with their email, with a **Tasks** panel (if you set tasks) and a **Feedback** button.
-5. They mark each task completed or stuck, optionally with a note, and can send free-form feedback at any point. Their current screen is attached automatically.
+3. For a usability test, they see a short note about what gets recorded and choose.
+4. The prototype opens full screen, watermarked with their email, with a **Tasks** panel (if you set tasks) and a **Feedback** button.
+5. They mark each task completed or stuck, optionally with a note, and can send feedback at any point. The screen they were on is attached automatically.
 
-You see all of it on the share's **Feedback & results** tab, or with `vault results <id>`, or by asking Claude through the MCP.
+You see all of it on the share's **Feedback & results** tab, with `vault results <id>`, or by asking Claude.
 
 ## Making prototypes self-contained
 
-Claude-generated prototypes often load React, Tailwind or fonts from a CDN. The vault blocks that by default (a prototype that phones out is a data leak waiting to happen). Two options:
+Claude-generated prototypes often load React, Tailwind or fonts from a CDN. The vault blocks that by default, because a prototype that loads from the internet can also send to it. Two options:
 
-- `node cli/vault.js inline ./my-prototype` downloads those assets into `vendor/` and rewrites the references. `vault publish` does this automatically. The MCP publish tool does too.
-- Your server admin can allow specific origins with `ALLOWED_EXTERNAL_ORIGINS`, then a share can opt in to them. Prefer inlining.
+- `node cli/vault.js inline ./my-prototype` downloads those assets into `vendor/` and rewrites the references. `vault publish` and the MCP publish tool do this automatically.
+- Your server admin can allow specific origins with `ALLOWED_EXTERNAL_ORIGINS`, and a share can opt in to them. Prefer inlining.
 
 Prototypes that call a live API will not work in the vault. Mock the data in the prototype instead.
+
+## Development
+
+```bash
+npm install        # formatter and linter only; the server has no dependencies
+npm run lint
+npm run format
+npm test
+```
+
+CI runs the same three commands on Node 20 and 22.
 
 ## Layout
 
 ```
-PROBLEM.md                 the post that started this, and what it really asks for
+PROBLEM.md                 the post that started this, and what it asks for
 README.md                  this file
+CHANGELOG.md               what changed in each version
 server/                    the vault (server.js, lib/, public/, Dockerfile, .env.example)
 cli/vault.js               command-line client; cli/lib.js is shared with the MCP server
 mcp/server.js              MCP server (stdio)
 skill/prototype-share/     optional Claude Code skill
 docs/SECURITY.md           threat model, controls, review checklist
-docs/DEPLOYMENT.md         Docker, reverse proxy, SSO header setup
-docs/PROCESS.md            how it was built: decisions, trade-offs, working with AI, tests
-docs/OBJECTIONS.md         known weaknesses, anticipated review findings, and the fix order
+docs/DEPLOYMENT.md         Docker, Cloud Run, reverse proxy, SSO and Google sign-in setup
+docs/PROCESS.md            how it was built: decisions, trade-offs, working with AI
+docs/OBJECTIONS.md         known weaknesses and the fix order
+design/                    design system and canvas mockups
 examples/sample-prototype  the prototype behind "Try it with the sample prototype"
 viewer-app/                optional desktop viewer with screenshot protection
 server/test/               end-to-end tests (npm test)
