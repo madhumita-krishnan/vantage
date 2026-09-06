@@ -338,7 +338,7 @@ async function handle(line) {
       return reply(id, {
         protocolVersion: (params && params.protocolVersion) || '2025-06-18',
         capabilities: { tools: {} },
-        serverInfo: { name: 'prototype-vault', version: '0.3.0' },
+        serverInfo: { name: 'prototype-vault', version: '0.3.1' },
       });
     if (method === 'notifications/initialized' || method === 'notifications/cancelled') return;
     if (method === 'ping') return reply(id, {});

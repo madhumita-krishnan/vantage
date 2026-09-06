@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.3.1 (2026-09-06)
+
+Line-by-line review of 0.3.0 by the author and two independent passes. Thirty defects found, all fixed; the server-side ones have tests that fail on 0.3.0. Nothing in the API changed shape.
+
+**Security**
+
+- `requireSignIn` was enforced on the console address only. The content address accepted the same session token before the tester had signed in, so a forwarded link could still fetch the prototype files with a copied cookie. The content address now applies the identity gate too.
+- Admins signed in through the company SSO header had no cross-site check on writes, unlike Google sessions. They have one now.
+- A viewer, share or recording id spelling an `Object.prototype` member (`__proto__`, `constructor`) reached the record maps. Lookups are own-property only.
+- Unauthenticated console calls were written to the admin log without limit; they are now logged a few times per address per hour. The admin log holds admin events only, so the account page's recent-activity window is no longer pushed out by tester events.
+- The CLI no longer follows symbolic links when collecting a prototype folder, and a relative `url()` inside a page's `<style>` is no longer resolved against a placeholder host.
+
+**Data loss and availability**
+
+- Replacing or removing a share's intro recording deleted every voice and screen recording in the share, and its caption files, while the results tab kept listing them. Only the intro and its captions are removed now.
+- A bundle upload deleted the old files before writing the new ones, so a bundle the server refused half-way (a name used as both a file and a folder, a disk error) left the share with no prototype. New files are written beside the old ones and swapped in; a bundle with such a clash, or two paths differing only in case, is refused up front.
+- A tester closing a media download mid-stream left the request waiting forever with an open file. A disk error while an intro uploaded, or a stream failing after its headers were sent, ended the process. All three are handled.
+- Media written before `VAULT_ENCRYPTION_KEY` was set was misread after the key was added. Each file is now read by its own header, like the store.
+- The console's live refresh on the results tab replaced the page every five seconds, discarding a moderator note being typed and stopping a recording being played. It now waits.
+- Only the first item of a multi-item drop reached the New share page, because the browser empties the drop list at the first pause. Every dropped file and folder is taken first.
+- The subtitle list lost an entry on any request naming that language, including a GET or a rejected file. Language codes are normalised the same way on upload and playback, so `zh_TW` plays.
+
+**Fixes**
+
+- Choosing "Open this file first" in the console after dropping a folder failed with "Entry file not found", because the server strips the folder name from the paths but not from the entry. Fixed.
+- Saving a share's settings shifted every "After task N" rule down by one each time, because the editor showed the server's 0-based index and subtracted one again on save. The editor now shows and reads the number the way it was typed.
+- A suffix range request (`Range: bytes=-500`) on intro media returned the first bytes instead of the last.
+- A non-numeric `expiresInDays` created a share with no expiry date and answered 500. It is refused with 400.
+- A malformed cookie set by another app on the same host made every page answer 500.
+- A retried recording segment counted twice against the media limit; a segment far out of sequence made playback stat a hundred thousand files. Segments must arrive in order and a retry replaces its earlier copy.
+- Voice or screen recording could be switched on with the consent screen off, which left testers no way to start recording. Offering either now turns the consent screen on, and the screen appears even when interaction recording is off.
+- The tester page ignored the chosen intro kind: text saved under "Your text" still showed after switching back to "Standard", and a removed kind left an empty "Before you start" box. The page follows the kind.
+- The "recording started" mark posted by the tester page went to an address that did not exist, so it never reached the event log.
+- After "Hide tasks", scheduled tasks kept announcing themselves. A task appearing no longer wipes a note being typed. A refused feedback or task answer (rate limit, view-only) now says so instead of "Thanks, feedback sent".
+- The drop zones lost their file pickers after the first pick, so a second click did nothing. A revoked viewer's link no longer shows or copies. Switching a share's purpose in Settings now sets "Show tasks" the way New share does. Results loaded for one share can no longer paint over another share's page. Tag attributes containing `$` survive `vault inline`.
+- Viewer app: launching it a second time without a link no longer replaces the prototype that is open.
+
 ## 0.3.0 (2026-09-06)
 
 **Recording**

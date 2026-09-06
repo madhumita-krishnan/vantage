@@ -74,8 +74,18 @@ module.exports = { makeBlob, randomId, randomToken, randomKeyHex, sha256, safeEq
 // Plaintext is split into 1 MiB chunks; each chunk is encoded with the blob (encrypted when a key is set),
 // so any byte range can be served by decoding only the chunks it touches. Needed for HTTP Range streaming.
 const CHUNK = 1024 * 1024;
-function chunkOverhead(blob) {
-  return blob.enabled ? 32 : 0;
+// Per-file: a file written before VAULT_ENCRYPTION_KEY was set has no header and is read as plaintext, like the store.
+function chunkOverhead(blob, file) {
+  if (!blob.enabled) return 0;
+  const fs = require('fs');
+  const head = Buffer.alloc(4);
+  const fd = fs.openSync(file, 'r');
+  try {
+    fs.readSync(fd, head, 0, 4, 0);
+  } finally {
+    fs.closeSync(fd);
+  }
+  return head.equals(MAGIC) ? 32 : 0;
 }
 function chunkedWriter(blob, file) {
   const fs = require('fs');
@@ -120,7 +130,7 @@ function chunkedWriter(blob, file) {
 }
 function* chunkedRange(blob, file, size, start, end) {
   const fs = require('fs');
-  const ov = chunkOverhead(blob);
+  const ov = chunkOverhead(blob, file);
   const fd = fs.openSync(file, 'r');
   try {
     for (let i = Math.floor(start / CHUNK); i * CHUNK <= end; i++) {
@@ -135,5 +145,6 @@ function* chunkedRange(blob, file, size, start, end) {
     fs.closeSync(fd);
   }
 }
+module.exports.chunkOverhead = chunkOverhead;
 module.exports.chunkedWriter = chunkedWriter;
 module.exports.chunkedRange = chunkedRange;

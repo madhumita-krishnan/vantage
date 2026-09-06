@@ -8,6 +8,13 @@ module.exports = function media(ctx) {
   const { CONFIG, blob, H, S } = ctx;
   const introFile = (id) => path.join(S.mediaDir(id), 'intro.bin');
   const subtitleFile = (id, lang) => path.join(S.mediaDir(id), `sub-${lang}.vtt`);
+  // One rule for language codes wherever they arrive: "zh-TW" and "zh_tw" both become "zh-tw".
+  const subtitleLang = (s) =>
+    String(s)
+      .toLowerCase()
+      .replace(/_/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .slice(0, 12);
   const recordingDir = (id, session) => path.join(S.mediaDir(id), 'rec', session);
 
   function storeIntro(req, id, limit) {
@@ -15,20 +22,29 @@ module.exports = function media(ctx) {
       const w = C.chunkedWriter(blob, introFile(id));
       let size = 0,
         failed = false;
+      const fail = (e) => {
+        failed = true;
+        w.abort();
+        req.destroy();
+        reject(e);
+      };
       req.on('data', (c) => {
         if (failed) return;
         size += c.length;
-        if (size > limit) {
-          failed = true;
-          w.abort();
-          req.destroy();
-          reject(H.httpError(413, `Media larger than ${Math.round(limit / 1048576)} MB`));
-        } else w.write(c);
+        if (size > limit) return fail(H.httpError(413, `Media larger than ${Math.round(limit / 1048576)} MB`));
+        try {
+          w.write(c);
+        } catch (e) {
+          fail(e); // the disk is full or gone
+        }
       });
       req.on('end', () => {
-        if (!failed) {
+        if (failed) return;
+        try {
           w.end();
           resolve(size);
+        } catch (e) {
+          fail(e);
         }
       });
       req.on('error', (e) => {
@@ -47,9 +63,10 @@ module.exports = function media(ctx) {
       status = 200;
     const m = String(req.headers.range || '').match(/^bytes=(\d*)-(\d*)$/);
     if (m && size > 0) {
-      if (m[1]) start = +m[1];
-      if (m[2]) end = Math.min(+m[2], size - 1);
-      else if (!m[1]) start = Math.max(0, size - (+m[2] || 0));
+      if (m[1]) {
+        start = +m[1];
+        if (m[2]) end = Math.min(+m[2], size - 1);
+      } else start = Math.max(0, size - +m[2]); // suffix: the last N bytes ("bytes=-" lands on start >= size, 416)
       if (start >= size || start > end) {
         res.writeHead(416, { 'Content-Range': `bytes */${size}` });
         res.end();
@@ -71,7 +88,10 @@ module.exports = function media(ctx) {
     if (r.status === 206) headers['Content-Range'] = `bytes ${r.start}-${r.end}/${size}`;
     res.writeHead(r.status, headers);
     if (req.method === 'HEAD') return res.end();
-    for (const piece of pieces) if (!res.write(piece)) await new Promise((k) => res.once('drain', k));
+    for (const piece of pieces) {
+      if (res.destroyed) break; // the client went away: stop reading and let the generator's finally close the file
+      if (!res.write(piece)) await new Promise((k) => res.once('drain', k).once('close', k));
+    }
     res.end();
   }
   async function streamIntro(req, res, share) {
@@ -81,7 +101,7 @@ module.exports = function media(ctx) {
     if (r) await stream(req, res, r, m.size, m.mime, C.chunkedRange(blob, introFile(share.id), m.size, r.start, r.end));
   }
   async function streamRecording(req, res, share, session) {
-    const rec = (share.recordings || {})[session];
+    const rec = Object.hasOwn(share.recordings || {}, session) && share.recordings[session];
     if (!rec) throw H.httpError(404, 'Recording not found');
     const dir = recordingDir(share.id, session);
     const segs = [];
@@ -94,7 +114,7 @@ module.exports = function media(ctx) {
       } catch {
         continue;
       }
-      const len = st.size - (blob.enabled ? 32 : 0);
+      const len = st.size - C.chunkOverhead(blob, f);
       segs.push({ f, start: total, len });
       total += len;
     }
@@ -126,12 +146,20 @@ module.exports = function media(ctx) {
       });
     if (Object.values(share.recordings).reduce((a, x) => a + x.size, 0) + buf.length > CONFIG.maxMediaBytes)
       throw H.httpError(413, 'Recording storage limit reached');
-    S.enforceLimits(share, buf.length);
+    if (seq > rec.segments) throw H.httpError(400, 'Recording segments must arrive in order');
     const dir = recordingDir(share.id, session);
+    const file = path.join(dir, `${seq}.bin`);
+    let replaced = 0;
+    try {
+      replaced = fs.statSync(file).size - C.chunkOverhead(blob, file); // a retry after a lost answer
+    } catch {
+      /* new segment */
+    }
+    S.enforceLimits(share, buf.length - replaced);
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-    fs.writeFileSync(path.join(dir, `${seq}.bin`), blob.encode(buf), { mode: 0o600 });
+    fs.writeFileSync(file, blob.encode(buf), { mode: 0o600 });
     rec.segments = Math.max(rec.segments, seq + 1);
-    rec.size += buf.length;
+    rec.size += buf.length - replaced;
     rec.updatedAt = Date.now();
     return rec;
   }
@@ -150,6 +178,12 @@ module.exports = function media(ctx) {
       /* ignore */
     }
   };
+  // Only the intro and its captions; recordings live in the same folder and stay.
+  const removeIntro = (share) => {
+    const dir = S.mediaDir(share.id);
+    for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : [])
+      if (f === 'intro.bin' || f.startsWith('sub-')) fs.unlinkSync(path.join(dir, f));
+  };
   const removeRecording = (share, session) =>
     fs.rmSync(recordingDir(share.id, session), { recursive: true, force: true });
   return {
@@ -157,6 +191,8 @@ module.exports = function media(ctx) {
     streamIntro,
     streamRecording,
     appendRecording,
+    subtitleLang,
+    removeIntro,
     removeRecording,
     writeSubtitle,
     readSubtitle,

@@ -78,7 +78,12 @@ else {
     pending = linkFrom(url);
     if (app.isReady()) open(pending);
   }); // macOS
-  app.on('second-instance', (e, argv) => open(argv.map(linkFrom).find(Boolean) || null)); // Windows, Linux
+  app.on('second-instance', (e, argv) => {
+    // Windows, Linux. A launch with no link must not replace a prototype that is open.
+    const link = argv.map(linkFrom).find(Boolean);
+    if (link || !win) open(link || null);
+    else win.focus();
+  });
   app.whenReady().then(() => open(pending || process.argv.map(linkFrom).find(Boolean) || null));
   app.on('window-all-closed', () => app.quit());
 }

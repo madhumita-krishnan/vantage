@@ -336,6 +336,10 @@
               location.reload();
               throw new Error('session');
             }
+            if (!r.ok) {
+              toast('That did not go through. Try again.');
+              throw new Error('http ' + r.status);
+            }
             return r.json();
           });
         }
@@ -541,11 +545,14 @@
           $('#taskCount').textContent = left || '';
           if (announce) {
             toast((t.kind === 'question' ? 'New question: ' : 'New task: ') + t.text, 5000);
-            if (panelMode === 'tasks' && $('#panel').classList.contains('open')) render();
+            var typing = [].some.call(document.querySelectorAll('#panelBody textarea'), function (x) {
+              return x.value;
+            });
+            if (panelMode === 'tasks' && $('#panel').classList.contains('open') && !typing) render();
           }
         }
         function checkTriggers() {
-          if (!meta.showTasks) return;
+          if (!meta.showTasks || tasksHidden) return;
           var loc = frameLocation();
           var mins = (Date.now() - start) / 60000;
           tasks().forEach(function (t) {
@@ -639,7 +646,7 @@
               var i = +card.dataset.i;
               var note = (card.querySelector('textarea') || { value: '' }).value.trim();
               if (btn.dataset.r === 'answer' && !note) {
-                toast('Type or dictate an answer first');
+                toast('Type an answer first');
                 return;
               }
               api('feedback', {
@@ -766,7 +773,8 @@
           return h ? '<div class="intro">' + h + '</div>' : '';
         }
         function consentBody() {
-          var needs = meta.recordSessions && meta.requireConsent && meta.consent === null;
+          var needs =
+            (meta.recordSessions || meta.voice || meta.screen) && meta.requireConsent && meta.consent === null;
           var h = '<h1>Before you start</h1><div class="scrollwrap"><div class="mbody scroll">' + introHtml();
           if (needs)
             h +=
@@ -774,7 +782,10 @@
               (meta.mode === 'moderated'
                 ? 'Your moderator will guide you. The prototype would also like to record how you use it:'
                 : 'The designer would like to record how you use the prototype:') +
-              '</p><ul><li>Taps and clicks, and where on the screen</li><li>Screens you visit and how long you stay</li><li>Fields you focus on, never what you type</li><li>Anything the prototype itself chooses to note, such as which option you picked</li>' +
+              '</p><ul>' +
+              (meta.recordSessions
+                ? '<li>Taps and clicks, and where on the screen</li><li>Screens you visit and how long you stay</li><li>Fields you focus on, never what you type</li><li>Anything the prototype itself chooses to note, such as which option you picked</li>'
+                : '') +
               (meta.recordText
                 ? '<li>What you type into the prototype (it holds sample data, not your own)</li>'
                 : '') +
@@ -883,7 +894,7 @@
             if (m.mode === 'view') {
               $('#btnFeedback').hidden = true;
             }
-            var needsConsent = m.recordSessions && m.requireConsent && m.consent === null;
+            var needsConsent = (m.recordSessions || m.voice || m.screen) && m.requireConsent && m.consent === null;
             var hasIntro = m.intro && (m.intro.text || m.intro.media) && m.consent === null;
             if (needsConsent || hasIntro) consent();
             else start_();

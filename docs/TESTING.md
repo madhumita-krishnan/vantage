@@ -4,7 +4,7 @@ For anyone who wants to know what "tested" means here. Four kinds of checking, i
 
 ## 1. Automatic tests, run on every change
 
-Sixteen tests start a real copy of the server on random ports, with a throwaway data folder, and drive it the way a browser, the console, and the command-line tools would. They run with one command (`cd server && npm test`) and again on GitHub every time code is pushed, on Node 20 and Node 22. If any of them fails, the change does not go in.
+Twenty tests start a real copy of the server on random ports, with a throwaway data folder, and drive it the way a browser, the console, and the command-line tools would. They run with one command (`cd server && npm test`) and again on GitHub every time code is pushed, on Node 20 and Node 22. If any of them fails, the change does not go in.
 
 What each one proves:
 
@@ -13,7 +13,7 @@ What each one proves:
 | Quick start | Starting with no settings makes a secret key once, keeps it in a private file, reuses it next time, and listens on your machine only. |
 | Explicit admin token | Setting your own token skips the secrets file, listens on all interfaces, and refuses a token shorter than 24 characters. |
 | Admin API and identity | Every console call without a valid credential is refused. The sign-in screen reveals no secrets. The identity endpoint gives away no file paths. |
-| Share defaults | A share is view-only unless a test is set up. Voice and screen recording are off unless switched on. Files with unsafe paths (`../`) are rejected. Bad emails are rejected. |
+| Share defaults | A share is view-only unless a test is set up. Voice and screen recording are off unless switched on. Files with unsafe paths (`../`) are rejected. Bad emails and a non-numeric expiry are rejected. An entry file named with the dropped folder's prefix still opens. |
 | Tester flow | The whole journey: the personal link's secret is stored only as a hash and shown once; the gate page carries the script that redeems it; the prototype is refused on the console's address and served only on the content address, inside a frame, behind a one-time ticket that works once; nothing is recorded before consent; clicks and feedback are counted correctly afterwards; cross-site posts are refused on both addresses; revoking a viewer kills both sessions and is logged. |
 | Tracker placement | The recording script is inserted after the page's doctype even when the page has no `<head>`. |
 | View-only | A view-only share records no events and has no feedback endpoint. |
@@ -22,9 +22,12 @@ What each one proves:
 | Sample share | The "Try it" button publishes the bundled example with three tasks and a working link. |
 | SSO header | A company sign-in header admits allowed domains only when the proxy is trusted, and is ignored otherwise. |
 | Google sign-in | The sign-in round trip works against a stand-in for Google; a bad state is refused; the session is stored hashed; a cookie-signed request from another site is refused; each person sees only their own shares; the share limit applies; sign-out ends the session; a person not on the list is refused. |
+| Require sign-in | A redeemed link opens nothing, on either address, until the invited Google account has signed in; the wrong account is refused and logged; the check is case-insensitive. |
 | Storage limit | A person over their storage limit cannot upload more, and their testers cannot record voice into their shares either. |
+| Screen recording | Video is accepted only on shares that allow it, listed with its type, and streamed back. Replacing or removing the intro leaves recordings alone. A suffix range request returns the last bytes. |
 | Housekeeping | Past the retention window a whole share is deleted. The admin log is trimmed. A backup of the metadata store is kept. The rate limiter survives sixty thousand junk keys. |
 | Hardening | A client cannot spoof its address through the proxy header. Prototype pages open only inside a frame. Spreadsheet formulas in exported data are defused. Oversized event data is kept, truncated, instead of failing the batch. |
+| Hardening 2 | A refused bundle upload leaves the old files serving. Ids spelling `__proto__` or `constructor` are not records. A malformed cookie from another app is ignored. A GET or a rejected file leaves the subtitle list alone, and `zh_TW` is stored as `zh-tw`. Recording segments must arrive in order and a retry replaces its earlier copy. An SSO admin's cross-site write is refused. |
 | Wildcard content address | With a wildcard content address, each share gets its own host and lookalike hosts are rejected. |
 
 ## 2. Checks by hand in a browser

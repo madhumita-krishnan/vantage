@@ -84,13 +84,16 @@ function createApp(env = process.env) {
         if (admin && admin.cookie && req.method !== 'GET' && !sameOrigin(req))
           return json(req, res, 403, { error: 'Cross-origin request rejected' });
         if (admin) return await handleAdmin(req, res, url, admin);
-        if (p !== '/api/me') ctx.S.logAudit(null, 'admin.unauthorized', req, { path: p });
+        // Logged a few times per address per hour, not once per request, so a scanner cannot fill the disk.
+        if (p !== '/api/me' && ctx.H.rateLimit(`unauth:${ctx.H.clientIp(req)}`, 5, 3600e3))
+          ctx.S.logAudit(null, 'admin.unauthorized', req, { path: p });
         return json(req, res, 401, { error: 'Unauthorized' });
       }
       return ctx.gate(req, res, 404, 'Not found', 'Nothing here.');
     } catch (e) {
       const status = e.status || 500;
       if (status >= 500) console.error(e);
+      if (res.headersSent) return res.destroy(); // a stream failed mid-body; nothing sensible can be sent now
       if (p.startsWith('/api/') || p.includes('/_vault/'))
         return json(req, res, status, { error: status >= 500 ? 'Internal error' : e.message });
       return ctx.gate(
@@ -102,8 +105,9 @@ function createApp(env = process.env) {
       );
     }
   }
-  const server = http.createServer((req, res) => handle(req, res, false));
-  const contentServer = CONFIG.contentPort ? http.createServer((req, res) => handle(req, res, true)) : null;
+  const serve = (content) => (req, res) => handle(req, res, content).catch(() => res.destroy());
+  const server = http.createServer(serve(false));
+  const contentServer = CONFIG.contentPort ? http.createServer(serve(true)) : null;
   const sweeper = setInterval(ctx.S.sweep, 600e3);
   sweeper.unref();
   server.on('close', () => {

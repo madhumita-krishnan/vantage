@@ -24,7 +24,7 @@ function taskRow(t) {
       </select>
       <input type="text" class="tt" value="${esc(t.text)}" placeholder="${placeholder}">
       <select class="tw">${options}</select>
-      <input type="text" class="tv" value="${esc(t.when.value ?? '')}" placeholder="${WHEN_PLACEHOLDER[t.when.type]}"
+      <input type="text" class="tv" value="${esc(t.when.type === 'after' ? t.when.value + 1 : (t.when.value ?? ''))}" placeholder="${WHEN_PLACEHOLDER[t.when.type]}"
         ${t.when.type === 'start' ? 'disabled' : ''}>
       <button type="button" class="rm" title="Remove">${ic('x')}</button>
     </div>`;
@@ -92,7 +92,7 @@ function modeSeg(mode) {
       <div class="hint" id="modeHint"></div>
     </div>`;
 }
-function wireModeSeg(onChange) {
+function wireModeSeg() {
   const set = () => {
     const m = $('#modeSeg .on').dataset.m;
     $('#modeHint').textContent = MODE_HINT[m];
@@ -107,7 +107,12 @@ function wireModeSeg(onChange) {
           .forEach((x) => x.classList.remove('on'));
         b.classList.add('on');
         set();
-        if (onChange) onChange(b.dataset.m);
+        // Tasks are shown in an unmoderated test and hidden in a moderated one (the moderator asks them); the switch
+        // below can still be changed afterwards.
+        if ($('#showTasks')) {
+          $('#showTasks').checked = b.dataset.m === 'unmoderated';
+          $('#showTasks').dispatchEvent(new Event('change'));
+        }
       };
     });
   set();
@@ -137,7 +142,11 @@ const OPTIONS = [
     'Offer screen recording: a video of the prototype tab, with the voice track when both are on, that you can watch back on the results tab. Desktop browsers only; the tester picks the tab and can stop at any time. About 5 MB a minute, counted against the media limit. Off by default.',
     (s) => !!s.screen,
   ],
-  ['consent', 'Ask testers for consent before recording anything.', (s) => s.requireConsent !== false],
+  [
+    'consent',
+    'Ask testers for consent before recording anything. Always on when voice or screen recording is offered, because that is where testers choose.',
+    (s) => s.requireConsent !== false,
+  ],
   [
     'signin',
     'Testers must sign in with Google as the invited address before the link opens, so a forwarded link opens nothing. Needs Google sign-in on this server. Off by default because it excludes people without a Google account.',
@@ -222,7 +231,7 @@ function introEditor(intro, share) {
       <div class="field" id="introMediaField" ${kind === 'audio' || kind === 'video' ? '' : 'hidden'}>
         <label>Recording</label>
         ${media}
-        <div class="drop" id="introDrop">${hasMedia ? 'Drop a new file to replace it' : 'Drop an audio or video file here, or click to choose'}
+        <div class="drop" id="introDrop"><span>${hasMedia ? 'Drop a new file to replace it' : 'Drop an audio or video file here, or click to choose'}</span>
           <input type="file" id="introFile" accept="${me.server.mediaTypes.join(',')}"></div>
         <div class="hint">MP4 (H.264) or WebM video, MP3, M4A or WAV audio. Up to ${me.server.maxMediaMb} MB. Streams to
           testers in pieces, so large files play without a full download. The player has captions, language choice and
@@ -267,7 +276,7 @@ function wireIntroEditor(shareId, pendingRef) {
       render();
     } else {
       pendingRef.media = file;
-      d.textContent = `${file.name} (${(file.size / 1048576).toFixed(1)} MB), uploads after you create the share`;
+      d.firstElementChild.textContent = `${file.name} (${(file.size / 1048576).toFixed(1)} MB), uploads after you create the share`;
       d.classList.add('has');
     }
   };

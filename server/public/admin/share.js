@@ -120,7 +120,7 @@ async function renderShare(app) {
 // ---- Viewers & links. A link is shown once, when issued; the console keeps it in view.links until you leave the page.
 function tabLinks(t, share) {
   const links = view.links || (view.links = {});
-  const link = (v) => links[v.id] || '';
+  const link = (v) => (v.revoked ? '' : links[v.id] || '');
   const row = (v) => {
     const l = link(v);
     const linkCell = l
@@ -282,6 +282,10 @@ async function tabResults(t, share) {
             <button class="btn small danger" data-recrm="${r.session}">Delete</button></span></td></tr>`
       )
       .join('');
+    // A refresh must not throw away a note being typed, stop a recording being played, or paint another share's page.
+    if (view.id !== share.id || view.tab !== 'results') return;
+    if (($('#noteText') && $('#noteText').value) || [...t.querySelectorAll('audio,video')].some((m) => !m.paused))
+      return;
     const noteWho = ['<option value="">General</option>']
       .concat(share.viewers.map((v) => `<option value="${v.id}">${esc(v.name)}</option>`))
       .join('');

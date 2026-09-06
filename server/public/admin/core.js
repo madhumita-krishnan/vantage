@@ -142,11 +142,15 @@ function walk(entry, prefix, out) {
   });
 }
 async function filesFromDrop(e) {
+  // The item list empties as soon as this handler yields, so every entry is taken before the first await.
+  const items = [...(e.dataTransfer.items || [])].map((it) => ({
+    entry: it.webkitGetAsEntry && it.webkitGetAsEntry(),
+    file: it.kind === 'file' ? it.getAsFile() : null,
+  }));
   const files = [];
-  for (const it of e.dataTransfer.items || []) {
-    const en = it.webkitGetAsEntry && it.webkitGetAsEntry();
-    if (en) await walk(en, '', files);
-    else if (it.kind === 'file') files.push({ path: it.getAsFile().name, file: it.getAsFile() });
+  for (const it of items) {
+    if (it.entry) await walk(it.entry, '', files);
+    else if (it.file) files.push({ path: it.file.name, file: it.file });
   }
   if (!files.length) for (const f of e.dataTransfer.files) files.push({ path: f.name, file: f });
   return files;

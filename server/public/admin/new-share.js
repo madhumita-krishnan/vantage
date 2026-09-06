@@ -19,7 +19,7 @@ function renderNew(app) {
            <div class="field"><label>Name</label>
              <input type="text" id="name" placeholder="e.g. Checkout redesign v3, usability round 2"></div>
            <div class="field"><label>Prototype files</label>
-             <div class="drop" id="drop">Drop a folder or an .html file here, or click to choose
+             <div class="drop" id="drop"><span>Drop a folder or an .html file here, or click to choose</span>
                <input type="file" id="fileIn" multiple webkitdirectory>
                <input type="file" id="fileIn2" multiple accept=".html,.htm,.css,.js,.png,.jpg,.svg,.json,.woff,.woff2"></div>
              <div class="hint">Everything in the folder is uploaded. Files must be self-contained: scripts, styles and
@@ -60,10 +60,7 @@ function renderNew(app) {
     view = { page: 'list' };
     render();
   };
-  wireModeSeg((m) => {
-    $('#showTasks').checked = m === 'unmoderated';
-    $('#showTasks').dispatchEvent(new Event('change'));
-  });
+  wireModeSeg();
   wireTaskEditor();
   wireOptions();
   wireIntroEditor(null, pending);
@@ -101,7 +98,7 @@ async function loadFiles(list) {
     bytes += buf.length;
     pending.files.push({ path, contentBase64: b64(buf) });
   }
-  $('#drop').textContent = `${pending.files.length} files (${Math.round(bytes / 1024)} KB)`;
+  $('#drop span').textContent = `${pending.files.length} files (${Math.round(bytes / 1024)} KB)`;
   $('#drop').classList.add('has');
   const htmls = pending.files.filter((f) => /\.html?$/i.test(f.path)).map((f) => f.path);
   const sel = $('#entry');

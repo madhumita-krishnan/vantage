@@ -142,6 +142,18 @@ test('share defaults: view only unless a test is asked for; voice and screen off
   });
   assert.equal(bad.status, 400);
   assert.equal((await v.call('POST', '/api/shares', { name: '' })).status, 400);
+  assert.equal((await v.call('POST', '/api/shares', { name: 'X', expiresInDays: 'soon' })).status, 400);
+  // The console names the entry file with the dropped folder's name, which the server strips
+  const nested = await v.call('POST', '/api/shares', {
+    name: 'Nested',
+    entry: 'proto/start.html',
+    files: [
+      { path: 'proto/index.html', contentBase64: b64('<p>a</p>') },
+      { path: 'proto/start.html', contentBase64: b64('<p>b</p>') },
+    ],
+  });
+  assert.equal(nested.status, 201, JSON.stringify(nested.data));
+  assert.equal(nested.data.share.entry, 'start.html');
   assert.equal((await v.call('POST', '/api/shares', { name: 'Nope', viewers: ['not-an-email'] })).status, 400);
   await v.close();
 });
@@ -433,6 +445,9 @@ test('SSO header admits allowed domains only when the proxy is trusted', async (
     'sso'
   );
   assert.equal((await v.call('GET', '/api/me', null, { 'x-forwarded-email': 'sam@corp.example' }, null)).status, 401);
+  // An SSO admin is a browser session: a write from another site is refused
+  const csrf = { 'x-forwarded-email': 'lead@corp.example', Origin: 'https://evil.example' };
+  assert.equal((await v.call('POST', '/api/me/leave', null, csrf, null)).status, 403);
   await v.close();
   const untrusted = await boot({
     ADMIN_TOKEN: 'y'.repeat(32),
@@ -605,6 +620,9 @@ test('require sign-in: a forwarded link opens nothing until the invited address 
   assert.equal(shell.status, 200);
   assert.match(shell.data, /Sign in with Google/);
   assert.equal((await v.call('GET', `/p/${id}/_vault/meta`, null, cookie, null)).status, 401);
+  assert.equal((await v.call('GET', `/p/${id}/_vault/content`, null, cookie, null)).status, 401);
+  // The same session token, replayed on the content origin, opens nothing either
+  assert.equal((await v.callContent('GET', `/p/${id}/app/index.html`, null, cookie)).status, 401);
   const verify = async (email) => {
     const start = await v.call('GET', `/p/${id}/signin`, null, cookie, null);
     assert.equal(start.status, 302);
@@ -713,6 +731,21 @@ test('screen recording: video accepted only when the share allows it, listed wit
   assert.equal(back.status, 200);
   assert.equal(back.headers.get('content-type'), 'video/webm');
   assert.match(back.headers.get('content-disposition'), /screen-.*\.webm/);
+  // Replacing or removing the intro leaves the recordings alone
+  const put = (body) =>
+    v.call('PUT', `/api/shares/${screenOnly.id}/intro`, body, { 'Content-Type': 'audio/wav', 'X-File-Name': 'i.wav' });
+  assert.equal((await put('abcdefghij')).status, 200);
+  const suffix = await fetch(`${v.base}/p/${screenOnly.id}/_vault/intro`, {
+    headers: { ...screenOnly.cookie, Range: 'bytes=-3' },
+  });
+  assert.equal(suffix.status, 206);
+  assert.equal(suffix.headers.get('content-range'), 'bytes 7-9/10');
+  assert.equal(await suffix.text(), 'hij');
+  assert.equal((await put('0123456789')).status, 200);
+  assert.equal((await v.call('DELETE', `/api/shares/${screenOnly.id}/intro`)).status, 200);
+  const still = await v.call('GET', `/api/shares/${screenOnly.id}/recordings/${list[0].session}`);
+  assert.equal(still.status, 200);
+  assert.equal(still.data, 'x'.repeat(64), 'recording survives intro changes');
   await v.close();
 });
 
@@ -793,6 +826,49 @@ test('hardening: proxy IP from the right, framed-only pages, CSV formulas defuse
   const csv = (await v.call('GET', `/api/shares/${id}/events?format=csv`)).data;
   assert.match(csv, /"'=1\+1"/);
   assert.match(csv, /truncated/);
+  await v.close();
+});
+
+test('hardening 2: failed bundle keeps the old one, prototype ids, bad cookies, subtitles, segment order', async () => {
+  const v = await boot();
+  const {
+    data: { share },
+  } = await v.call('POST', '/api/shares', { name: 'H2', screen: true, tasks: ['t'], viewers: ['a@example.com'], files: FILES });
+  const id = share.id;
+  // A name cannot be both a file and a folder; the old bundle is still there afterwards
+  const clash = [
+    { path: 'a', contentBase64: b64('x') },
+    { path: 'a/b.html', contentBase64: b64('y') },
+  ];
+  assert.equal((await v.call('PUT', `/api/shares/${id}/bundle`, { files: clash })).status, 400);
+  assert.equal((await v.call('GET', `/api/shares/${id}`)).data.share.files.count, 2);
+  assert.ok(fs.existsSync(path.join(v.dataDir, 'bundles', id, 'index.html')));
+  // Names of Object.prototype members are not records
+  assert.equal((await v.call('DELETE', `/api/shares/${id}/viewers/__proto__`)).status, 404);
+  assert.equal((await v.call('GET', `/api/shares/__proto__`)).status, 404);
+  assert.equal((await v.call('GET', `/p/constructor`, null, {}, null)).status, 404);
+  assert.equal(Object.prototype.revoked, undefined);
+  // A malformed cookie from another app on the host is ignored, not a 500
+  assert.equal((await v.call('GET', `/p/${id}`, null, { Cookie: 'x=%' }, null)).status, 403);
+  // Subtitles: a GET changes nothing; a bad file changes nothing
+  const vtt = { 'Content-Type': 'text/vtt', 'X-Label': 'Español' };
+  assert.equal((await v.call('PUT', `/api/shares/${id}/subtitles/es`, 'WEBVTT\n', vtt)).status, 200);
+  assert.equal((await v.call('GET', `/api/shares/${id}/subtitles/es`)).status, 405);
+  assert.equal((await v.call('PUT', `/api/shares/${id}/subtitles/es`, 'not vtt', vtt)).status, 400);
+  assert.equal((await v.call('GET', `/api/shares/${id}`)).data.share.intro.subtitles.length, 1);
+  assert.equal(
+    (await v.call('PUT', `/api/shares/${id}/subtitles/zh_TW`, 'WEBVTT\n', vtt)).data.share.intro.subtitles[1].lang,
+    'zh-tw'
+  );
+  // Recording segments arrive in order; a retried segment replaces the earlier copy
+  const cookie = await redeem(v, share.viewers[0].link);
+  await v.call('POST', `/p/${id}/_vault/consent`, { accept: true }, cookie, null);
+  const seg = (n, body) =>
+    v.call('POST', `/p/${id}/_vault/recording?seq=${n}`, body, { ...cookie, 'Content-Type': 'video/webm' }, null);
+  assert.equal((await seg(5, 'x')).status, 400);
+  assert.equal((await seg(0, 'x'.repeat(10))).status, 200);
+  assert.equal((await seg(0, 'y'.repeat(10))).status, 200);
+  assert.equal((await v.call('GET', `/api/shares/${id}/recordings`)).data.recordings[0].size, 10);
   await v.close();
 });
 

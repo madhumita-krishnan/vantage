@@ -56,6 +56,7 @@ function shareStatus(share) {
 }
 // 'view' = just for looking: no tasks, no interaction, voice or screen recording, no consent screen, no feedback button. Opens are still logged.
 function applyMode(share) {
+  if (share.voice || share.screen) share.requireConsent = true; // testers choose recording on the consent screen
   if (share.mode === 'view')
     Object.assign(share, {
       recordSessions: false,
@@ -121,15 +122,18 @@ module.exports = function shares(ctx) {
 
   function writeBundle(id, files) {
     const dir = bundleDir(id);
-    fs.rmSync(dir, { recursive: true, force: true });
+    const tmp = dir + '.tmp'; // written beside the old bundle and swapped in, so a failed upload leaves the old one serving
+    fs.rmSync(tmp, { recursive: true, force: true });
     let bytes = 0;
     for (const f of files) {
-      const target = path.join(dir, f.path);
-      if (!target.startsWith(dir + path.sep)) throw httpError(400, 'Unsafe path');
+      const target = path.join(tmp, f.path);
+      if (!target.startsWith(tmp + path.sep)) throw httpError(400, 'Unsafe path');
       fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
       fs.writeFileSync(target, blob.encode(f.data), { mode: 0o600 });
       bytes += f.data.length;
     }
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.renameSync(tmp, dir);
     return { count: files.length, bytes, paths: files.map((f) => f.path).slice(0, 2000) };
   }
   function readBundleFile(id, rel) {
@@ -190,7 +194,7 @@ module.exports = function shares(ctx) {
       ...extra,
     };
     audit.append(share ? share.id : '_admin', rec);
-    if (share) audit.append('_admin', rec);
+    if (share && /^(share\.|admin\.)/.test(type)) audit.append('_admin', rec); // the account page's window
     // One line per refusal on stderr, so a hosting platform's log alert can page the operator without the vault
     // ever calling out.
     if (/rejected|denied|fail|mismatch|unauthorized/.test(type)) console.error('vault-refused', JSON.stringify(rec));
@@ -386,7 +390,7 @@ module.exports = function shares(ctx) {
     audit.remove(share.id);
   }
   function requireShare(id) {
-    const share = store.data.shares[id];
+    const share = Object.hasOwn(store.data.shares, id) && store.data.shares[id];
     if (!share) throw httpError(404, 'Share not found');
     return share;
   }
@@ -396,9 +400,9 @@ module.exports = function shares(ctx) {
       if (isNaN(t)) throw httpError(400, 'expiresAt must be an ISO date');
       return t;
     }
-    return (
-      now() + Math.min(Math.max(+(b.expiresInDays || CONFIG.defaultExpiryDays), 0.01), CONFIG.maxExpiryDays) * 86400e3
-    );
+    const days = +(b.expiresInDays || CONFIG.defaultExpiryDays);
+    if (!(days > 0)) throw httpError(400, 'expiresInDays must be a positive number');
+    return now() + Math.min(days, CONFIG.maxExpiryDays) * 86400e3;
   }
   // Create a share from an API body. Purpose defaults to view-only unless the body asks for a test (a mode, or tasks).
   // Personal links for the viewers land in `links` (viewer id -> link); they are not stored anywhere.

@@ -39,7 +39,7 @@ module.exports = function admin(ctx) {
       return { kind: 'personal-token', who: `${t.owner} via ${t.name}`, owner: t.owner, tokenId: t.id };
     }
     const email = ssoEmail(req);
-    if (email && CONFIG.adminEmails.includes(email)) return { kind: 'sso', who: email };
+    if (email && CONFIG.adminEmails.includes(email)) return { kind: 'sso', who: email, cookie: true }; // browser session
     const va = parseCookies(req).va;
     const s = va && store.data.adminSessions[C.sha256(va)];
     return s && s.expiresAt > now() ? { kind: 'google', who: s.email, owner: s.email, cookie: true } : null;
@@ -250,7 +250,7 @@ module.exports = function admin(ctx) {
         S.logAudit(share, 'viewer.added', req, { by: admin.who, emails: added.map((v) => v.email) });
         return json(req, res, 201, { viewers: out });
       }
-      const v = share.viewers[subId];
+      const v = Object.hasOwn(share.viewers, subId) && share.viewers[subId];
       if (!v) throw httpError(404, 'Viewer not found');
       if (method === 'DELETE' || (action === 'rotate' && method === 'POST')) {
         const rotate = action === 'rotate';
@@ -281,13 +281,13 @@ module.exports = function admin(ctx) {
           throw httpError(413, `Media larger than ${Math.round(CONFIG.maxMediaBytes / 1048576)} MB`);
         const declared = +(req.headers['content-length'] || 0);
         S.enforceLimits(share, declared - ((share.intro && share.intro.media && share.intro.media.size) || 0));
-        S.removeMedia(share.id);
+        M.removeIntro(share);
         share.intro = { kind: 'default', text: (share.intro && share.intro.text) || '', media: null };
         const size = await M.storeIntro(req, share.id, CONFIG.maxMediaBytes);
         try {
           S.enforceLimits(share, size); // the declared length was the client's word; this is the real one
         } catch (e) {
-          S.removeMedia(share.id);
+          M.removeIntro(share);
           store.save();
           throw e;
         }
@@ -304,7 +304,7 @@ module.exports = function admin(ctx) {
         return view(req, res, share);
       }
       if (method === 'DELETE') {
-        S.removeMedia(share.id);
+        M.removeIntro(share);
         share.intro = {
           kind: share.intro && share.intro.text ? 'text' : 'default',
           text: (share.intro && share.intro.text) || '',
@@ -316,13 +316,17 @@ module.exports = function admin(ctx) {
       }
     }
     if (sub === 'subtitles' && subId) {
-      const lang = subId.toLowerCase().slice(0, 12);
-      share.intro = share.intro || { kind: 'default', text: '', media: null };
-      share.intro.subtitles = (share.intro.subtitles || []).filter((x) => x.lang !== lang);
-      if (method === 'PUT' || method === 'POST') {
-        const buf = await readBody(req, 5 * 1048576);
+      const lang = M.subtitleLang(subId);
+      if (method !== 'PUT' && method !== 'POST' && method !== 'DELETE') throw httpError(405, 'Method not allowed');
+      let buf = null;
+      if (method !== 'DELETE') {
+        buf = await readBody(req, 5 * 1048576);
         if (!/^\uFEFF?WEBVTT/.test(buf.toString('utf8')))
           throw httpError(400, 'Subtitles must be a WebVTT file (starts with WEBVTT)');
+      }
+      share.intro = share.intro || { kind: 'default', text: '', media: null };
+      share.intro.subtitles = (share.intro.subtitles || []).filter((x) => x.lang !== lang);
+      if (buf) {
         M.writeSubtitle(share, lang, buf);
         share.intro.subtitles.push({
           lang,
@@ -330,8 +334,7 @@ module.exports = function admin(ctx) {
           size: buf.length,
         });
         S.logAudit(share, 'intro.subtitles_uploaded', req, { by: admin.who, lang });
-      } else if (method === 'DELETE') M.removeSubtitle(share, lang);
-      else throw httpError(405, 'Method not allowed');
+      } else M.removeSubtitle(share, lang);
       store.save();
       return view(req, res, share);
     }
@@ -340,6 +343,7 @@ module.exports = function admin(ctx) {
         return json(req, res, 200, { recordings: S.shareView(req, share, true).recordings });
       if (method === 'GET') return M.streamRecording(req, res, share, subId);
       if (method === 'DELETE' && subId) {
+        if (!Object.hasOwn(share.recordings || {}, subId)) throw httpError(404, 'Recording not found');
         M.removeRecording(share, subId);
         delete share.recordings[subId];
         store.save();
@@ -349,7 +353,7 @@ module.exports = function admin(ctx) {
     }
     if (sub === 'notes' && method === 'POST') {
       const b = await readJson(req, 65536);
-      const v = b.viewerId ? share.viewers[b.viewerId] : null;
+      const v = b.viewerId && Object.hasOwn(share.viewers, b.viewerId) ? share.viewers[b.viewerId] : null;
       const rec = {
         ts: S.iso(now()),
         kind: 'note',

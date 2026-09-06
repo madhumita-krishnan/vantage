@@ -4,3 +4,4 @@ node_modules/
 viewer-app/probe.js
 .DS_Store
 docs/PROCESS.md
+.claude/worktrees/

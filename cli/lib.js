@@ -76,7 +76,7 @@ function collectFiles(target) {
       const full = path.join(dir, name),
         r = rel ? rel + '/' + name : name;
       if (SKIP.test(r)) continue;
-      const s = fs.statSync(full);
+      const s = fs.lstatSync(full); // a symlink is not followed: it could point anywhere on the machine
       if (s.isDirectory()) walk(full, r);
       else files.push({ path: r, data: fs.readFileSync(full) });
     }
@@ -115,7 +115,7 @@ async function inlineCss(css, cssUrl, vendorDir, added, log) {
     if (ref.startsWith('data:')) continue;
     let abs;
     try {
-      abs = new URL(ref, cssUrl).href;
+      abs = cssUrl ? new URL(ref, cssUrl).href : ref; // inside a page's <style>, only absolute references are fetched
     } catch {
       continue;
     }
@@ -147,8 +147,9 @@ async function inlineExternal(root, log = () => {}) {
       const f = path.join(dir, n),
         r = rel ? rel + '/' + n : n;
       if (SKIP.test(r) || r.startsWith('vendor/')) continue;
-      if (fs.statSync(f).isDirectory()) walk(f, r);
-      else if (/\.html?$/i.test(n)) htmlFiles.push({ full: f, rel: r });
+      const s = fs.lstatSync(f);
+      if (s.isDirectory()) walk(f, r);
+      else if (s.isFile() && /\.html?$/i.test(n)) htmlFiles.push({ full: f, rel: r });
     }
   })(root, '');
   for (const h of htmlFiles) {
@@ -183,14 +184,14 @@ async function inlineExternal(root, log = () => {}) {
       let newTag = tag
         .replace(url, `${prefix}/${name}`)
         .replace(/\s(integrity|crossorigin)\s*=\s*["'][^"']*["']/gi, '');
-      src = src.replace(tag, newTag);
+      src = src.replace(tag, () => newTag); // a function, so "$&" or "$1" inside the tag stays literal
       rewritten++;
     }
     // Inline <style> blocks with url(https://...)
     src = await replaceAsync(src, /<style\b[^>]*>([\s\S]*?)<\/style>/gi, async (whole, css) =>
       whole.replace(
         css,
-        (await inlineCss(css, 'https://x/', vendorDir, added, log)).replace(
+        (await inlineCss(css, null, vendorDir, added, log)).replace(
           /url\(\s*['"]?([0-9a-f]{8}-[^'")]+)['"]?\s*\)/g,
           `url(${prefix}/$1)`
         )
@@ -210,8 +211,9 @@ async function inlineExternal(root, log = () => {}) {
       const f = path.join(dir, n),
         r = rel ? rel + '/' + n : n;
       if (SKIP.test(r) || r.startsWith('vendor/')) continue;
-      if (fs.statSync(f).isDirectory()) walk(f, r);
-      else if (/\.(js|mjs|css)$/i.test(n))
+      const s = fs.lstatSync(f);
+      if (s.isDirectory()) walk(f, r);
+      else if (s.isFile() && /\.(js|mjs|css)$/i.test(n))
         for (const m of fs.readFileSync(f, 'utf8').matchAll(EXT_URL)) remaining.add(m[0].replace(/[,;'")]+$/, ''));
     }
   })(root, '');

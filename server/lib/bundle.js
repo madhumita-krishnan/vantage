@@ -19,24 +19,31 @@ function normalizeFiles(files, requestedEntry) {
   let list = files.map((f) => ({ path: cleanPath(f.path), data: f.data })).filter((f) => f.path && !JUNK.test(f.path));
   if (!list.length) throw new Error('Bundle contains no files');
 
-  // Strip a single common top-level folder (e.g. "my-prototype/index.html" -> "index.html").
+  let entry = requestedEntry ? cleanPath(requestedEntry) : null;
+  // Strip a single common top-level folder (e.g. "my-prototype/index.html" -> "index.html"), from the entry too.
   const roots = new Set(list.map((f) => f.path.split('/')[0]));
   if (roots.size === 1 && list.every((f) => f.path.includes('/'))) {
     const root = [...roots][0] + '/';
     list = list.map((f) => ({ path: f.path.slice(root.length), data: f.data }));
+    if (entry && entry.startsWith(root)) entry = entry.slice(root.length);
   }
 
-  let entry = requestedEntry ? cleanPath(requestedEntry) : null;
   const htmls = list.filter((f) => /\.html?$/i.test(f.path)).map((f) => f.path);
   if (entry && !list.some((f) => f.path === entry)) throw new Error(`Entry file not found in bundle: ${entry}`);
   if (!entry) entry = htmls.find((h) => h === 'index.html') || htmls.find((h) => !h.includes('/')) || htmls[0];
   if (!entry) throw new Error('Bundle has no .html file to open');
 
+  // Paths must be distinct on case-insensitive disks too, and a name cannot be both a file and a folder.
   const seen = new Set();
+  const dirs = new Set();
   for (const f of list) {
-    if (seen.has(f.path)) throw new Error(`Duplicate path in bundle: ${f.path}`);
-    seen.add(f.path);
+    const key = f.path.toLowerCase();
+    if (seen.has(key)) throw new Error(`Duplicate path in bundle: ${f.path}`);
+    seen.add(key);
+    const parts = key.split('/');
+    for (let i = 1; i < parts.length; i++) dirs.add(parts.slice(0, i).join('/'));
   }
+  for (const d of dirs) if (seen.has(d)) throw new Error(`Path is both a file and a folder in bundle: ${d}`);
   return { files: list, entry };
 }
 

@@ -128,6 +128,32 @@ module.exports = function viewer(ctx) {
 
   async function vaultEndpoint(req, res, url, ep, share, sess, viewer, content) {
     if (req.method === 'POST' && !sameOrigin(req)) throw httpError(403, 'Cross-origin request rejected');
+    // The tracker posts from the content origin; the shell posts its own marks (recording started) from the main one.
+    if (ep === 'events' && req.method === 'POST') {
+      if (!recording(share, sess)) return json(req, res, 200, { ok: 0 });
+      if (!rateLimit(`ev:${sess.id}`, 600, 60e3)) return json(req, res, 429, { error: 'rate' });
+      const b = await readJson(req, 512 * 1024);
+      const arr = (Array.isArray(b) ? b : []).slice(0, 500);
+      const bytes = JSON.stringify(arr).length;
+      if ((sess.events || 0) + arr.length > MAX_EVENTS || (sess.eventBytes || 0) + bytes > MAX_EVENT_BYTES)
+        return json(req, res, 200, { ok: 0, limit: true });
+      sess.events = (sess.events || 0) + arr.length;
+      sess.eventBytes = (sess.eventBytes || 0) + bytes;
+      for (const e of arr) {
+        const raw = typeof e.data === 'object' && e.data ? JSON.stringify(e.data) : '{}';
+        events.append(share.id, {
+          ts: S.iso(now()),
+          viewer: viewer.name,
+          email: viewer.email,
+          session: sess.id,
+          t: +e.t || 0,
+          type: String(e.type || '').slice(0, 60),
+          path: String(e.path || '').slice(0, 500),
+          data: raw.length > 2000 ? { truncated: raw.slice(0, 2000) } : JSON.parse(raw),
+        });
+      }
+      return json(req, res, 200, { ok: arr.length });
+    }
     if (content) {
       if (ep === 'tracker.js' && req.method === 'GET') {
         const record = recording(share, sess);
@@ -142,31 +168,6 @@ module.exports = function viewer(ctx) {
         return send(req, res, 200, `window.__VAULT_CFG=${JSON.stringify(cfg)};\n${readPublic('tracker.js')}`, {
           'Content-Type': 'text/javascript; charset=utf-8',
         });
-      }
-      if (ep === 'events' && req.method === 'POST') {
-        if (!recording(share, sess)) return json(req, res, 200, { ok: 0 });
-        if (!rateLimit(`ev:${sess.id}`, 600, 60e3)) return json(req, res, 429, { error: 'rate' });
-        const b = await readJson(req, 512 * 1024);
-        const arr = (Array.isArray(b) ? b : []).slice(0, 500);
-        const bytes = JSON.stringify(arr).length;
-        if ((sess.events || 0) + arr.length > MAX_EVENTS || (sess.eventBytes || 0) + bytes > MAX_EVENT_BYTES)
-          return json(req, res, 200, { ok: 0, limit: true });
-        sess.events = (sess.events || 0) + arr.length;
-        sess.eventBytes = (sess.eventBytes || 0) + bytes;
-        for (const e of arr) {
-          const raw = typeof e.data === 'object' && e.data ? JSON.stringify(e.data) : '{}';
-          events.append(share.id, {
-            ts: S.iso(now()),
-            viewer: viewer.name,
-            email: viewer.email,
-            session: sess.id,
-            t: +e.t || 0,
-            type: String(e.type || '').slice(0, 60),
-            path: String(e.path || '').slice(0, 500),
-            data: raw.length > 2000 ? { truncated: raw.slice(0, 2000) } : JSON.parse(raw),
-          });
-        }
-        return json(req, res, 200, { ok: arr.length });
       }
       throw httpError(404, 'Unknown endpoint');
     }
@@ -193,10 +194,14 @@ module.exports = function viewer(ctx) {
         recordText: !!share.recordText,
         voiceActive: !!(share.recordings || {})[sess.id],
         contentOrigin: CONFIG.contentOriginFor(share.id),
+        // What the tester sees follows the chosen kind: "Standard" hides a text that is still stored, and so on.
         intro: {
           kind: intro.kind,
-          text: intro.text,
-          media: intro.media ? { mime: intro.media.mime, size: intro.media.size } : null,
+          text: intro.kind === 'default' ? '' : intro.text,
+          media:
+            /^(audio|video)$/.test(intro.kind) && intro.media
+              ? { mime: intro.media.mime, size: intro.media.size }
+              : null,
           subtitles: intro.subtitles || [],
         },
       });
@@ -215,14 +220,7 @@ module.exports = function viewer(ctx) {
     }
     if (ep === 'intro' && (req.method === 'GET' || req.method === 'HEAD')) return M.streamIntro(req, res, share);
     if (ep.startsWith('subtitles/') && req.method === 'GET') {
-      const vtt = M.readSubtitle(
-        share,
-        ep
-          .slice(10)
-          .toLowerCase()
-          .replace(/[^a-z0-9-]/g, '')
-          .slice(0, 12)
-      );
+      const vtt = M.readSubtitle(share, M.subtitleLang(ep.slice(10)));
       return vtt
         ? send(req, res, 200, vtt, { 'Content-Type': 'text/vtt; charset=utf-8' })
         : send(req, res, 404, 'Not found', { 'Content-Type': 'text/plain' });
@@ -317,7 +315,12 @@ module.exports = function viewer(ctx) {
       return redirect(req, res, `/p/${share.id}/app/${encodeURI(url.searchParams.get('to') || '')}`);
     }
     const sess = S.getSession(req, share);
-    if (!sess || S.shareStatus(share) !== 'active' || (share.passcode && !sess.passcodeOk))
+    if (
+      !sess ||
+      S.shareStatus(share) !== 'active' ||
+      (share.passcode && !sess.passcodeOk) ||
+      (share.requireSignIn && !sess.identityOk)
+    )
       return send(req, res, 401, 'No session', { 'Content-Type': 'text/plain' });
     const viewer = share.viewers[sess.viewerId];
     if (rest.startsWith('/_vault/')) return vaultEndpoint(req, res, url, rest.slice(8), share, sess, viewer, true);
@@ -354,7 +357,7 @@ module.exports = function viewer(ctx) {
   handleViewer.signInCallback = signInCallback;
   return handleViewer;
   async function handleViewer(req, res, url, id, rest, content) {
-    const share = store.data.shares[id];
+    const share = Object.hasOwn(store.data.shares, id) && store.data.shares[id];
     if (!share)
       return gate(
         req,

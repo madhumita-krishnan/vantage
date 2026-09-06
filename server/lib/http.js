@@ -10,11 +10,19 @@ function esc(s) {
 function httpError(status, message) {
   return Object.assign(new Error(message), { status });
 }
+// decodeURIComponent that returns the input unchanged instead of throwing on a bad percent sequence.
+const dec = (s) => {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return String(s);
+  }
+};
 function parseCookies(req) {
   const out = {};
   for (const part of String(req.headers.cookie || '').split(';')) {
     const i = part.indexOf('=');
-    if (i > 0) out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+    if (i > 0) out[part.slice(0, i).trim()] = dec(part.slice(i + 1).trim());
   }
   return out;
 }
@@ -60,14 +68,6 @@ module.exports = function httpHelpers(CONFIG) {
       .split(',')
       .map((s) => s.trim());
     return parts[Math.max(0, parts.length - CONFIG.trustedProxyHops)] || '';
-  };
-  // decodeURIComponent that returns the input unchanged instead of throwing on a bad percent sequence.
-  const dec = (s) => {
-    try {
-      return decodeURIComponent(s);
-    } catch {
-      return String(s);
-    }
   };
   const baseUrl = (req) =>
     CONFIG.publicUrl ||
