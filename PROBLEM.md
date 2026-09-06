@@ -8,7 +8,11 @@ The tools for showing that work have not caught up. A coded prototype wants to b
 
 ## The post that started this
 
-A product designer wrote this on LinkedIn in early September 2026. I have kept their words and left out their name.
+Michal Krzton, a staff product designer, wrote this on LinkedIn in early September 2026. It had 42 comments within a day, and none of them had an answer.
+
+![Michal Krzton's LinkedIn post asking product designers who prototype with Claude how to share a prototype privately with specific people, listing what does not work: sharing HTML, screen sharing, Vercel, chat artifacts, Figma plugins](docs/images/linkedin-post.jpg)
+
+The same words, for search and screen readers:
 
 > To all product designers using Claude for prototyping - has anyone figured out how to share prototypes outside of an Enterprise Claude account while keeping it private (confidential) yet shareable with specific users?
 >
