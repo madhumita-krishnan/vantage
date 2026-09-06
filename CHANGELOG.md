@@ -22,8 +22,12 @@ Fixes for sixteen of the nineteen findings in the line-by-line audit ([docs/AUDI
 - Malformed percent-encoding in headers or paths no longer returns a 500.
 - The metadata store keeps a `.bak` copy and reports which file to restore if it cannot be read.
 
+**Console**
+- The console is now one file per page under `server/public/admin/` (shared helpers and router, sign-in, list and server, form pieces, new share, share detail, account) instead of a single 1,500-line file of template strings. Same behaviour; every page was walked in a browser afterwards.
+
 **Docs**
 - `docs/WHAT-IT-CANNOT-DO.md` for designers, `docs/TESTING.md` on how the code was checked, `NEEDS-YOU.md` for the owner's to-do list.
+- README's third step now says plainly that Claude is optional and that sharing needs each person's email address.
 
 ## 0.1.0 (2026-09-05)
 

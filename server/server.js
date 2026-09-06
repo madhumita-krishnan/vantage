@@ -65,6 +65,11 @@ function createApp(env = process.env) {
       if (content) return ctx.gate(req, res, 404, 'Not found', 'Nothing here.');
       if (p === '/') return redirect(req, res, '/admin');
       if (p === '/admin' || p === '/admin/') return html(req, res, 200, ctx.readPublic('admin.html'));
+      const am = p.match(/^\/admin\/([a-z-]+\.js)$/);
+      if (am)
+        return send(req, res, 200, ctx.readPublic(path.join('admin', am[1])), {
+          'Content-Type': 'text/javascript; charset=utf-8',
+        });
       const dm = p.match(/^\/docs\/([a-z-]+)$/);
       if (dm && DOCS[dm[1]] && fs.existsSync(path.join(__dirname, DOCS[dm[1]])))
         return send(req, res, 200, fs.readFileSync(path.join(__dirname, DOCS[dm[1]])), {

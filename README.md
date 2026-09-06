@@ -18,7 +18,7 @@ Either way the code is the same. Which one fits you depends on one question: may
 
 ## Try it in three steps
 
-Needs Node 20 or newer. Nothing to install, nothing to configure.
+Needs Node 20 or newer. Nothing to install, nothing to configure, and no Claude account needed.
 
 **1. Start it.**
 
@@ -28,17 +28,13 @@ node server/server.js
 
 The first start makes its own admin token and encryption key, listens on your machine only, and prints a link to the console that signs you in, plus a Claude Code command.
 
-**2. Open the printed link and click "Try it with the sample prototype".** Enter your email, then open your own personal link. You see what a tester sees: the consent note, the tasks, the feedback button, the watermark. Back in the console, the share's **Feedback & results** tab fills in as you click around. To share your own work, click **New share** and drop a folder.
+**2. Open the printed link and click "Try it with the sample prototype".** Enter your email, then open your own personal link. You see what a tester sees: the consent note, the tasks, the feedback button, the watermark. Back in the console, the share's **Feedback & results** tab fills in as you click around.
 
-**3. Connect Claude** by pasting the printed command:
+**3. Share your own work.** Click **New share**, drop the prototype folder, and type the email address of each person who may open it. You get one link per person. Send each link to its owner however you normally would. That is the whole product; nothing below is required.
 
-```bash
-claude mcp add prototype-vault -- node "/path/to/mcp/server.js"
-```
+**Optional: let Claude do step 3 for you.** If you use Claude Code, paste the command the server printed at start (it looks like `claude mcp add prototype-vault -- node "…/mcp/server.js"`). From then on you can say, in Claude Code, "share the checkout prototype with priya@customer.com and tom@partner.org for a week". Claude needs the email addresses, because that is what a personal link is tied to; it will ask if you leave them out, and it confirms the people and the expiry before publishing. The command-line tool does the same thing without Claude: `node cli/vault.js publish ./my-prototype --name "Checkout" --viewers "priya@customer.com,tom@partner.org"`.
 
-Then tell Claude "share this prototype with Priya and Tom for a week". It publishes, confirms the people and expiry with you, and hands you the links. The CLI works the same way with no settings: `node cli/vault.js list`.
-
-Secrets live in `server/data/local-secrets.json`, and the server answers on localhost only until you configure it. For other devices or a real server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Secrets live in `server/data/local-secrets.json`, and the server answers on your own machine only until you configure it. To let other people open links, or to run it on a real server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Status: a working proof of concept, not an audited product
 

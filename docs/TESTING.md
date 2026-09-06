@@ -29,7 +29,7 @@ What each one proves:
 
 ## 2. Checks by hand in a browser
 
-After each round of changes the author opened the console in a real browser and walked the tester path: signed in, shared the sample prototype, opened the personal link, accepted the consent screen, watched the prototype load from the second address with the watermark and the task panel over it, clicked through to a screen that triggers a scheduled question, and confirmed on the results tab that the events arrived. One defect was found this way that the automatic tests had missed (the shell's own security policy refused to frame the second address); it was fixed and a test was added so it cannot come back.
+After each round of changes the author opened the console in a real browser and walked the tester path: signed in, shared the sample prototype, opened the personal link, accepted the consent screen, watched the prototype load from the second address with the watermark and the task panel over it, clicked through to a screen that triggers a scheduled question, and confirmed on the results tab that the events arrived. One defect was found this way that the automatic tests had missed (the shell's own security policy refused to frame the second address); it was fixed and a test was added so it cannot come back. After the console was split into one file per page, every page (sign-in, list, share detail with all four tabs, new share, server, account, sign-out) was opened again and checked.
 
 ## 3. Tools that check the code itself
 
