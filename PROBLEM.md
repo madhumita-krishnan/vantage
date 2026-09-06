@@ -26,14 +26,14 @@ I recognised every line. I wanted to know what it would take to answer it proper
 
 Read carefully, it asks for six things at once, and each one rules out a usual option.
 
-| Need                                                 | Why the usual options fail                                                     |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------ |
-| The prototype stays inside the company boundary      | Public hosting and third-party SaaS are blocked by policy                      |
-| Only named people can open it                        | A file or a public link cannot be restricted or revoked                        |
-| It is a real, interactive coded prototype            | Figma imports flatten it into static pages                                     |
-| Testers can use it on their own device, unsupervised | Screen-sharing a local server breaks usability testing                         |
-| The designer keeps control after sharing             | Links must expire, be revocable, and leave a record                            |
-| Security teams can approve it                        | They need to see what it does, where data lives, and what it phones home to    |
+| Need                                                 | Why the usual options fail                                                  |
+| ---------------------------------------------------- | --------------------------------------------------------------------------- |
+| The prototype stays inside the company boundary      | Public hosting and third-party SaaS are blocked by policy                   |
+| Only named people can open it                        | A file or a public link cannot be restricted or revoked                     |
+| It is a real, interactive coded prototype            | Figma imports flatten it into static pages                                  |
+| Testers can use it on their own device, unsupervised | Screen-sharing a local server breaks usability testing                      |
+| The designer keeps control after sharing             | Links must expire, be revocable, and leave a record                         |
+| Security teams can approve it                        | They need to see what it does, where data lives, and what it phones home to |
 
 ## Where it took me
 
