@@ -41,7 +41,12 @@ for (const n of ['core', 'form', 'signin', 'list', 'new-share', 'share', 'accoun
 consoleDoc = beforeLast(
   consoleDoc.replace('</head>', head + '</head>'),
   '</body>',
-  `<script>document.addEventListener('DOMContentLoaded',()=>{const S=window.__SCREEN;if(S.view)view=S.view;if(S.left)left=S.left;if(S.after)setTimeout(()=>{try{new Function(S.after)()}catch(e){}},700)})</script>`
+  `<script>
+// Two console helpers rebound for a framed page: exports go to the parent page, which saves them the way its host
+// allows; copying uses the copy command, which needs no clipboard permission.
+download = async (path, name) => { const r = await fetch('/api' + path); if (!r.ok) return toast('Export failed'); parent.postMessage({ proto: 'download', name, blob: await r.blob() }, '*'); };
+copy = (t) => { const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (e) {} ta.remove(); if (ok) toast('Copied'); else prompt('Copy this', t); };
+document.addEventListener('DOMContentLoaded',()=>{const S=window.__SCREEN;if(S.view)view=S.view;if(S.left)left=S.left;if(S.after)setTimeout(()=>{try{new Function(S.after)()}catch(e){}},700)})</script>`
 );
 
 // The tester shell.
@@ -186,6 +191,7 @@ function frame(s, phone, scale) {
   const [w, h] = size(phone);
   const f = document.createElement('iframe');
   f.title = s.t; f.width = w; f.height = h; if (scale < 0.5) f.loading = 'lazy';
+  f.setAttribute('allow', 'clipboard-write; microphone; display-capture');
   f.style.transform = 'scale(' + scale + ')';
   f.srcdoc = src(s);
   const win = document.createElement('div'); win.className = 'win';
@@ -241,7 +247,23 @@ function setMode(m) {
 }
 document.querySelectorAll('#mode button').forEach((b) => (b.onclick = () => setMode(b.dataset.m)));
 document.querySelectorAll('#device button').forEach((b) => (b.onclick = () => { device = b.dataset.d; syncSeg('#device', device, 'd'); if (mode === 'one') renderStage(); }));
-window.addEventListener('message', (e) => { if (e.data && e.data.proto === 'goto') go(e.data.screen); });
+// Exports from the console frames. Inside the artifact viewer the file goes through the viewer's own save prompt;
+// opened as a plain file, the browser downloads it directly.
+let downloads = null;
+if (window.claude && window.claude.use) window.claude.use('downloads').then((d) => (downloads = d)).catch(() => {});
+async function saveFile(name, blob) {
+  if (downloads) {
+    try { await downloads.save({ filename: name, data: blob }); } catch (e) { if (e && e.code !== 'declined') console.warn('save', e); }
+    return;
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60e3);
+}
+window.addEventListener('message', (e) => {
+  if (!e.data || !e.data.proto) return;
+  if (e.data.proto === 'goto') go(e.data.screen);
+  if (e.data.proto === 'download') saveFile(e.data.name, e.data.blob);
+});
 window.addEventListener('keydown', (e) => {
   if (e.target !== document.body && e.target !== document.documentElement) return;
   const i = SCREENS.findIndex((s) => s.id === cur);

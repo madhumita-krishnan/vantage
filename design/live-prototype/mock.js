@@ -380,23 +380,99 @@
     audit[share.id].push({ ts: iso(Date.now()), type: b.revoked ? 'share.revoked' : 'share.updated', shareId: share.id, ip: '198.51.100.7', by: ME });
   }
 
-  // A short spoken-word-like tone so "play" on a recording does something. 2 seconds, mono, 8 kHz.
-  function wav() {
-    const rate = 8000,
-      n = rate * 2,
-      buf = new ArrayBuffer(44 + n * 2),
-      d = new DataView(buf);
-    const str = (o, s) => [...s].forEach((c, i) => d.setUint8(o + i, c.charCodeAt(0)));
-    str(0, 'RIFF'); d.setUint32(4, 36 + n * 2, true); str(8, 'WAVE'); str(12, 'fmt '); d.setUint32(16, 16, true);
-    d.setUint16(20, 1, true); d.setUint16(22, 1, true); d.setUint32(24, rate, true); d.setUint32(28, rate * 2, true);
-    d.setUint16(32, 2, true); d.setUint16(34, 16, true); str(36, 'data'); d.setUint32(40, n * 2, true);
-    for (let i = 0; i < n; i++) {
-      const t = i / rate,
-        env = Math.max(0, Math.sin(t * 7) * Math.sin(t * 1.3)) * 0.5;
-      d.setInt16(44 + i * 2, Math.sin(t * 2 * Math.PI * (180 + 40 * Math.sin(t * 5))) * env * 32767, true);
-    }
-    return new Blob([buf], { type: 'audio/wav' });
+  // ---- a microphone and a screen that exist only in the page ----
+  // The tester page asks for a real microphone and screen; here it gets a synthesised voice-like tone and a drawn
+  // screen, so "Record my session" records, the level meter moves, and a recording plays back and downloads.
+  function synthAudio() {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const dest = ac.createMediaStreamDestination();
+    const osc = ac.createOscillator(),
+      g = ac.createGain(),
+      lfo = ac.createOscillator(),
+      lg = ac.createGain();
+    osc.type = 'sawtooth'; // harmonics up the spectrum, where the level meter looks
+    osc.frequency.value = 180;
+    g.gain.value = 0.1;
+    lfo.frequency.value = 2.7;
+    lg.gain.value = 0.09;
+    lfo.connect(lg).connect(g.gain);
+    const vib = ac.createOscillator(),
+      vg = ac.createGain();
+    vib.frequency.value = 0.8;
+    vg.gain.value = 40;
+    vib.connect(vg).connect(osc.frequency);
+    osc.connect(g).connect(dest);
+    osc.start();
+    lfo.start();
+    vib.start();
+    if (ac.state === 'suspended') ac.resume();
+    const track = dest.stream.getAudioTracks()[0];
+    const stop = () => {
+      try {
+        osc.stop();
+        lfo.stop();
+        ac.close();
+      } catch {
+        /* already closed */
+      }
+    };
+    track.addEventListener('ended', stop);
+    return { track, stop };
   }
+  function synthScreen() {
+    const c = document.createElement('canvas');
+    c.width = 640;
+    c.height = 360;
+    const x = c.getContext('2d');
+    let f = 0;
+    const draw = () => {
+      x.fillStyle = '#111827';
+      x.fillRect(0, 0, 640, 360);
+      x.fillStyle = '#fff';
+      x.font = '600 26px -apple-system, Segoe UI, sans-serif';
+      x.fillText('Acme Billing (screen recording, demo)', 36, 110);
+      x.fillStyle = '#60a5fa';
+      x.fillRect(36, 150, (f * 9) % 560, 10);
+      f++;
+    };
+    draw();
+    const iv = setInterval(draw, 100);
+    const track = c.captureStream(10).getVideoTracks()[0];
+    track.addEventListener('ended', () => clearInterval(iv));
+    return { track, stop: () => clearInterval(iv) };
+  }
+  if (navigator.mediaDevices) {
+    navigator.mediaDevices.getUserMedia = async () => new MediaStream([synthAudio().track]);
+    navigator.mediaDevices.getDisplayMedia = async () => new MediaStream([synthScreen().track]);
+  }
+  // The recordings listed on the results tab: a real two-second WebM, made once per kind when first played.
+  const recBlobs = {};
+  async function recordingBlob(video) {
+    const key = video ? 'v' : 'a';
+    if (recBlobs[key]) return recBlobs[key];
+    const a = synthAudio();
+    const parts = [a];
+    if (video) parts.unshift(synthScreen());
+    const mr = new MediaRecorder(new MediaStream(parts.map((p) => p.track)));
+    const chunks = [];
+    mr.ondataavailable = (e) => chunks.push(e.data);
+    const stopped = new Promise((k) => (mr.onstop = k));
+    mr.start();
+    await wait(2500);
+    mr.stop();
+    await stopped;
+    parts.forEach((p) => p.stop());
+    return (recBlobs[key] = new Blob(chunks, { type: (mr.mimeType || (video ? 'video/webm' : 'audio/webm')).split(';')[0] }));
+  }
+
+  // Dialogs the console uses before anything destructive. A host that blocks native dialogs would make those buttons
+  // do nothing, so here they confirm with a toast and go ahead: nothing in the demo is real.
+  const say = (m, ms) => (typeof toast === 'function' ? toast(m, ms) : console.log(m)); // eslint-disable-line no-undef
+  window.confirm = (m) => {
+    say('Demo: went ahead. ' + m, 2500);
+    return true;
+  };
+  window.alert = (m) => say(String(m), 5000);
 
   // ---- routing ----
   const json = (status, obj) => ({ status, body: JSON.stringify(obj), type: 'application/json; charset=utf-8' });
@@ -511,7 +587,11 @@
     }
     if (sub === 'recordings') {
       if (method === 'GET' && !subId) return json(200, { recordings: shareView(share, true).recordings });
-      if (method === 'GET') return { status: 200, blob: wav() };
+      if (method === 'GET') {
+        const rec = share.recordings[subId];
+        if (!rec) return json(404, { error: 'Recording not found' });
+        return { status: 200, blob: recordingBlob(rec.mime.startsWith('video/')) };
+      }
       if (method === 'DELETE') {
         delete share.recordings[subId];
         return json(200, { ok: true });
@@ -615,7 +695,10 @@
     } catch (e) {
       r = json(e.status || 500, { error: e.error || e.message || 'Internal error' });
     }
-    if (r.blob) return new Response(r.blob, { status: 200, headers: { 'content-type': r.blob.type } });
+    if (r.blob) {
+      const b = await r.blob;
+      return new Response(b, { status: 200, headers: { 'content-type': b.type } });
+    }
     return new Response(r.body, { status: r.status, headers: { 'content-type': r.type } });
   };
   // uploadXhr() in the console uses XMLHttpRequest for progress; this answers it the way the server would.
