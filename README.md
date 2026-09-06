@@ -133,7 +133,7 @@ docs/AUDIT.md              line-by-line code audit with findings, fixes and stat
 docs/WHAT-IT-CANNOT-DO.md  the limits, in plain language, for designers
 docs/TESTING.md            how the code was checked, in plain language
 NEEDS-YOU.md               the owner's to-do list (delete when empty)
-design/                    design system and canvas mockups
+design/                    design system, canvas mockups, and the live prototype (node design/live-prototype/build.js)
 examples/sample-prototype  the prototype behind "Try it with the sample prototype"
 viewer-app/                optional desktop viewer with screenshot protection
 server/test/               end-to-end tests (npm test)

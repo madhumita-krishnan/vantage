@@ -4,20 +4,47 @@
     {
       "name": "vault",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "cd server && PORT=8787 node server.js"],
+      "runtimeArgs": [
+        "-c",
+        "cd server && PORT=8787 node server.js"
+      ],
       "port": 8787
     },
     {
       "name": "mockups",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8790", "--directory", "design/screens"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8790",
+        "--directory",
+        "design/screens"
+      ],
       "port": 8790
     },
     {
       "name": "screens",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8791", "--directory", "design/screens"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8791",
+        "--directory",
+        "design/screens"
+      ],
       "port": 8791
+    },
+    {
+      "name": "prototype",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8792",
+        "--directory",
+        "design"
+      ],
+      "port": 8792
     }
   ]
 }
