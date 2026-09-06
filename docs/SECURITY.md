@@ -6,7 +6,7 @@ Written for the people who have to approve Prototype Vault: security, privacy an
 
 ## 0. Reporting a vulnerability
 
-Open a GitHub issue titled "Security" with the details, or email the maintainer listed in the repository if the issue is sensitive. Do not include real prototype content or tester data in the report. There is no bounty. There is a promise to answer, fix or document within a reasonable time.
+Email prototype.security.contact@gmail.com with the details, or open a GitHub issue titled "Security" if nothing in it is sensitive. Do not include real prototype content or tester data in the report. There is no bounty. There is a promise to answer, fix or document within a reasonable time.
 
 ## 1. What the system is
 
