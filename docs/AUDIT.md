@@ -36,7 +36,7 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 
 ## 1. One content origin for every share (High, M)
 
-**Status, 0.2.0:** code side done. `CONTENT_ORIGIN` accepts a wildcard and each share then gets its own hostname; the content policy no longer allows one share to frame another. The wildcard DNS and certificate are the owner's to set up (NEEDS-YOU.md).
+**Status, 0.2.0:** code side done. `CONTENT_ORIGIN` accepts a wildcard and each share then gets its own hostname; the content policy no longer allows one share to frame another. The wildcard DNS and certificate are the owner's to set up.
 
 **Where.** `server/lib/config.js:77-79` (one `CONTENT_ORIGIN`), `server/lib/viewer.js:228-245` (`handleContent`), `server/lib/shares.js:304-311` (content cookie scoped by path).
 

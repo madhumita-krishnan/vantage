@@ -86,7 +86,7 @@ Fixes for seventeen of the nineteen findings in the line-by-line audit ([docs/AU
 
 **Docs**
 
-- `docs/WHAT-IT-CANNOT-DO.md` for designers, `docs/TESTING.md` on how the code was checked, `NEEDS-YOU.md` for the owner's to-do list.
+- `docs/WHAT-IT-CANNOT-DO.md` for designers, `docs/TESTING.md` on how the code was checked.
 - README's third step now says plainly that Claude is optional and that sharing needs each person's email address.
 
 ## 0.1.0 (2026-09-05)
