@@ -833,7 +833,13 @@ test('hardening 2: failed bundle keeps the old one, prototype ids, bad cookies, 
   const v = await boot();
   const {
     data: { share },
-  } = await v.call('POST', '/api/shares', { name: 'H2', screen: true, tasks: ['t'], viewers: ['a@example.com'], files: FILES });
+  } = await v.call('POST', '/api/shares', {
+    name: 'H2',
+    screen: true,
+    tasks: ['t'],
+    viewers: ['a@example.com'],
+    files: FILES,
+  });
   const id = share.id;
   // A name cannot be both a file and a folder; the old bundle is still there afterwards
   const clash = [
