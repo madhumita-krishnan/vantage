@@ -2,7 +2,7 @@
 
 Share coded prototypes with named people through private, expiring links, and learn from how they use them.
 
-Built for product designers who prototype with Claude or any tool that produces HTML and JavaScript. Each viewer gets a personal link that can be revoked. A share is view only unless you set up a usability test, and then testers see a consent screen before anything is recorded. The post that started this is in [PROBLEM.md](PROBLEM.md).
+Built for product designers who prototype with Claude or any tool that produces HTML and JavaScript. Each viewer gets a personal link that can be revoked. A share is view only unless you set up a usability test, and then testers see a consent screen before anything is recorded. Why this exists, who it helps and who it does not, is in [PROBLEM.md](PROBLEM.md).
 
 ```
 Designer ──(console / CLI / Claude)──▶ Vantage ◀──(personal link)── Tester
@@ -38,7 +38,7 @@ Secrets live in `server/data/local-secrets.json`, and the server answers on your
 
 ## Status: a working proof of concept, not an audited product
 
-Built in a few days with Claude Code. It has an end-to-end test suite (`cd server && npm test`, 19 tests covering both origins, sign-in, limits, the tester flow and the identity check), a written threat model, a linter and a formatter in CI, and no third-party code in the server. What was checked and how is in [docs/TESTING.md](docs/TESTING.md). It has not been penetration tested or reviewed by an independent security team. Read [docs/SECURITY.md](docs/SECURITY.md), run the tests, and have your own security people look at it before trusting it with anything that matters. Known weaknesses and the order they will be fixed in are in [docs/OBJECTIONS.md](docs/OBJECTIONS.md). Found something? See "Reporting a vulnerability" in the security document.
+Built in a few days with Claude Code. It has an end-to-end test suite (`cd server && npm test`, 20 tests covering both origins, sign-in, limits, the tester flow and the identity check), a written threat model, a linter and a formatter in CI, and no third-party code in the server. What was checked and how is in [docs/TESTING.md](docs/TESTING.md). It has not been penetration tested or reviewed by an independent security team. Read [docs/SECURITY.md](docs/SECURITY.md), run the tests, and have your own security people look at it before trusting it with anything that matters. Known weaknesses and the order they will be fixed in are in [docs/OBJECTIONS.md](docs/OBJECTIONS.md). Found something? See "Reporting a vulnerability" in the security document.
 
 ## What you get
 
@@ -119,7 +119,7 @@ CI runs the same three commands on Node 20 and 22.
 ## Layout
 
 ```
-PROBLEM.md                 the post that started this, and what it asks for
+PROBLEM.md                 why this exists, the post that started it, who it helps and who it does not
 README.md                  this file
 CHANGELOG.md               what changed in each version
 server/                    the Vantage (server.js, lib/, public/, Dockerfile, .env.example)
