@@ -186,7 +186,7 @@ module.exports = function viewer(ctx) {
         mode: share.mode || 'unmoderated',
         showTasks: share.showTasks !== false,
         voice: !!share.voice,
-        dictation: !!share.dictation,
+        screen: !!share.screen,
         recordText: !!share.recordText,
         voiceActive: !!(share.recordings || {})[sess.id],
         contentOrigin: CONFIG.contentOriginFor(share.id),
@@ -231,17 +231,20 @@ module.exports = function viewer(ctx) {
       return json(req, res, 200, { consent: sess.consent });
     }
     if (ep === 'recording' && req.method === 'POST') {
-      if (!share.voice || (share.requireConsent && sess.consent !== true))
-        throw httpError(403, 'Voice recording is not enabled for this share, or consent was not given');
+      if (!(share.voice || share.screen) || (share.requireConsent && sess.consent !== true))
+        throw httpError(403, 'Recording is not enabled for this share, or consent was not given');
       if (!rateLimit(`rec:${sess.id}`, 60, 60e3)) return json(req, res, 429, { error: 'rate' });
       const mime = String(req.headers['content-type'] || '')
         .split(';')[0]
         .trim()
         .toLowerCase();
-      if (!/^audio\/(webm|mp4|ogg|wav|mpeg|aac)$/.test(mime)) throw httpError(415, 'Unsupported audio type');
+      const video = /^video\/(webm|mp4)$/.test(mime);
+      if (video ? !share.screen : !/^audio\/(webm|mp4|ogg|wav|mpeg|aac)$/.test(mime) || !share.voice)
+        throw httpError(415, 'Unsupported recording type');
       const seq = Math.max(0, Math.min(+url.searchParams.get('seq') || 0, 100000));
       M.appendRecording(share, sess.id, viewer.id, mime, seq, await readBody(req, 8 * 1048576));
-      if (seq === 0) S.logAudit(share, 'voice.started', req, { email: viewer.email, session: sess.id });
+      if (seq === 0)
+        S.logAudit(share, video ? 'screen.started' : 'voice.started', req, { email: viewer.email, session: sess.id });
       store.save();
       return json(req, res, 200, { ok: true, seq });
     }

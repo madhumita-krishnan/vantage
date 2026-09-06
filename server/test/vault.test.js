@@ -118,7 +118,7 @@ test('admin API needs a valid bearer token; identity info leaks no secrets or pa
   await v.close();
 });
 
-test('share defaults: view only unless a test is asked for; voice and dictation off; unsafe paths rejected', async () => {
+test('share defaults: view only unless a test is asked for; voice and screen off; unsafe paths rejected', async () => {
   const v = await boot();
   const plain = await v.call('POST', '/api/shares', { name: 'Plain', files: FILES });
   assert.equal(plain.status, 201);
@@ -127,9 +127,9 @@ test('share defaults: view only unless a test is asked for; voice and dictation 
   const tested = await v.call('POST', '/api/shares', { name: 'Tested', tasks: ['Find the price'], files: FILES });
   assert.equal(tested.data.share.mode, 'unmoderated');
   assert.equal(tested.data.share.tasks.length, 1);
-  assert.equal(tested.data.share.dictation, false);
+  assert.equal(tested.data.share.screen, false);
   assert.equal(
-    (await v.call('POST', '/api/shares', { name: 'Dict', tasks: ['x'], dictation: true })).data.share.dictation,
+    (await v.call('POST', '/api/shares', { name: 'Scr', tasks: ['x'], screen: true })).data.share.screen,
     true
   );
   const forced = await v.call('POST', '/api/shares', { name: 'Forced', mode: 'view', tasks: ['Dropped'], voice: true });
@@ -618,6 +618,31 @@ test('storage limit per person applies to uploads', async () => {
   assert.equal(rec.status, 403);
   await v.close();
   g.close();
+});
+
+test('screen recording: video accepted only when the share allows it, listed with its mime, streamed back', async () => {
+  const v = await boot();
+  const mk = async (opts) => {
+    const r = await v.call('POST', '/api/shares', { name: 'R', tasks: ['x'], viewers: ['t@example.com'], ...opts });
+    const cookie = await redeem(v, r.data.share.viewers[0].link);
+    await v.call('POST', `/p/${r.data.share.id}/_vault/consent`, { accept: true }, cookie, null);
+    return { id: r.data.share.id, cookie };
+  };
+  const post = (s, mime) =>
+    v.call('POST', `/p/${s.id}/_vault/recording?seq=0`, 'x'.repeat(64), { ...s.cookie, 'Content-Type': mime }, null);
+  const voiceOnly = await mk({ voice: true });
+  assert.equal((await post(voiceOnly, 'video/webm')).status, 415, 'video refused on a voice-only share');
+  const screenOnly = await mk({ screen: true });
+  assert.equal((await post(screenOnly, 'audio/webm')).status, 415, 'audio refused on a screen-only share');
+  assert.equal((await post(screenOnly, 'video/webm')).status, 200);
+  const list = (await v.call('GET', `/api/shares/${screenOnly.id}/recordings`)).data.recordings;
+  assert.equal(list.length, 1);
+  assert.equal(list[0].mime, 'video/webm');
+  const back = await v.call('GET', `/api/shares/${screenOnly.id}/recordings/${list[0].session}`);
+  assert.equal(back.status, 200);
+  assert.equal(back.headers.get('content-type'), 'video/webm');
+  assert.match(back.headers.get('content-disposition'), /screen-.*\.webm/);
+  await v.close();
 });
 
 test('housekeeping: retention deletes whole shares, admin log trimmed, store keeps a backup, limiter survives a flood', async () => {

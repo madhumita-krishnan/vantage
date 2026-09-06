@@ -388,7 +388,7 @@ module.exports = function admin(ctx) {
         M.removeRecording(share, subId);
         delete share.recordings[subId];
         store.save();
-        S.logAudit(share, 'voice.deleted', req, { by: admin.who, session: subId });
+        S.logAudit(share, 'recording.deleted', req, { by: admin.who, session: subId });
         return json(req, res, 200, { ok: true });
       }
     }

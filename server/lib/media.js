@@ -1,5 +1,5 @@
 'use strict';
-// Intro audio/video, think-aloud voice segments and subtitle files: stored encrypted, streamed with HTTP Range support.
+// Intro audio/video, voice and screen recording segments and subtitle files: stored encrypted, streamed with HTTP Range support.
 const fs = require('fs');
 const path = require('path');
 const C = require('./crypto');
@@ -109,7 +109,7 @@ module.exports = function media(ctx) {
       }
     })();
     await stream(req, res, r, total, rec.mime, pieces, {
-      'Content-Disposition': `inline; filename="voice-${rec.viewerId}.webm"`,
+      'Content-Disposition': `inline; filename="${rec.mime.startsWith('video/') ? 'screen' : 'voice'}-${rec.viewerId}.${rec.mime.split('/')[1]}"`,
     });
   }
   function appendRecording(share, session, viewerId, mime, seq, buf) {

@@ -13,7 +13,7 @@ What each one proves:
 | Quick start | Starting with no settings makes a secret key once, keeps it in a private file, reuses it next time, and listens on your machine only. |
 | Explicit admin token | Setting your own token skips the secrets file, listens on all interfaces, and refuses a token shorter than 24 characters. |
 | Admin API and identity | Every console call without a valid credential is refused. The sign-in screen reveals no secrets. The identity endpoint gives away no file paths. |
-| Share defaults | A share is view-only unless a test is set up. Voice and dictation are off unless switched on. Files with unsafe paths (`../`) are rejected. Bad emails are rejected. |
+| Share defaults | A share is view-only unless a test is set up. Voice and screen recording are off unless switched on. Files with unsafe paths (`../`) are rejected. Bad emails are rejected. |
 | Tester flow | The whole journey: the personal link's secret is stored only as a hash and shown once; the gate page carries the script that redeems it; the prototype is refused on the console's address and served only on the content address, inside a frame, behind a one-time ticket that works once; nothing is recorded before consent; clicks and feedback are counted correctly afterwards; cross-site posts are refused on both addresses; revoking a viewer kills both sessions and is logged. |
 | Tracker placement | The recording script is inserted after the page's doctype even when the page has no `<head>`. |
 | View-only | A view-only share records no events and has no feedback endpoint. |

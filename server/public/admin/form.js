@@ -133,9 +133,9 @@ const OPTIONS = [
     (s) => !!s.voice,
   ],
   [
-    'dictation',
-    "Allow dictation: a microphone button turns speech into text in answer boxes. Uses the tester's browser speech service, which sends audio to the browser vendor. Off by default.",
-    (s) => !!s.dictation,
+    'screen',
+    'Offer screen recording: a video of the prototype tab, with the voice track when both are on, that you can watch back on the results tab. Desktop browsers only; the tester picks the tab and can stop at any time. About 5 MB a minute, counted against the media limit. Off by default.',
+    (s) => !!s.screen,
   ],
   ['consent', 'Ask testers for consent before recording anything.', (s) => s.requireConsent !== false],
   ['wm', "Show a watermark with the viewer's email over the prototype.", (s) => s.watermark !== false],
@@ -163,7 +163,7 @@ function optionValues() {
     recordSessions: $('#record').checked,
     recordText: $('#recordText').checked,
     voice: $('#voice').checked,
-    dictation: $('#dictation').checked,
+    screen: $('#screen').checked,
     requireConsent: $('#consent').checked,
     watermark: $('#wm').checked,
   };

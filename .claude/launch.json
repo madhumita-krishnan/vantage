@@ -4,10 +4,7 @@
     {
       "name": "vault",
       "runtimeExecutable": "sh",
-      "runtimeArgs": [
-        "-c",
-        "cd server && PORT=8787 node server.js"
-      ],
+      "runtimeArgs": ["-c", "cd server && PORT=8787 node server.js"],
       "port": 8787
     },
     {

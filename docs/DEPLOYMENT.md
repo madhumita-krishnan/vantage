@@ -172,7 +172,7 @@ With `CONTENT_ORIGIN=https://prototypes-content.internal.company.com` and `CONTE
 | `RETENTION_DAYS` | `30` | Days after expiry before the whole share (files, viewers, recordings, events, feedback, its audit log) is deleted, and the age at which admin-log lines are dropped. |
 | `SESSION_HOURS` | `8` | Viewer session lifetime. |
 | `MAX_UPLOAD_MB` | `25` | Prototype upload cap. The whole upload is held in memory while it is decoded, so keep this modest. |
-| `MAX_MEDIA_MB` | `200` | Intro media plus voice recordings, per share. Also counted toward `MAX_STORAGE_MB_PER_OWNER`. |
+| `MAX_MEDIA_MB` | `200` | Intro media plus voice and screen recordings, per share. Screen video runs about 5 MB a minute; a tester's recording stops itself at the limit. Also counted toward `MAX_STORAGE_MB_PER_OWNER`. |
 | `ALLOWED_EXTERNAL_ORIGINS` | (empty) | Origins prototypes may load from, if a share opts in. Leave empty. |
 | `PORT` / `HOST` | `8787` / `0.0.0.0` (`127.0.0.1` in quick start) | Listen address. |
 | `DATA_DIR` | `./data` | Storage location. Back it up. |

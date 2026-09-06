@@ -137,7 +137,7 @@ Most of Part 1 applies. Beyond it:
 
 **"Unaudited means unaudited."** The answer is: small, readable, tested, threat-modelled, with a disclosure route, and looking for reviewers. Ask them to be one.
 
-**"Dictation sends audio to Google by default."** Fixed in 0.1.0: off by default per share.
+**"Dictation sends audio to Google by default."** Off by default from 0.1.0; removed in 0.3.0. Voice recording covers the need without a third party.
 
 **"Logging tester IP and user agent is personal data."** True, and it is a security record, not research data. Keep it, shorten retention for the audit log to match `RETENTION_DAYS`, and say why it exists (attribution of leaks). (S, wording plus 1.10)
 

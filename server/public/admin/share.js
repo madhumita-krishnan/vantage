@@ -276,7 +276,7 @@ async function tabResults(t, share) {
         (r) => `
         <tr><td>${esc(r.viewer || '')}<br><span class="muted">${esc(r.email || '')}</span></td>
           <td>${fmt(r.startedAt)}</td><td class="num">${(r.size / 1048576).toFixed(1)} MB</td>
-          <td><audio controls preload="none" data-rec="${r.session}" style="width:100%;max-width:360px"></audio></td>
+          <td><${r.mime.startsWith('video/') ? 'video' : 'audio'} controls preload="none" data-rec="${r.session}" data-mime="${esc(r.mime)}" style="width:100%;max-width:360px"></${r.mime.startsWith('video/') ? 'video' : 'audio'}></td>
           <td class="actions"><span class="row" style="flex-wrap:nowrap">
             <button class="btn small" data-recdl="${r.session}">${ic('download')}</button>
             <button class="btn small danger" data-recrm="${r.session}">Delete</button></span></td></tr>`
@@ -290,7 +290,7 @@ async function tabResults(t, share) {
         <div class="head-row">
           <div class="stats">
             ${stat(sum.viewers.length, 'testers with sessions')}${stat(sum.eventCount, 'interactions')}
-            ${stat(sum.feedbackCount, 'feedback notes')}${stat(recs.length, 'voice recordings')}${stat(sum.noteCount, 'moderator notes')}
+            ${stat(sum.feedbackCount, 'feedback notes')}${stat(recs.length, 'recordings')}${stat(sum.noteCount, 'moderator notes')}
           </div>
           <div class="row">
             <button class="btn small ${live ? 'primary' : ''}" id="live" title="Refresh every 5 seconds while a session runs">${live ? 'Live · on' : 'Live'}</button>
@@ -301,7 +301,7 @@ async function tabResults(t, share) {
         </div>
         ${sum.tasks.length ? `<div class="section"><h3>Tasks and questions</h3><table><thead><tr><th style="width:90px">Type</th><th>Text</th><th style="width:170px">When</th><th class="num">Completed</th><th class="num">Stuck</th><th class="num">Answers</th></tr></thead><tbody>${taskRows}</tbody></table></div>` : ''}
         ${sum.viewers.length ? `<div class="section"><h3>Per tester</h3><table><thead><tr><th>Tester</th><th class="num">Sessions</th><th class="num">Clicks</th><th class="num">Screens</th><th class="num">Errors</th><th style="width:150px">First</th><th style="width:150px">Last</th><th>Most visited</th></tr></thead><tbody>${testerRows}</tbody></table></div>` : ''}
-        ${recs.length ? `<div class="section"><h3>Voice recordings (think-aloud)</h3><table><thead><tr><th>Tester</th><th style="width:170px">Started</th><th class="num">Size</th><th>Listen</th><th class="actions"></th></tr></thead><tbody>${recRows}</tbody></table></div>` : ''}
+        ${recs.length ? `<div class="section"><h3>Recordings (voice and screen)</h3><table><thead><tr><th>Tester</th><th style="width:170px">Started</th><th class="num">Size</th><th>Play</th><th class="actions"></th></tr></thead><tbody>${recRows}</tbody></table></div>` : ''}
         <div class="section"><h3>Moderator note</h3>
           <div class="row"><select id="noteWho" style="width:220px">${noteWho}</select>
             <input type="text" id="noteText" placeholder="What you observed…" style="flex:1;width:auto">
@@ -318,7 +318,7 @@ async function tabResults(t, share) {
       else liveTimer = setInterval(draw, 5000);
       draw();
     };
-    t.querySelectorAll('audio[data-rec]').forEach((a) => {
+    t.querySelectorAll('[data-rec]').forEach((a) => {
       a.onplay = async () => {
         if (!a.src) {
           a.src = await blobUrl(`/shares/${share.id}/recordings/${a.dataset.rec}`);
@@ -327,7 +327,13 @@ async function tabResults(t, share) {
       };
     });
     t.querySelectorAll('[data-recdl]').forEach((b) => {
-      b.onclick = () => download(`/shares/${share.id}/recordings/${b.dataset.recdl}`, `voice-${b.dataset.recdl}.webm`);
+      b.onclick = () => {
+        const mime = t.querySelector(`[data-rec="${b.dataset.recdl}"]`).dataset.mime;
+        download(
+          `/shares/${share.id}/recordings/${b.dataset.recdl}`,
+          `${mime.startsWith('video/') ? 'screen' : 'voice'}-${b.dataset.recdl}.${mime.split('/')[1]}`
+        );
+      };
     });
     t.querySelectorAll('[data-recrm]').forEach((b) => {
       b.onclick = async () => {

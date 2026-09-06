@@ -99,9 +99,10 @@ In-memory per-process limits on link redemption (30 per address per 10 min), pas
 ### CSRF
 Viewer and content-origin POSTs check the `Origin` header against the vault's own origins. Cookie-authenticated console requests that change anything do the same. Bearer tokens are not attached by browsers automatically.
 
-### Voice, dictation and captions
-- **Think-aloud voice recording** is off unless the share creator turns it on. The tester still decides on the consent screen, a persistent red "Recording" indicator with a Stop button shows throughout, and 5-second audio segments stream to the vault over the authenticated session. Segments are stored encrypted, listed on the results tab, and deleted with the share.
-- **Dictation** (per share, off by default) turns speech into text in answer boxes using the tester's *browser* speech service (Chrome sends audio to Google, Safari to Apple). It is the one feature where audio leaves the tester's device to a third party. Nothing is sent by the server.
+### Voice, screen and captions
+- **Think-aloud voice recording** is off unless the share creator turns it on. The tester still decides on the consent screen, a persistent red "Recording" indicator with a level meter and a Stop button shows throughout, and 5-second audio segments stream to the vault over the authenticated session. Segments are stored encrypted, listed on the results tab, and deleted with the share.
+- **Screen recording** (per share, off by default) captures the prototype tab with `getDisplayMedia`, so the tester picks the tab in the browser's own dialog and the browser shows its own "sharing" bar with a stop control. It cannot capture other tabs or windows without the tester choosing them. The video (with the voice track, when both are on) streams in the same 5-second segments to the same endpoint, which accepts video only when the share allows it, and stops when the share's media limit is reached. Nothing leaves the tester's device except to the vault.
+- **Dictation was removed in 0.3.0.** It relied on the browser's speech service, which sends audio to Google or Apple; it was the one feature where anything left the tester's device to a third party.
 - **Captions and translations** are WebVTT files uploaded by the designer and served from the vault. Translation is done at authoring time, never by a live service.
 
 ## 5. What it does not protect against

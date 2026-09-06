@@ -64,6 +64,10 @@ const TOOLS = [
         requireConsent: { type: 'boolean' },
         watermark: { type: 'boolean' },
         voice: { type: 'boolean', description: 'Offer think-aloud voice recording to testers. Off by default.' },
+        screen: {
+          type: 'boolean',
+          description: 'Offer screen recording of the prototype tab (desktop browsers). Off by default.',
+        },
         mode: {
           type: 'string',
           enum: ['view', 'unmoderated', 'moderated'],
@@ -225,6 +229,7 @@ async function call(name, a) {
           recordText: a.recordText,
           showTasks: a.showTasks,
           voice: a.voice,
+          screen: a.screen,
         },
         (m) => logs.push(m)
       );
@@ -327,7 +332,7 @@ async function handle(line) {
       return reply(id, {
         protocolVersion: (params && params.protocolVersion) || '2025-06-18',
         capabilities: { tools: {} },
-        serverInfo: { name: 'prototype-vault', version: '0.2.0' },
+        serverInfo: { name: 'prototype-vault', version: '0.3.0' },
       });
     if (method === 'notifications/initialized' || method === 'notifications/cancelled') return;
     if (method === 'ping') return reply(id, {});

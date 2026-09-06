@@ -40,9 +40,9 @@ When you start the vault with no settings, it makes its own secret key and keeps
 
 ## Recording is limited on purpose
 
-For a usability test the vault can record where testers click, which screens they visit, and, if you turn each on, what they type and what they say. It never takes screenshots or video, and a share that is "view only" records nothing but the fact that it was opened. Testers see a note before anything is recorded and can say no.
+For a usability test the vault can record where testers click, which screens they visit, and, if you turn each on, what they type, what they say and a video of the prototype tab. A share that is "view only" records nothing but the fact that it was opened. Testers see a note before anything is recorded and can say no to each part.
 
-Dictation, when you turn it on, uses the tester's browser to turn speech into text. Chrome sends that audio to Google and Safari to Apple. It is the one feature where anything leaves the tester's device to a third party, and it is off unless you switch it on.
+Screen recording works in desktop browsers only, records the one tab the tester picks, and takes about 5 MB a minute, so a long session is a big file. It stops on its own when the share's media limit is reached. Nothing the vault records goes anywhere but the vault.
 
 ## Data is kept, then deleted
 

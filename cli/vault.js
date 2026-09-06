@@ -40,6 +40,7 @@ Publish options:
   --no-inline              Skip vendoring of external assets
   --no-watermark --no-record --no-consent
   --voice                  Offer think-aloud voice recording to testers (off by default)
+  --screen                 Offer screen recording of the prototype tab, desktop browsers only (off by default)
   --max-opens <n>          Per-viewer open limit
   --mode view|unmoderated|moderated
                            view = just for looking (no tasks, recording, consent or feedback); moderated = live results and moderator notes.
@@ -158,6 +159,7 @@ async function main() {
         externalOrigins: splitList(args['external-origins']),
         mode: ['view', 'unmoderated', 'moderated'].includes(args.mode) ? args.mode : undefined,
         voice: !!args.voice,
+        screen: !!args.screen,
         introText: args['intro-text'],
         introMedia: args['intro-media'],
       },

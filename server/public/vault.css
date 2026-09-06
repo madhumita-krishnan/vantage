@@ -493,6 +493,19 @@ textarea {
   background: var(--danger);
   animation: pulse 1.2s infinite;
 }
+.vu {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 14px;
+}
+.vu b {
+  width: 3px;
+  height: 3px;
+  border-radius: 2px;
+  background: currentColor;
+  transition: height 60ms linear;
+}
 @keyframes pulse {
   50% {
     opacity: 0.3;

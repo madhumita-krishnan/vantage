@@ -54,14 +54,14 @@ function normalizeTasks(tasks) {
 function shareStatus(share) {
   return share.revoked ? 'revoked' : share.expiresAt <= now() ? 'expired' : 'active';
 }
-// 'view' = just for looking: no tasks, no interaction or voice recording, no consent screen, no feedback button. Opens are still logged.
+// 'view' = just for looking: no tasks, no interaction, voice or screen recording, no consent screen, no feedback button. Opens are still logged.
 function applyMode(share) {
   if (share.mode === 'view')
     Object.assign(share, {
       recordSessions: false,
       recordText: false,
       voice: false,
-      dictation: false,
+      screen: false,
       showTasks: false,
       tasks: [],
     });
@@ -105,7 +105,7 @@ const ownsShare = (share, owner) => {
 };
 // The person behind a share: "ana@x.com" or "ana@x.com via Claude Code" both belong to ana@x.com.
 const shareOwner = (share) => String(share.createdBy || '').split(' via ')[0];
-// Bytes a share holds: prototype files, intro media and voice recordings.
+// Bytes a share holds: prototype files, intro media and recordings.
 const shareBytes = (s) =>
   ((s.files && s.files.bytes) || 0) +
   ((s.intro && s.intro.media && s.intro.media.size) || 0) +
@@ -235,7 +235,7 @@ module.exports = function shares(ctx) {
       notes: share.notes || '',
       showTasks: share.showTasks !== false,
       voice: !!share.voice,
-      dictation: !!share.dictation,
+      screen: !!share.screen,
       recordText: !!share.recordText,
       recordings: Object.entries(share.recordings || {}).map(([sid, r]) => ({
         session: sid,
@@ -415,7 +415,7 @@ module.exports = function shares(ctx) {
       tasks,
       showTasks: b.showTasks != null ? !!b.showTasks : b.mode !== 'moderated',
       voice: !!b.voice,
-      dictation: !!b.dictation,
+      screen: !!b.screen,
       recordText: !!b.recordText,
       recordings: {},
       notes: String(b.notes || '').slice(0, 2000),
@@ -458,7 +458,7 @@ module.exports = function shares(ctx) {
       set('tasks', normalizeTasks(b.tasks));
       changes.tasks = share.tasks.length;
     }
-    for (const k of ['showTasks', 'dictation', 'recordText', 'voice', 'watermark', 'recordSessions', 'requireConsent'])
+    for (const k of ['showTasks', 'screen', 'recordText', 'voice', 'watermark', 'recordSessions', 'requireConsent'])
       if (b[k] != null) set(k, !!b[k]);
     if (b.notes != null) share.notes = String(b.notes).slice(0, 2000);
     if (b.mode != null) {

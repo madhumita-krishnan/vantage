@@ -259,7 +259,7 @@
         header .pill {
           display: none;
         }
-        header .rec span {
+        header #recWhat {
           display: none;
         }
       }
@@ -276,7 +276,14 @@
       <span class="spacer"></span>
       <span class="rec" id="recInd" hidden>
         <i></i>
-        <span>Recording voice</span>
+        <span id="recWhat">Recording</span>
+        <span class="vu" id="vu" hidden>
+          <b></b>
+          <b></b>
+          <b></b>
+          <b></b>
+          <b></b>
+        </span>
         <button class="btn small" id="recStop" style="height: 22px; padding: 0 6px; font-size: 11px">Stop</button>
       </span>
       <span class="who" id="who"></span>
@@ -315,8 +322,6 @@
         var start = Date.now();
         var rec = null;
         var frameLoc = '';
-        var MIC =
-          '<svg class="i" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>';
         function $(s) {
           return document.querySelector(s);
         }
@@ -387,105 +392,124 @@
           w.style.backgroundImage = 'url("data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '")';
           w.hidden = false;
         }
-        // ---- dictation (speech to text) ----
-        var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        function withMic(html) {
-          if (!(meta.dictation && SR)) return html;
-          return (
-            '<div class="withmic">' +
-            html +
-            '<button type="button" class="mic" title="Dictate">' +
-            MIC +
-            '</button></div>'
-          );
+        // ---- think-aloud voice and screen recording ----
+        function meter(stream) {
+          var AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC || !stream.getAudioTracks().length) return;
+          var ac = new AC();
+          var an = ac.createAnalyser();
+          an.fftSize = 256;
+          ac.createMediaStreamSource(stream).connect(an);
+          var buf = new Uint8Array(an.frequencyBinCount);
+          var bars = $('#vu').children;
+          $('#vu').hidden = false;
+          (function tick() {
+            if (!rec) {
+              $('#vu').hidden = true;
+              ac.close();
+              return;
+            }
+            an.getByteFrequencyData(buf);
+            for (var i = 0; i < bars.length; i++) {
+              // the lowest bins, where speech lives
+              bars[i].style.height = 3 + Math.round((buf[i * 6 + 2] / 255) * 11) + 'px';
+            }
+            requestAnimationFrame(tick);
+          })();
         }
-        function wireMics(root) {
-          if (!(meta.dictation && SR)) return;
-          root.querySelectorAll('.mic').forEach(function (b) {
-            var ta = b.parentElement.querySelector('textarea');
-            var r = null;
-            b.onclick = function () {
-              if (r) {
-                r.stop();
-                return;
-              }
-              r = new SR();
-              r.lang = navigator.language || 'en';
-              r.continuous = true;
-              r.interimResults = true;
-              var baseText = ta.value;
-              r.onresult = function (e) {
-                var fin = '',
-                  tmp = '';
-                for (var i = 0; i < e.results.length; i++) {
-                  e.results[i].isFinal ? (fin += e.results[i][0].transcript) : (tmp += e.results[i][0].transcript);
-                }
-                ta.value = (baseText ? baseText + ' ' : '') + fin + tmp;
-              };
-              r.onend = function () {
-                b.classList.remove('on');
-                r = null;
-              };
-              r.onerror = function () {
-                b.classList.remove('on');
-                r = null;
-                toast('Dictation is not available here. You can still type.');
-              };
-              b.classList.add('on');
-              r.start();
-            };
-          });
-        }
-        // ---- think-aloud voice recording ----
-        function startVoice() {
+        function startRecording(wantVoice, wantScreen) {
           if (!navigator.mediaDevices || !window.MediaRecorder) {
-            toast('Voice recording is not supported in this browser');
+            toast('Recording is not supported in this browser');
             return;
           }
-          navigator.mediaDevices
-            .getUserMedia({ audio: true })
-            .then(function (stream) {
-              var mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].filter(function (m) {
-                return MediaRecorder.isTypeSupported(m);
-              })[0];
-              var mr = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : undefined);
-              var seq = 0;
-              mr.ondataavailable = function (e) {
-                if (!e.data || !e.data.size) return;
-                var n = seq++;
-                fetch(base + '/_vault/recording?seq=' + n, {
-                  method: 'POST',
-                  headers: { 'Content-Type': (mr.mimeType || 'audio/webm').split(';')[0] },
-                  body: e.data,
-                  credentials: 'same-origin',
-                  keepalive: true,
-                }).catch(function () {});
-              };
-              mr.start(5000);
-              rec = { mr: mr, stream: stream };
-              $('#recInd').hidden = false;
-              toast('Recording your voice. Think aloud as you go. Press Stop in the header to end it.');
-              api('events', [{ t: Date.now() - start, type: 'voice.start', path: frameLocation(), data: {} }]).catch(
-                function () {}
+          var none = function () {
+            return null;
+          };
+          var mic = wantVoice
+            ? navigator.mediaDevices.getUserMedia({ audio: true }).catch(none)
+            : Promise.resolve(null);
+          var scr =
+            wantScreen && navigator.mediaDevices.getDisplayMedia
+              ? navigator.mediaDevices
+                  .getDisplayMedia({
+                    video: { displaySurface: 'browser', frameRate: 10 },
+                    audio: false,
+                    preferCurrentTab: true,
+                    selfBrowserSurface: 'include',
+                  })
+                  .catch(none)
+              : Promise.resolve(null);
+          Promise.all([mic, scr]).then(function (s) {
+            var video = !!(s[1] && s[1].getVideoTracks().length);
+            var tracks = (video ? s[1].getVideoTracks() : []).concat(s[0] ? s[0].getAudioTracks() : []);
+            if (!tracks.length) {
+              toast(
+                (wantVoice ? 'Microphone' : 'Screen') + ' access was not allowed. Continuing without recording.',
+                4000
               );
-            })
-            .catch(function () {
-              toast('Microphone access was not allowed. Continuing without voice recording.', 4000);
+              return;
+            }
+            var stream = new MediaStream(tracks);
+            var mime = (
+              video
+                ? ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4']
+                : ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
+            ).filter(function (m) {
+              return MediaRecorder.isTypeSupported(m);
+            })[0];
+            var opts = { audioBitsPerSecond: 32000, videoBitsPerSecond: 600000 };
+            if (mime) opts.mimeType = mime;
+            var mr = new MediaRecorder(stream, opts);
+            var seq = 0;
+            mr.ondataavailable = function (e) {
+              if (!e.data || !e.data.size) return;
+              fetch(base + '/_vault/recording?seq=' + seq++, {
+                method: 'POST',
+                headers: { 'Content-Type': (mr.mimeType || (video ? 'video/webm' : 'audio/webm')).split(';')[0] },
+                body: e.data,
+                credentials: 'same-origin',
+                keepalive: e.data.size < 60000, // keepalive bodies are capped at 64 KB
+              })
+                .then(function (r) {
+                  if (r.status === 413 && rec) {
+                    stopRecording();
+                    toast('The recording limit for this test was reached, so recording has stopped. Carry on.', 5000);
+                  }
+                })
+                .catch(function () {});
+            };
+            mr.start(5000);
+            rec = { mr: mr, stream: stream };
+            tracks.forEach(function (t) {
+              t.onended = stopRecording; // the browser's own "Stop sharing" bar, or an unplugged mic
             });
+            $('#recWhat').textContent = video
+              ? s[0]
+                ? 'Recording screen and voice'
+                : 'Recording screen'
+              : 'Recording voice';
+            $('#recInd').hidden = false;
+            meter(stream);
+            toast('Recording. Think aloud as you go. Press Stop in the header to end it.');
+            api('events', [
+              { t: Date.now() - start, type: video ? 'screen.start' : 'voice.start', path: frameLocation(), data: {} },
+            ]).catch(function () {});
+          });
         }
-        function stopVoice() {
+        function stopRecording() {
           if (!rec) return;
+          var r = rec;
+          rec = null;
           try {
-            rec.mr.stop();
-            rec.stream.getTracks().forEach(function (t) {
+            r.mr.stop();
+            r.stream.getTracks().forEach(function (t) {
               t.stop();
             });
           } catch (e) {}
-          rec = null;
           $('#recInd').hidden = true;
-          toast('Voice recording stopped');
+          toast('Recording stopped');
         }
-        $('#recStop').onclick = stopVoice;
+        $('#recStop').onclick = stopRecording;
         window.addEventListener('pagehide', function () {
           if (rec) {
             try {
@@ -545,9 +569,8 @@
           if (panelMode === 'feedback') {
             b.innerHTML =
               '<p class="muted" style="margin:0">Tell the designer what you noticed. Where you are in the prototype is attached automatically.</p>' +
-              withMic('<textarea id="fbText" placeholder="What happened? What did you expect?"></textarea>') +
+              '<textarea id="fbText" placeholder="What happened? What did you expect?"></textarea>' +
               '<div class="row" style="justify-content:flex-end"><button class="btn primary" id="fbSend" style="min-height:44px">Send feedback</button></div>';
-            wireMics(b);
             $('#fbSend').onclick = function () {
               var t = $('#fbText').value.trim();
               if (!t) return;
@@ -583,7 +606,7 @@
                     '</div>' +
                     (r
                       ? '<div class="muted">Answered</div>'
-                      : withMic('<textarea placeholder="Your answer"></textarea>') +
+                      : '<textarea placeholder="Your answer"></textarea>' +
                         '<div class="actions"><button class="btn" data-r="answer">Send answer</button></div>') +
                     '</div>'
                   );
@@ -600,7 +623,7 @@
                   (r
                     ? '<div class="muted">Marked as ' + (r === 'done' ? 'completed' : 'could not complete') + '</div>'
                     : '<div class="actions"><button class="btn" data-r="done">Completed</button><button class="btn" data-r="stuck">Couldn\'t do it</button></div>' +
-                      withMic('<textarea placeholder="Optional note"></textarea>')) +
+                      '<textarea placeholder="Optional note"></textarea>') +
                   '</div>'
                 );
               })
@@ -608,7 +631,6 @@
             (pendingCount
               ? '<p class="muted" style="margin:0">' + pendingCount + ' more will appear as you go.</p>'
               : '');
-          wireMics(b);
           cues();
           b.querySelectorAll('.task button[data-r]').forEach(function (btn) {
             btn.onclick = function () {
@@ -758,9 +780,15 @@
               (meta.voice
                 ? '<li>Your voice, if you leave the switch on. A red Recording pill stays in the header and you can stop it at any time.</li>'
                 : '') +
+              (meta.screen
+                ? '<li>Your screen, if you leave the switch on: a video of this browser tab while you test, so the designer can watch it back later. Your browser will ask you to pick this tab.</li>'
+                : '') +
               '</ul>' +
               (meta.voice
                 ? '<label class="opt"><input type="checkbox" id="voiceOpt" checked><span class="sw"></span><span>Record my voice so I can think aloud while I test</span></label>'
+                : '') +
+              (meta.screen
+                ? '<label class="opt"><input type="checkbox" id="screenOpt" checked><span class="sw"></span><span>Record my screen (this tab only)</span></label>'
                 : '') +
               '<p class="hint">Your visit is logged either way. Recording is optional.' +
               (meta.abuseEmail
@@ -804,15 +832,17 @@
               } catch (e) {}
             }
             var wantVoice = !!(m.querySelector('#voiceOpt') && m.querySelector('#voiceOpt').checked);
+            var wantScreen = !!(m.querySelector('#screenOpt') && m.querySelector('#screenOpt').checked);
             if (a === undefined) {
               m.remove();
               start_();
               return;
             }
+            // Started here, inside the click, because the screen picker needs a recent user gesture.
+            if (a && (wantVoice || wantScreen)) startRecording(wantVoice, wantScreen);
             api('consent', { accept: a }).then(function () {
               m.remove();
               start_();
-              if (a && wantVoice) startVoice();
             });
           }
           var y = m.querySelector('#cYes'),

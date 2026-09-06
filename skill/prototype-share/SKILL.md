@@ -22,7 +22,7 @@ If there is no vault anywhere yet, point the user to `README.md` ("Try it in thr
    - CDN script/style/font: the inliner handles it. If a fetch failed, retry or ask the user.
    - ES module imports from `esm.sh`/`unpkg` inside `<script type="module">`: the inliner cannot vendor dependency graphs. Ask the user whether to switch to UMD builds from cdnjs, or accept that it will not load.
    - Live API calls: the vault blocks them. Suggest mocking data inside the prototype.
-   Do not ask the server admin to allow external origins as a first resort.
+     Do not ask the server admin to allow external origins as a first resort.
 3. **Confirm with the user before publishing**, in one message: share name, viewer list (name + email each), expiry in days, whether to require a passcode, and whether this is a review (view only, the default: nothing recorded) or a usability test (tasks, consent, interaction recording; add `--voice` only if they want think-aloud audio). Personal data and access are involved; do not guess emails or add people who were not named.
 4. **Publish**:
    ```bash
@@ -31,9 +31,11 @@ If there is no vault anywhere yet, point the user to `README.md` ("Try it in thr
 5. **Report** the personal links, one per viewer, and remind the user: each link is shown only now (the vault keeps a hash, not the link), so copy it; send each link only to its owner, through the usual channel; if a passcode was set, send it by a different channel; links stop working on the expiry date and can be revoked or re-issued (`vault rotate`) at any time.
 
 ### Test design options (ask only when the user mentions them)
-- **Tasks and questions with timing.** `--tasks "Pick a plan|?What did you expect @after:1|Add a member @screen:#team|?Anything confusing @min:5"`. `?` makes a question (free-text answer, dictation available). `@after:N` shows it once task N is done, `@screen:<path or #hash>` when the tester reaches that screen, `@min:N` after N minutes. Default is at the start.
+
+- **Tasks and questions with timing.** `--tasks "Pick a plan|?What did you expect @after:1|Add a member @screen:#team|?Anything confusing @min:5"`. `?` makes a question (free-text answer). `@after:N` shows it once task N is done, `@screen:<path or #hash>` when the tester reaches that screen, `@min:N` after N minutes. Default is at the start.
 - **Moderated sessions.** `--mode moderated --no-show-tasks`: the designer asks questions on the call; results refresh live; `vault note <id> "..."` records observations.
 - **Think-aloud voice.** Off unless `--voice` is given; then the tester chooses at the consent screen and a "Recording" indicator shows throughout. Recordings are listed on the share's results tab and downloadable as audio.
+- **Screen recording.** Off unless `--screen` is given; the tester chooses at the consent screen and picks the tab in the browser's own dialog. Desktop browsers only. With `--voice` too, the voice is the video's audio track. About 5 MB a minute against the share's media limit; recording stops by itself when the limit is reached.
 - **Typed text.** Off by default so real personal data is never captured. `--record-text` turns it on for prototypes with sample data where the input matters (never password fields).
 - **Intro video with captions and translations.** After `--intro-media intro.mp4`, transcribe the video (ask the user for the script or transcribe it yourself if the audio is available), write a WebVTT file per language, and upload each: `vault subtitles <id> es es.vtt --label "Español"`. Translation happens here, at authoring time, because the server never calls out to the internet. The tester's browser language is selected automatically when a matching track exists.
 - **Expiry.** Any length up to the server maximum (365 days by default): `--expires 180`, later `vault extend <id> --days 90`.

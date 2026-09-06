@@ -31,7 +31,7 @@ function loadConfig(env = process.env, root = path.join(__dirname, '..')) {
     contentPort: env.CONTENT_PORT === undefined ? null : +env.CONTENT_PORT,
     encryptionKey: env.VAULT_ENCRYPTION_KEY || '',
     maxUploadBytes: +(env.MAX_UPLOAD_MB || 25) * 1048576,
-    maxMediaBytes: +(env.MAX_MEDIA_MB || 200) * 1048576, // intro audio/video and voice recordings, per share
+    maxMediaBytes: +(env.MAX_MEDIA_MB || 200) * 1048576, // intro audio/video plus voice and screen recordings, per share
     sessionHours: +(env.SESSION_HOURS || 8),
     allowedExternalOrigins: list(env.ALLOWED_EXTERNAL_ORIGINS),
     defaultExpiryDays: +(env.DEFAULT_EXPIRY_DAYS || 7),
