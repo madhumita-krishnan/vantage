@@ -2,7 +2,7 @@
 
 ## 0.2.0 (2026-09-05)
 
-Fixes for sixteen of the nineteen findings in the line-by-line audit ([docs/AUDIT.md](docs/AUDIT.md)).
+Fixes for seventeen of the nineteen findings in the line-by-line audit ([docs/AUDIT.md](docs/AUDIT.md)).
 
 **Security**
 - Personal links carry their secret in the URL fragment (`#k=`) and the gate page redeems it with a same-origin POST, so the secret never appears in proxy or platform request logs. Links in the older `?k=` form still work.
