@@ -397,6 +397,7 @@
           var AC = window.AudioContext || window.webkitAudioContext;
           if (!AC || !stream.getAudioTracks().length) return;
           var ac = new AC();
+          if (ac.state === 'suspended') ac.resume(); // created after the click's gesture has passed
           var an = ac.createAnalyser();
           an.fftSize = 256;
           ac.createMediaStreamSource(stream).connect(an);
