@@ -50,7 +50,7 @@ Built in a few days with Claude Code. It has an end-to-end test suite (`cd serve
 | **`mcp/server.js`** | An MCP server so Claude Code, Claude Desktop or Cursor can publish, invite, revoke and read usability results. |
 | **`skill/prototype-share/`** | Optional Claude Code skill with the checked workflow (make self-contained, confirm viewers, publish, report). |
 | **`viewer-app/`** | Optional desktop viewer (Electron) whose window is excluded from screenshots and screen sharing on macOS and Windows. |
-| **`docs/`** | [SECURITY.md](docs/SECURITY.md) for your security review, [DEPLOYMENT.md](docs/DEPLOYMENT.md) for IT, [PROCESS.md](docs/PROCESS.md) on how it was built, [OBJECTIONS.md](docs/OBJECTIONS.md) on what is still weak. |
+| **`docs/`** | [SECURITY.md](docs/SECURITY.md) for your security review, [DEPLOYMENT.md](docs/DEPLOYMENT.md) for IT, [OBJECTIONS.md](docs/OBJECTIONS.md) on what is still weak. |
 
 ## What a security review will find
 
@@ -126,7 +126,6 @@ mcp/server.js              MCP server (stdio)
 skill/prototype-share/     optional Claude Code skill
 docs/SECURITY.md           threat model, controls, review checklist
 docs/DEPLOYMENT.md         Docker, Cloud Run, reverse proxy, SSO and Google sign-in setup
-docs/PROCESS.md            how it was built: decisions, trade-offs, working with AI
 docs/OBJECTIONS.md         known weaknesses and the fix order
 docs/AUDIT.md              line-by-line code audit with findings, fixes and status
 docs/WHAT-IT-CANNOT-DO.md  the limits, in plain language, for designers
