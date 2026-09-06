@@ -68,6 +68,11 @@ const TOOLS = [
           type: 'boolean',
           description: 'Offer screen recording of the prototype tab (desktop browsers). Off by default.',
         },
+        requireSignIn: {
+          type: 'boolean',
+          description:
+            'Testers must sign in with Google as the invited address, so a forwarded link opens nothing. Needs Google sign-in on the server. Off by default.',
+        },
         mode: {
           type: 'string',
           enum: ['view', 'unmoderated', 'moderated'],
@@ -230,6 +235,7 @@ async function call(name, a) {
           showTasks: a.showTasks,
           voice: a.voice,
           screen: a.screen,
+          requireSignIn: a.requireSignIn,
         },
         (m) => logs.push(m)
       );

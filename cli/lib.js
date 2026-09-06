@@ -273,6 +273,7 @@ async function publish(cfg, opts, log = () => {}) {
     mode: opts.mode || undefined,
     voice: !!opts.voice,
     screen: !!opts.screen,
+    requireSignIn: !!opts.requireSignIn,
     intro: { kind: opts.introText ? 'text' : 'default', text: opts.introText || '' },
     recordText: !!opts.recordText,
     showTasks: opts.showTasks !== false,

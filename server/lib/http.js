@@ -108,6 +108,7 @@ module.exports = function httpHelpers(CONFIG) {
   const redirect = (req, res, to) => send(req, res, 302, '', { Location: to });
 
   const buckets = new Map(); // in-memory, per process
+  let lastSweep = 0;
   function rateLimit(key, max, windowMs) {
     const t = Date.now();
     let b = buckets.get(key);
@@ -116,8 +117,19 @@ module.exports = function httpHelpers(CONFIG) {
       buckets.set(key, b);
     }
     b.count++;
-    // ponytail: in memory, per process. Over 50k keys the oldest bucket goes (Map keeps insertion order); a proxy should be the real limiter.
-    if (buckets.size > 50000) buckets.delete(buckets.keys().next().value);
+    // ponytail: in memory, per process; a proxy should be the real limiter. When full, expired buckets are dropped
+    // and, if it is still full, new keys are refused rather than a live bucket evicted: a flood of junk keys can
+    // never reset someone's real limit, only delay newcomers until a window ends.
+    if (buckets.size > 50000) {
+      if (t - lastSweep > 1000) {
+        lastSweep = t;
+        for (const [k, x] of buckets) if (x.resetAt < t) buckets.delete(k);
+      }
+      if (buckets.size > 50000 && b.count === 1) {
+        buckets.delete(key);
+        return false;
+      }
+    }
     return b.count <= max;
   }
   // Browser-originated state changes must come from one of our own origins (the console or the content origin).

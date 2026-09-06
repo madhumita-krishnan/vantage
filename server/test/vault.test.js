@@ -501,6 +501,7 @@ test('Google sign-in: cookie session, CSRF check, per-person visibility and limi
     GOOGLE_AUTH_URL: 'http://auth.test/o',
     ADMIN_TOKEN: 'z'.repeat(32),
     MAX_SHARES_PER_OWNER: '1',
+    ALLOW_SHARED_CONTENT_ORIGIN: '1',
   });
   assert.equal(v.ctx.CONFIG.quickstart, false);
   assert.equal((await v.call('GET', '/api/auth', null, {}, null)).data.google, true);
@@ -572,6 +573,75 @@ test('Google sign-in: cookie session, CSRF check, per-person visibility and limi
   g.close();
 });
 
+test('open Google sign-up refuses to start on a shared content origin', async () => {
+  await assert.rejects(
+    boot({ GOOGLE_CLIENT_ID: 'client-1', GOOGLE_CLIENT_SECRET: 's' }),
+    /CONTENT_ORIGIN to a wildcard/
+  );
+});
+
+test('require sign-in: a forwarded link opens nothing until the invited address signs in with Google', async () => {
+  const g = await fakeGoogle('client-1');
+  const v = await boot({
+    GOOGLE_CLIENT_ID: 'client-1',
+    GOOGLE_CLIENT_SECRET: 's',
+    GOOGLE_TOKEN_URL: g.url,
+    GOOGLE_AUTH_URL: 'http://auth.test/o',
+    ADMIN_EMAILS: 'ana@example.com',
+    ADMIN_TOKEN: 'z'.repeat(32),
+  });
+  const made = await v.call('POST', '/api/shares', {
+    name: 'Strict',
+    files: FILES,
+    viewers: ['Tia <tia@example.com>'],
+    requireSignIn: true,
+  });
+  assert.equal(made.status, 201);
+  assert.equal(made.data.share.requireSignIn, true);
+  const id = made.data.share.id;
+  const cookie = await redeem(v, made.data.share.viewers[0].link);
+  // Holding the link is not enough
+  const shell = await v.call('GET', `/p/${id}`, null, cookie, null);
+  assert.equal(shell.status, 200);
+  assert.match(shell.data, /Sign in with Google/);
+  assert.equal((await v.call('GET', `/p/${id}/_vault/meta`, null, cookie, null)).status, 401);
+  const verify = async (email) => {
+    const start = await v.call('GET', `/p/${id}/signin`, null, cookie, null);
+    assert.equal(start.status, 302);
+    const state = new URL(start.headers.get('location')).searchParams.get('state');
+    return v.call(
+      'GET',
+      `/auth/google/viewer?code=${encodeURIComponent(email)}&state=${state}`,
+      null,
+      { Cookie: `${cookie.Cookie}; ${cookieOf(start).Cookie}` },
+      null
+    );
+  };
+  // The wrong Google account is refused and logged
+  const wrong = await verify('someone@else.example');
+  assert.equal(wrong.status, 403);
+  assert.match(wrong.data, /Not the invited address/);
+  assert.equal((await v.call('GET', `/p/${id}/_vault/meta`, null, cookie, null)).status, 401);
+  const log = (await v.call('GET', `/api/shares/${id}/audit`)).data;
+  assert.ok(JSON.stringify(log).includes('identity.mismatch'));
+  // The invited address gets in; the check is case-insensitive
+  const right = await verify('Tia@Example.com');
+  assert.equal(right.status, 302);
+  assert.equal(right.headers.get('location'), `/p/${id}`);
+  assert.equal((await v.call('GET', `/p/${id}/_vault/meta`, null, cookie, null)).status, 200);
+  // A state that was never issued is refused
+  assert.equal(
+    (await v.call('GET', '/auth/google/viewer?code=x&state=nope', null, { Cookie: 'oauth_state=nope' }, null)).status,
+    400
+  );
+  await v.close();
+  g.close();
+  // Without Google sign-in the option cannot be set
+  const plain = await boot();
+  assert.equal((await plain.call('POST', '/api/shares', { name: 'X', requireSignIn: true })).status, 400);
+  await plain.close();
+});
+
 test('storage limit per person applies to uploads', async () => {
   const g = await fakeGoogle('c');
   const v = await boot({
@@ -580,6 +650,7 @@ test('storage limit per person applies to uploads', async () => {
     GOOGLE_TOKEN_URL: g.url,
     ADMIN_TOKEN: 'z'.repeat(32),
     MAX_STORAGE_MB_PER_OWNER: '0.00001',
+    ALLOW_SHARED_CONTENT_ORIGIN: '1',
   });
   const ana = await signIn(v, 'ana@example.com');
   assert.equal(
@@ -668,9 +739,11 @@ test('housekeeping: retention deletes whole shares, admin log trimmed, store kee
   assert.ok(!types.includes('old'));
   assert.ok(types.includes('fresh'));
   const rl = v.ctx.H.rateLimit;
+  rl('victim', 8, 60e3);
   for (let i = 0; i < 60000; i++) rl('flood' + i, 1, 60e3);
-  assert.equal(rl('after', 1, 60e3), true);
-  assert.equal(rl('after', 1, 60e3), false, 'a key made after the flood is still limited');
+  assert.equal(rl('after', 1, 60e3), false, 'newcomers are refused while the table is full');
+  for (let i = 0; i < 7; i++) rl('victim', 8, 60e3);
+  assert.equal(rl('victim', 8, 60e3), false, 'the flood did not reset a live limit');
   await v.close();
 });
 

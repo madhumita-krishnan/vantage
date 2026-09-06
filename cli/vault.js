@@ -41,6 +41,7 @@ Publish options:
   --no-watermark --no-record --no-consent
   --voice                  Offer think-aloud voice recording to testers (off by default)
   --screen                 Offer screen recording of the prototype tab, desktop browsers only (off by default)
+  --require-sign-in        Testers must sign in with Google as the invited address (needs Google sign-in on the server)
   --max-opens <n>          Per-viewer open limit
   --mode view|unmoderated|moderated
                            view = just for looking (no tasks, recording, consent or feedback); moderated = live results and moderator notes.
@@ -160,6 +161,7 @@ async function main() {
         mode: ['view', 'unmoderated', 'moderated'].includes(args.mode) ? args.mode : undefined,
         voice: !!args.voice,
         screen: !!args.screen,
+        requireSignIn: !!args['require-sign-in'],
         introText: args['intro-text'],
         introMedia: args['intro-media'],
       },

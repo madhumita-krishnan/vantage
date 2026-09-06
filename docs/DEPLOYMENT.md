@@ -172,6 +172,7 @@ With `CONTENT_ORIGIN=https://prototypes-content.internal.company.com` and `CONTE
 | `RETENTION_DAYS` | `30` | Days after expiry before the whole share (files, viewers, recordings, events, feedback, its audit log) is deleted, and the age at which admin-log lines are dropped. |
 | `SESSION_HOURS` | `8` | Viewer session lifetime. |
 | `MAX_UPLOAD_MB` | `25` | Prototype upload cap. The whole upload is held in memory while it is decoded, so keep this modest. |
+| `ALLOW_SHARED_CONTENT_ORIGIN` | (unset) | With Google sign-in open to anyone, the server refuses to start unless `CONTENT_ORIGIN` is a wildcard. Set to `1` to accept a shared origin anyway (two prototypes open in one browser can then read each other). |
 | `MAX_MEDIA_MB` | `200` | Intro media plus voice and screen recordings, per share. Screen video runs about 5 MB a minute; a tester's recording stops itself at the limit. Also counted toward `MAX_STORAGE_MB_PER_OWNER`. |
 | `ALLOWED_EXTERNAL_ORIGINS` | (empty) | Origins prototypes may load from, if a share opts in. Leave empty. |
 | `PORT` / `HOST` | `8787` / `0.0.0.0` (`127.0.0.1` in quick start) | Listen address. |
@@ -185,3 +186,14 @@ Replace the files, restart. The data format is plain JSON and NDJSON. Version 0.
 
 ## Monitoring
 `GET /healthz` returns `ok` on both origins. Stdout has the startup summary; stderr has 5xx errors. The `_admin.ndjson` audit log has `admin.unauthorized` entries if someone probes the API.
+
+## Knowing when something is wrong
+
+The vault never calls out, so alerting is the platform's job. Three settings cover the realistic attacks:
+
+1. **Two-factor sign-in on the Google account that owns the project.** Stealing that account is the cheapest way in and no code in this repository can stop it.
+2. **Alert on secret access.** In Secret Manager, every read of the encryption key is written to Cloud Audit Logs. Create a log-based alert for `protoPayload.methodName="google.cloud.secretmanager.v1.SecretManagerService.AccessSecretVersion"` from any principal other than the vault's service account.
+3. **Alert on refusals.** Every refused link, passcode, sign-in and admin call is written to stderr as one line beginning `vault-refused`. On Cloud Run that lands in Cloud Logging; alert on `textPayload:"vault-refused"` above a rate you choose (ten in five minutes is a reasonable start). A single refusal is a typo; a burst is someone trying.
+
+For a hosted copy also: run without `ADMIN_TOKEN` (Google sign-in only), set `CONTENT_ORIGIN` to a wildcard so every share has its own origin, and keep `VAULT_ENCRYPTION_KEY` in Secret Manager, never in the environment file.
+

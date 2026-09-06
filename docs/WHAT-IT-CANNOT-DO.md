@@ -16,7 +16,7 @@ What to do: keep viewer lists short, set expiry tight, and say in your intro tex
 
 A personal link opens the prototype for anyone who has it, until it expires or you revoke it. It is tied to a person's name so you know who it was sent to, and it can be turned off in one click, but it does not check identity by itself.
 
-What to do: send each link to one person. For anything sensitive, add a passcode and send that by a different route (a call, a message), so a forwarded email is not enough. The access log shows every opening, with time and location, so a forwarded link is noticed.
+What to do: send each link to one person. For anything sensitive, either add a passcode and send that by a different route (a call, a message), or, on a server with Google sign-in, turn on "testers must sign in" for the share: the link then opens only for the Google account it was sent to, and a forwarded copy opens nothing. That option excludes people without a Google account, which is why it is off by default. The access log shows every opening, with time and location, and every refused sign-in, so a forwarded link is noticed either way.
 
 ## Testers can read the prototype's code
 

@@ -191,6 +191,9 @@ module.exports = function shares(ctx) {
     };
     audit.append(share ? share.id : '_admin', rec);
     if (share) audit.append('_admin', rec);
+    // One line per refusal on stderr, so a hosting platform's log alert can page the operator without the vault
+    // ever calling out.
+    if (/rejected|denied|fail|mismatch|unauthorized/.test(type)) console.error('vault-refused', JSON.stringify(rec));
   }
 
   // A personal link's secret is stored only as a hash, like the API tokens, so a copy of the store cannot open
@@ -236,6 +239,7 @@ module.exports = function shares(ctx) {
       showTasks: share.showTasks !== false,
       voice: !!share.voice,
       screen: !!share.screen,
+      requireSignIn: !!share.requireSignIn,
       recordText: !!share.recordText,
       recordings: Object.entries(share.recordings || {}).map(([sid, r]) => ({
         session: sid,
@@ -314,6 +318,13 @@ module.exports = function shares(ctx) {
       sameSite: cross && isHttps(req) ? 'None' : 'Lax',
     });
   }
+  // Testers must sign in with Google as the invited address: only possible where Google sign-in is configured.
+  function requireSignInOf(v) {
+    if (!v) return false;
+    if (!CONFIG.googleClientId)
+      throw httpError(400, 'Testers cannot be asked to sign in: Google sign-in is not configured on this server');
+    return true;
+  }
   function createSession(req, share, viewer) {
     const tok = C.randomToken();
     store.data.sessions[C.sha256(tok)] = {
@@ -329,6 +340,7 @@ module.exports = function shares(ctx) {
     store.save();
     return tok;
   }
+  const sessionKey = (req, share) => C.sha256(parseCookies(req)[cookieName(share.id)] || '');
   function getSession(req, share) {
     const tok = parseCookies(req)[cookieName(share.id)];
     const s = tok && store.data.sessions[C.sha256(tok)];
@@ -416,6 +428,7 @@ module.exports = function shares(ctx) {
       showTasks: b.showTasks != null ? !!b.showTasks : b.mode !== 'moderated',
       voice: !!b.voice,
       screen: !!b.screen,
+      requireSignIn: requireSignInOf(b.requireSignIn),
       recordText: !!b.recordText,
       recordings: {},
       notes: String(b.notes || '').slice(0, 2000),
@@ -460,6 +473,7 @@ module.exports = function shares(ctx) {
     }
     for (const k of ['showTasks', 'screen', 'recordText', 'voice', 'watermark', 'recordSessions', 'requireConsent'])
       if (b[k] != null) set(k, !!b[k]);
+    if (b.requireSignIn != null) set('requireSignIn', requireSignInOf(b.requireSignIn));
     if (b.notes != null) share.notes = String(b.notes).slice(0, 2000);
     if (b.mode != null) {
       if (!MODES.includes(b.mode)) throw httpError(400, 'mode must be view, unmoderated or moderated');
@@ -541,6 +555,7 @@ module.exports = function shares(ctx) {
     addViewer,
     setSessionCookie,
     createSession,
+    sessionKey,
     getSession,
     dropSessions,
     sweep,

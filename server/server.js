@@ -37,6 +37,7 @@ function createApp(env = process.env) {
         .replace(/\{\{MESSAGE\}\}/g, message)
         .replace(/\{\{EXTRA\}\}/g, extra)
     );
+  ctx.G = require('./lib/google')(ctx);
   ctx.S = require('./lib/shares')(ctx);
   ctx.M = require('./lib/media')(ctx);
   const { handleAdmin, adminFromReq, authInfo, handleAuth } = require('./lib/admin')(ctx);
@@ -75,6 +76,7 @@ function createApp(env = process.env) {
         return send(req, res, 200, fs.readFileSync(path.join(__dirname, DOCS[dm[1]])), {
           'Content-Type': 'text/plain; charset=utf-8',
         });
+      if (p === '/auth/google/viewer') return await handleViewer.signInCallback(req, res, url);
       if (p.startsWith('/auth/')) return await handleAuth(req, res, url);
       if (p === '/api/auth' && req.method === 'GET') return json(req, res, 200, authInfo(req));
       if (p.startsWith('/api/')) {

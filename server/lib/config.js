@@ -59,6 +59,14 @@ function loadConfig(env = process.env, root = path.join(__dirname, '..')) {
   if (cfg.trustedHeaderEmail && !cfg.trustProxy)
     console.error('TRUSTED_HEADER_EMAIL is set but TRUST_PROXY is not 1; the header will be ignored.');
   if (cfg.googleClientId && !cfg.googleClientSecret) throw new Error('GOOGLE_CLIENT_ID needs GOOGLE_CLIENT_SECRET');
+  // Open Google sign-up means designers who do not trust each other. Their prototypes must not share an origin.
+  const openSignup = cfg.googleClientId && !cfg.adminEmails.length && !cfg.allowedSigninDomains.length;
+  if (openSignup && !cfg.contentOrigin.includes('*') && env.ALLOW_SHARED_CONTENT_ORIGIN !== '1')
+    throw new Error(
+      'Anyone with a Google account may sign in, so set CONTENT_ORIGIN to a wildcard (https://*.content.example.com) ' +
+        'so every share gets its own origin, or set ALLOW_SHARED_CONTENT_ORIGIN=1 to accept that two prototypes open ' +
+        'in one browser can read each other.'
+    );
   fs.mkdirSync(cfg.dataDir, { recursive: true, mode: 0o700 });
   if (!cfg.adminToken && !cfg.adminEmails.length && !cfg.googleClientId) {
     cfg.quickstart = true;

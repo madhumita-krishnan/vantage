@@ -1,12 +1,19 @@
 # Changelog
 
-## 0.3.0 (2026-09-05)
+## 0.3.0 (2026-09-06)
 
 **Recording**
 
 - Screen recording, per share and off by default (`--screen`, the `screen` option in the console and MCP). The tester chooses on the consent screen and picks the prototype tab in the browser's own dialog; the video, with the voice track when both are on, streams to the vault in the same five-second segments as voice and plays back on the results tab. It stops itself when the share's media limit is reached. Desktop browsers only.
 - The Recording pill now shows a level meter driven by the microphone, so testers can see their voice is being picked up.
 - Dictation removed. It used the browser's speech service, which sends audio to Google or Apple, and voice recording already covers think-aloud.
+
+**Security**
+
+- Per-share `requireSignIn`: testers must sign in with Google as the invited address before the link opens, so a forwarded link opens nothing. Needs Google sign-in on the server; a mismatch is logged. Console switch, `--require-sign-in`, MCP option.
+- The rate limiter never evicts a live bucket. When its table is full it drops expired entries and, if still full, refuses new keys until a window ends, so a flood of junk keys cannot reset someone's limit.
+- With Google sign-in open to anyone, the server refuses to start on a shared content origin unless `ALLOW_SHARED_CONTENT_ORIGIN=1`.
+- Every refusal (rejected link, failed passcode, wrong sign-in, unauthorized admin call) is also written to stderr as a `vault-refused` line for log-based alerting. The deployment guide gained "Knowing when something is wrong"; the security document gained an adversary's-view appendix.
 
 **Repository**
 

@@ -138,6 +138,11 @@ const OPTIONS = [
     (s) => !!s.screen,
   ],
   ['consent', 'Ask testers for consent before recording anything.', (s) => s.requireConsent !== false],
+  [
+    'signin',
+    'Testers must sign in with Google as the invited address before the link opens, so a forwarded link opens nothing. Needs Google sign-in on this server. Off by default because it excludes people without a Google account.',
+    (s) => !!s.requireSignIn,
+  ],
   ['wm', "Show a watermark with the viewer's email over the prototype.", (s) => s.watermark !== false],
 ];
 const sw = (id, label, on, cls = '') =>
@@ -165,6 +170,7 @@ function optionValues() {
     voice: $('#voice').checked,
     screen: $('#screen').checked,
     requireConsent: $('#consent').checked,
+    requireSignIn: $('#signin').checked,
     watermark: $('#wm').checked,
   };
 }

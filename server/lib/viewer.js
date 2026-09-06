@@ -7,7 +7,7 @@ const C = require('./crypto');
 const { mimeFor } = require('./bundle');
 
 module.exports = function viewer(ctx) {
-  const { CONFIG, store, events, feedback, H, S, M, readPublic, gate } = ctx;
+  const { CONFIG, store, events, feedback, H, S, M, G, readPublic, gate } = ctx;
   const {
     esc,
     httpError,
@@ -28,6 +28,9 @@ module.exports = function viewer(ctx) {
   const now = Date.now;
   // One-time tickets carry a main-origin session over to the content origin. ponytail: in memory, so single process.
   const tickets = new Map();
+  // Pending tester sign-ins, keyed by OAuth state: which session asked to be verified. Same ceiling as tickets.
+  const pendingSignIns = new Map();
+  const VIEWER_REDIRECT = () => `${CONFIG.mainOrigin}/auth/google/viewer`;
   // Per-session ceilings for recorded events, so one tester cannot fill the disk.
   const MAX_EVENTS = 20000;
   const MAX_EVENT_BYTES = 5 * 1048576;
@@ -322,7 +325,35 @@ module.exports = function viewer(ctx) {
     throw httpError(404, 'Not found');
   }
 
-  return async function handleViewer(req, res, url, id, rest, content) {
+  // Google sends the tester back here. The state cookie proves it is the same browser; the pending entry says which
+  // session asked; the email must equal the invited address.
+  async function signInCallback(req, res, url) {
+    const { email, state } = await G.finish(req, url, VIEWER_REDIRECT());
+    const pending = pendingSignIns.get(state);
+    pendingSignIns.delete(state);
+    if (!pending || pending.exp < now()) throw httpError(400, 'Sign-in took too long. Open your link again.');
+    const share = store.data.shares[pending.shareId];
+    const sess = share && store.data.sessions[pending.sessionKey];
+    if (!share || !sess || sess.shareId !== share.id) throw httpError(400, 'Session not found. Open your link again.');
+    const viewer = share.viewers[sess.viewerId];
+    if (!viewer || viewer.email.toLowerCase() !== email) {
+      S.logAudit(share, 'identity.mismatch', req, { email, expected: viewer && viewer.email, session: sess.id });
+      return gate(
+        req,
+        res,
+        403,
+        'Not the invited address',
+        `You signed in as <b>${esc(email)}</b>, but this link was sent to <b>${esc((viewer && viewer.email) || '')}</b>. Sign in with that account, or ask the person who shared it to invite this one.`
+      );
+    }
+    sess.identityOk = true;
+    store.save();
+    S.logAudit(share, 'identity.ok', req, { email, session: sess.id });
+    return redirect(req, res, `/p/${share.id}`);
+  }
+  handleViewer.signInCallback = signInCallback;
+  return handleViewer;
+  async function handleViewer(req, res, url, id, rest, content) {
     const share = store.data.shares[id];
     if (!share)
       return gate(
@@ -382,6 +413,25 @@ module.exports = function viewer(ctx) {
     }
     const viewer = share.viewers[sess.viewerId];
     if (status !== 'active') return gone(req, res, status);
+    // 3a) Identity gate: the share asks testers to sign in with Google as the address the link was sent to, so a
+    //     forwarded link opens nothing. The secret was already consumed; the session simply never becomes usable.
+    if (share.requireSignIn && !sess.identityOk) {
+      if (rest === '/signin') {
+        if (!rateLimit(`signin:${sess.id}`, 10, 600e3)) return gate(req, res, 429, 'Slow down', 'Try again later.');
+        const state = G.start(req, res, VIEWER_REDIRECT());
+        pendingSignIns.set(state, { sessionKey: S.sessionKey(req, share), shareId: share.id, exp: now() + 600e3 });
+        return;
+      }
+      if (rest) return json(req, res, 401, { error: 'Sign-in required' });
+      return gate(
+        req,
+        res,
+        200,
+        'Sign in to open',
+        `Hi ${esc(viewer.name)}. This prototype opens only for the Google account <b>${esc(viewer.email)}</b>, the address this link was sent to.`,
+        `<a class="btn primary" href="/p/${esc(share.id)}/signin" style="display:block;text-align:center">Sign in with Google</a>`
+      );
+    }
     // 3) Passcode gate (optional second factor). Limited per address and, so a spoofed address does not help, per share.
     if (share.passcode && !sess.passcodeOk) {
       if (rest === '/passcode' && req.method === 'POST') {
@@ -414,5 +464,5 @@ module.exports = function viewer(ctx) {
     }
     if (rest.startsWith('/_vault/')) return vaultEndpoint(req, res, url, rest.slice(8), share, sess, viewer, false);
     throw httpError(404, 'Not found');
-  };
+  }
 };

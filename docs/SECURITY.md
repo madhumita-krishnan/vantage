@@ -96,6 +96,9 @@ Bundle paths are normalised; `..`, absolute paths and control characters are rej
 ### Rate limits
 In-memory per-process limits on link redemption (30 per address per 10 min), passcode attempts (8 per address per 15 min, 100 per share per hour), tickets, voice segments, event and feedback posts per session, plus a per-session ceiling on recorded events (20,000 or 5 MB). Over 50,000 tracked keys the oldest is dropped. Behind a proxy the client address is read `TRUSTED_PROXY_HOPS` entries from the right of `X-Forwarded-For`, so a caller cannot choose it. Let the proxy be the primary limiter.
 
+### Tester identity (optional, per share)
+With `requireSignIn` on a share, redeeming the link creates a session that cannot be used until the tester signs in with Google and the verified email equals the invited address (case-insensitive). The OAuth state is bound to the browser by a cookie and to the session by a server-side map, so a callback cannot be replayed into someone else's session. A mismatch is logged as `identity.mismatch` and the session stays unusable. Only available where Google sign-in is configured; the server refuses the option otherwise.
+
 ### CSRF
 Viewer and content-origin POSTs check the `Origin` header against the vault's own origins. Cookie-authenticated console requests that change anything do the same. Bearer tokens are not attached by browsers automatically.
 
@@ -165,3 +168,23 @@ ALLOWED_EXTERNAL_ORIGINS=          (empty)
 - Recorded data is tied to the invited email; treat it as personal data. Voice recordings and click-level behaviour recording of individuals are the kind of processing that triggers a Data Protection Impact Assessment in Europe; sections 2, 3 and 4 give the inputs.
 - Recording employees' interactions may need works-council or equivalent agreement in some countries regardless of individual consent. View-only mode records nothing and needs none.
 - Deleting a share removes its files, metadata, audit, events and feedback. `RETENTION_DAYS` after a share expires the server deletes it the same way, on its own. The `_admin.ndjson` log keeps admin actions and access events until they age out of the same window.
+
+## Appendix: the adversary's view
+
+How an attacker would actually approach this, in the order a real one would, with what each route gets and what closes it. Written so a reviewer can check that the cheap routes are closed and the expensive ones are named.
+
+| Route | Cost to attacker | What it yields | What closes it |
+|---|---|---|---|
+| Phish the designer's Google account | Low | Everything that designer owns | Two-factor on the account; the vault cannot help here. `admin.signin` from a new address shows in the log. |
+| Steal the server admin token | Low if it is ever exposed | Everything, all designers | Hosted copies run without one (Google sign-in only). Quick start keeps it in a 0600 file and binds to localhost. Never paste it into chat or a screenshot. |
+| A malicious prototype reading another designer's prototype (shared content origin) | Medium; needs an account and a victim with both open | The other prototype's content | One origin per share (`CONTENT_ORIGIN` wildcard). The server refuses to start with open Google sign-up on a shared origin unless `ALLOW_SHARED_CONTENT_ORIGIN=1`. |
+| A forwarded or intercepted personal link | Low | One prototype, as that tester | Passcode by a second channel, or `requireSignIn` (the link opens only for the invited Google account). Every opening and refusal is logged. |
+| Flooding the rate limiter with junk keys to reset a real limit | Low | A passcode brute force | The limiter never evicts a live bucket; when full it refuses newcomers until a window ends. A proxy limiter in front is still recommended. |
+| Hostile network (fake Wi-Fi) | Low | Timing and size of encrypted traffic, nothing else | HTTPS with HSTS. Never serve a real deployment over plain HTTP. |
+| Camera, shoulder surfing, screen recording by the tester | Low | A copy of what was on screen | Nothing in a browser. Per-viewer watermark and access log make it attributable; the desktop viewer blacks out captures on macOS and Windows. |
+| Electromagnetic (TEMPEST) or acoustic side channels against the tester's screen or keyboard | High; equipment and proximity | The screen or keystrokes, no software trace | Nothing in software. Relevant to targeted espionage only; the advice to keep real data out of prototypes is the mitigation. |
+| Physical access to the server or the operator's laptop | Medium | Encryption key and therefore everything | Key in a secrets manager, never in quick-start mode for a real deployment; disk encryption on the laptop. |
+| Supply chain through development tooling or the Electron viewer's dependencies | High | The developer's machine and its secrets | The server has no third-party packages. `npm ci` from the lockfile in CI; the viewer app has one dependency. |
+
+Every refusal the vault records (`link.rejected`, `passcode.fail`, `identity.mismatch`, `sso.denied`, `admin.unauthorized`, `admin.denied`) is also written to stderr as a `vault-refused` line, so the hosting platform's log alerts can page the operator. The deployment guide has the recipe.
+
