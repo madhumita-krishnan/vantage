@@ -25,4 +25,4 @@ An enterprise designer needs all of the following at once:
 | The designer keeps control after sharing             | Links must expire, be revocable, and leave an audit trail                      |
 | Security teams can approve it                        | They need to review what it does, where data lives, and what it phones home to |
 
-The answer in this folder is **Prototype Vault**: a small server that a designer or their IT team runs inside the company network, plus tools that let Claude publish to it directly. See [README.md](README.md).
+The answer in this folder is **Vantage**: a small server that a designer or their IT team runs inside the company network, plus tools that let Claude publish to it directly. See [README.md](README.md).

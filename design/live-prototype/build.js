@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* Builds design/live-prototype.html: every screen of Prototype Vault, live and clickable, in one file.
+/* Builds design/live-prototype.html: every screen of Vantage, live and clickable, in one file.
  * The console, the tester shell and the gate pages are the real files from server/public, unchanged apart from two
  * lines the browser needs when there is no server (see PATCHES); mock.js answers their requests from demo data.
  * Run: node design/live-prototype/build.js */
@@ -9,14 +9,14 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..', '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
-const css = read('server/public/vault.css');
+const css = read('server/public/vantage.css');
 const mock = read('design/live-prototype/mock.js');
 const results = read('server/lib/results.js');
 const sample = read('examples/sample-prototype/index.html');
 
 // results.js is a CommonJS module; wrapped so the demo computes summaries and reports with the server's own code.
 const resultsShim = `window.__RESULTS__ = (deps) => { const module = { exports: {} }; const require = () => deps; ${results}; return module.exports; };`;
-const stylesheet = (html) => html.replace('<link rel="stylesheet" href="/vault.css" />', `<style>${css}</style>`);
+const stylesheet = (html) => html.replace('<link rel="stylesheet" href="/vantage.css" />', `<style>${css}</style>`);
 // Insert before the page's own closing tag, the last one: the embedded sample prototype has closing tags of its own.
 const beforeLast = (html, tag, insert) => {
   const i = html.lastIndexOf(tag);
@@ -29,7 +29,7 @@ const PATCHES = [
 
 // A tiny tracker for the sample prototype: tells the shell which screen the tester is on, like tracker.js does.
 const tracker =
-  "<script>(function(){function tell(){try{parent.postMessage({vault:'location',path:'index.html'+location.hash},'*')}catch(e){}}window.addEventListener('hashchange',tell);tell();window.vault={event:function(){}}})()</script>";
+  "<script>(function(){function tell(){try{parent.postMessage({vantage:'location',path:'index.html'+location.hash},'*')}catch(e){}}window.addEventListener('hashchange',tell);tell();window.vantage={event:function(){}}})()</script>";
 const prototypeHtml = sample.replace('<head>', '<head>' + tracker);
 
 const head = `<script>/*__SCREEN__*/</script><script>${resultsShim}</script><script>window.__PROTOTYPE__=${JSON.stringify(prototypeHtml).replace(/<\/script/g, '<\\/script')};</script><script>${mock}</script>`;
@@ -67,7 +67,7 @@ const gateDoc = stylesheet(read('server/public/gate.html')).replace(
   `<script>/*__SCREEN__*/</script></head>`
 ).replace(
   '</body>',
-  `<script>(()=>{const S=window.__SCREEN;document.title=S.title+' · Prototype Vault';document.querySelector('h1').textContent=S.title;document.querySelector('.card p').innerHTML=S.message;document.querySelector('.card p').insertAdjacentHTML('afterend',S.extra||'');
+  `<script>(()=>{const S=window.__SCREEN;document.title=S.title+' · Vantage';document.querySelector('h1').textContent=S.title;document.querySelector('.card p').innerHTML=S.message;document.querySelector('.card p').insertAdjacentHTML('afterend',S.extra||'');
 const f=document.querySelector('form');if(f)f.onsubmit=(e)=>{e.preventDefault();parent.postMessage({proto:'goto',screen:f.passcode.value==='letmein'?'consent':'gate-passcode-wrong'},'*')};
 const a=document.querySelector('a.btn');if(a)a.onclick=(e)=>{e.preventDefault();parent.postMessage({proto:'goto',screen:'consent'},'*')};})()</script></body>`
 );
@@ -86,7 +86,7 @@ const SCREENS = [
   { id: 'share-results', g: 'Console', t: 'Feedback & results', n: 'Tasks, per tester, recordings, notes', doc: 'console', s: { state: 'list', view: { page: 'share', id: CK, tab: 'results' } }, try: 'Play a recording, add a moderator note, export the report.' },
   { id: 'share-settings', g: 'Console', t: 'Settings & files', n: 'Purpose, tasks, options, intro, danger zone', doc: 'console', s: { state: 'list', view: { page: 'share', id: CK, tab: 'settings' } }, try: 'Change the intro to "Your text" and save.' },
   { id: 'share-moderated', g: 'Console', t: 'Moderated share', n: 'Live results and moderator notes', doc: 'console', s: { state: 'list', view: { page: 'share', id: 'Hb7nR2wQx5Ae', tab: 'results' } }, try: 'Results refresh every five seconds while a session runs.' },
-  { id: 'server', g: 'Console', t: 'Server', n: 'Status and policy of this vault', doc: 'console', s: { state: 'list', view: { page: 'server' } } },
+  { id: 'server', g: 'Console', t: 'Server', n: 'Status and policy of this Vantage', doc: 'console', s: { state: 'list', view: { page: 'server' } } },
   { id: 'account', g: 'Console', t: 'Account', n: 'Connected tools, leave, recent activity', doc: 'console', s: { state: 'list', view: { page: 'account' } }, try: 'Connect a tool to see the token shown once.' },
   { id: 'account-token', g: 'Console', t: 'Token issued', n: 'Shown once with the setup lines', doc: 'console', s: { state: 'list', view: { page: 'account', newToken: { token: 'pv_3kF9xQ2LmW7vR0tY8cB1nD5sG4hJ6pZa', item: { name: 'Claude Code on the studio laptop' } } } } },
   { id: 'leave', g: 'Console', t: 'Leave', n: 'Delete everything you made, confirm first', doc: 'console', s: { state: 'list', view: { page: 'account' }, after: "document.getElementById('leave').click()" } },
@@ -113,7 +113,7 @@ const SCREENS = [
 ];
 const PHONE = ['consent', 'prototype', 'feedback', 'gate-passcode', 'list', 'share-links', 'new'];
 
-const outer = `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prototype Vault, Every Screen</title>
+const outer = `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vantage, Every Screen</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap">
 <style>
 :root{color-scheme:light dark;--g:#f1f2f5;--g2:#ffffff;--ink:#1a1d24;--mute:#68707f;--line:#d9dce3;--acc:#2d5bff;--acc-ink:#fff;--frame:#c9cdd6;--shadow:0 20px 50px rgba(20,24,40,.18);--sans:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;--serif:'Fraunces',Georgia,'Times New Roman',serif;--mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
@@ -170,7 +170,7 @@ main{overflow:auto;position:relative}
 @media (prefers-reduced-motion:no-preference){.card .shot{transition:outline-color .15s}}
 </style>
 <header>
-  <h1>Prototype Vault <i>every screen</i></h1>
+  <h1>Vantage <i>every screen</i></h1>
   <div class="seg" id="mode"><button class="on" data-m="one">One screen</button><button data-m="all">All screens</button></div>
   <div class="seg" id="device"><button class="on" data-d="desktop">Desktop</button><button data-d="phone">Phone</button></div>
   <span class="sp"></span>

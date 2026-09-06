@@ -6,7 +6,7 @@
     <meta name="robots" content="noindex,nofollow" />
     <meta name="referrer" content="no-referrer" />
     <title>Prototype</title>
-    <link rel="stylesheet" href="/vault.css" />
+    <link rel="stylesheet" href="/vantage.css" />
     <style>
       body {
         display: flex;
@@ -326,7 +326,7 @@
           return document.querySelector(s);
         }
         function api(ep, body) {
-          return fetch(base + '/_vault/' + ep, {
+          return fetch(base + '/_vantage/' + ep, {
             method: body ? 'POST' : 'GET',
             headers: { 'Content-Type': 'application/json' },
             body: body ? JSON.stringify(body) : undefined,
@@ -382,7 +382,7 @@
         }
         // The prototype runs on another origin; its tracker posts the screen it is on.
         window.addEventListener('message', function (e) {
-          if (meta && e.origin === meta.contentOrigin && e.data && e.data.vault === 'location') {
+          if (meta && e.origin === meta.contentOrigin && e.data && e.data.vantage === 'location') {
             frameLoc = String(e.data.path || '');
             checkTriggers();
           }
@@ -468,7 +468,7 @@
             var seq = 0;
             mr.ondataavailable = function (e) {
               if (!e.data || !e.data.size) return;
-              fetch(base + '/_vault/recording?seq=' + seq++, {
+              fetch(base + '/_vantage/recording?seq=' + seq++, {
                 method: 'POST',
                 headers: { 'Content-Type': (mr.mimeType || (video ? 'video/webm' : 'audio/webm')).split(';')[0] },
                 body: e.data,
@@ -729,7 +729,7 @@
             h +=
               '<div class="media"><video id="introVideo" controls playsinline preload="metadata" crossorigin="use-credentials" src="' +
               base +
-              '/_vault/intro">' +
+              '/_vantage/intro">' +
               subs
                 .map(function (s) {
                   return (
@@ -739,7 +739,7 @@
                     esc(s.label) +
                     '" src="' +
                     base +
-                    '/_vault/subtitles/' +
+                    '/_vantage/subtitles/' +
                     encodeURIComponent(s.lang) +
                     '"' +
                     (lang.indexOf(s.lang.toLowerCase()) === 0 ? ' default' : '') +
@@ -768,7 +768,8 @@
               '<button type="button" class="btn small" id="fsBtn">Full screen</button></div></div>';
           }
           if (i.kind === 'audio' && i.media)
-            h += '<div class="media"><audio controls preload="metadata" src="' + base + '/_vault/intro"></audio></div>';
+            h +=
+              '<div class="media"><audio controls preload="metadata" src="' + base + '/_vantage/intro"></audio></div>';
           if (i.text) h += fmtText(i.text);
           return h ? '<div class="intro">' + h + '</div>' : '';
         }

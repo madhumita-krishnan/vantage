@@ -1,8 +1,8 @@
 'use strict';
 // Configuration from the environment, plus quick start. With no admin mechanism configured the server makes its own
-// admin token (and an encryption key unless VAULT_ENCRYPTION_KEY is set), keeps both in DATA_DIR/local-secrets.json
+// admin token (and an encryption key unless VANTAGE_ENCRYPTION_KEY is set), keeps both in DATA_DIR/local-secrets.json
 // (mode 0600) so restarts and the CLI / MCP server on this machine reuse them, and listens on localhost only.
-// For a real deployment set ADMIN_TOKEN (or ADMIN_EMAILS + SSO, or Google sign-in), VAULT_ENCRYPTION_KEY and HOST.
+// For a real deployment set ADMIN_TOKEN (or ADMIN_EMAILS + SSO, or Google sign-in), VANTAGE_ENCRYPTION_KEY and HOST.
 const fs = require('fs');
 const path = require('path');
 const C = require('./crypto');
@@ -29,7 +29,7 @@ function loadConfig(env = process.env, root = path.join(__dirname, '..')) {
     // shell. Either a second port (CONTENT_PORT, default PORT+1) or a hostname the proxy routes here (CONTENT_ORIGIN).
     contentOrigin: (env.CONTENT_ORIGIN || '').replace(/\/$/, ''),
     contentPort: env.CONTENT_PORT === undefined ? null : +env.CONTENT_PORT,
-    encryptionKey: env.VAULT_ENCRYPTION_KEY || '',
+    encryptionKey: env.VANTAGE_ENCRYPTION_KEY || '',
     maxUploadBytes: +(env.MAX_UPLOAD_MB || 25) * 1048576,
     maxMediaBytes: +(env.MAX_MEDIA_MB || 200) * 1048576, // intro audio/video plus voice and screen recordings, per share
     sessionHours: +(env.SESSION_HOURS || 8),

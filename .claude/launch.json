@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "vault",
+      "name": "vantage",
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",

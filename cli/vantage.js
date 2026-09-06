@@ -4,28 +4,28 @@ const fs = require('fs');
 const path = require('path');
 const L = require('./lib');
 
-const HELP = `Prototype Vault CLI
+const HELP = `Vantage CLI
 
 Usage:
-  vault publish <folder|file.html> --name "Checkout v3" --viewers "Priya <priya@x.com>,tom@y.org" [options]
-  vault inline  <folder|file.html> [--in-place]          Bundle external scripts/styles/fonts into ./vendor so the prototype is self-contained
-  vault list                                              List shares
-  vault show <shareId>                                    Show a share and its viewers (links are shown once, when issued)
-  vault add-viewer <shareId> "Name <email>" [...]         Invite more people (prints their links)
-  vault revoke <shareId> [--viewer <viewerId>]            Revoke the whole share, or one viewer
-  vault rotate <shareId> --viewer <viewerId>              Issue a new link for one viewer
-  vault extend <shareId> --days 7                         Extend expiry
-  vault results <shareId> [--format text|md|json]         Feedback, task outcomes and per-tester summary (md = shareable report)
-  vault report <shareId> [--out report.md]                Markdown report
-  vault note <shareId> "text" [--viewer <viewerId>]       Add a moderator note during a moderated session
-  vault intro <shareId> <file.mp4|.mp3> | --text "..."     Set the "Before you start" media or text
-  vault subtitles <shareId> <lang> <file.vtt> [--label "Español"]   Add captions/translation to the intro video
-  vault extend <shareId> --days 180                       Extend up to the server maximum (default 365 days)
-  vault activity <shareId>                                Access log
-  vault events <shareId> [--csv] [--out file]             Raw interaction events
-  vault delete <shareId>                                  Delete share and all its data
-  vault whoami                                            Who this token belongs to and how it is connected
-  vault disconnect                                        Revoke the token this CLI is using (the Account page can do the same)
+  vantage publish <folder|file.html> --name "Checkout v3" --viewers "Priya <priya@x.com>,tom@y.org" [options]
+  vantage inline  <folder|file.html> [--in-place]          Bundle external scripts/styles/fonts into ./vendor so the prototype is self-contained
+  vantage list                                              List shares
+  vantage show <shareId>                                    Show a share and its viewers (links are shown once, when issued)
+  vantage add-viewer <shareId> "Name <email>" [...]         Invite more people (prints their links)
+  vantage revoke <shareId> [--viewer <viewerId>]            Revoke the whole share, or one viewer
+  vantage rotate <shareId> --viewer <viewerId>              Issue a new link for one viewer
+  vantage extend <shareId> --days 7                         Extend expiry
+  vantage results <shareId> [--format text|md|json]         Feedback, task outcomes and per-tester summary (md = shareable report)
+  vantage report <shareId> [--out report.md]                Markdown report
+  vantage note <shareId> "text" [--viewer <viewerId>]       Add a moderator note during a moderated session
+  vantage intro <shareId> <file.mp4|.mp3> | --text "..."     Set the "Before you start" media or text
+  vantage subtitles <shareId> <lang> <file.vtt> [--label "Español"]   Add captions/translation to the intro video
+  vantage extend <shareId> --days 180                       Extend up to the server maximum (default 365 days)
+  vantage activity <shareId>                                Access log
+  vantage events <shareId> [--csv] [--out file]             Raw interaction events
+  vantage delete <shareId>                                  Delete share and all its data
+  vantage whoami                                            Who this token belongs to and how it is connected
+  vantage disconnect                                        Revoke the token this CLI is using (the Account page can do the same)
 
 Publish options:
   --name <text>            Required
@@ -50,8 +50,8 @@ Publish options:
   --intro-media <file>     Voice or video intro (mp4, webm, mp3, m4a, wav)
   --notes <text>
 
-Connection: a vault started on this machine is found automatically. For a remote vault set VAULT_URL and
-VAULT_ADMIN_TOKEN (or --url, --token); get a token from the console: Account → Connect a tool. Revoke it there, or with: vault disconnect
+Connection: a Vantage started on this machine is found automatically. For a remote Vantage set VANTAGE_URL and
+VANTAGE_ADMIN_TOKEN (or --url, --token); get a token from the console: Account → Connect a tool. Revoke it there, or with: vantage disconnect
 `;
 
 function parseArgs(argv) {
@@ -102,10 +102,10 @@ const log = (m) => console.error(m);
 
 function printLinks(share) {
   console.log(`\n${share.name}  [${share.id}]  status: ${share.status}  expires: ${share.expiresAt}`);
-  if (!share.viewers.length) console.log('  (no viewers yet — add some with: vault add-viewer)');
+  if (!share.viewers.length) console.log('  (no viewers yet — add some with: vantage add-viewer)');
   for (const v of share.viewers)
     console.log(
-      `  ${v.revoked ? '✗' : '•'} ${v.name} <${v.email}>${v.revoked ? '  (revoked)' : v.link ? '\n      ' + v.link : '  (link shown once when issued; vault rotate ' + share.id + ' --viewer ' + v.id + ' makes a new one)'}`
+      `  ${v.revoked ? '✗' : '•'} ${v.name} <${v.email}>${v.revoked ? '  (revoked)' : v.link ? '\n      ' + v.link : '  (link shown once when issued; vantage rotate ' + share.id + ' --viewer ' + v.id + ' makes a new one)'}`
     );
   console.log('');
 }
@@ -168,7 +168,7 @@ async function main() {
       log
     );
     if (inlineReport && inlineReport.remaining.length) {
-      log('\nWarning: these external references remain and will be blocked by the vault:');
+      log('\nWarning: these external references remain and will be blocked by the Vantage:');
       inlineReport.remaining.forEach((u) => log('  ' + u));
     }
     console.log(`\nPublished. Admin page: ${cfg.url}/admin`);
@@ -339,7 +339,7 @@ async function main() {
   if (cmd === 'whoami') {
     const m = await L.api(cfg, 'GET', '/me');
     console.log(`${m.identity.who}  (${m.identity.label})  server ${cfg.url}`);
-    if (m.identity.tokenId) console.log(`token id ${m.identity.tokenId}; revoke it with: vault disconnect`);
+    if (m.identity.tokenId) console.log(`token id ${m.identity.tokenId}; revoke it with: vantage disconnect`);
     return;
   }
   if (cmd === 'disconnect') {
@@ -349,7 +349,7 @@ async function main() {
         'This CLI uses the server admin token, which cannot be revoked from here. Change ADMIN_TOKEN on the server instead.'
       );
     await L.api(cfg, 'DELETE', '/tokens/current');
-    console.log('Disconnected. This token no longer works; remove it from VAULT_ADMIN_TOKEN.');
+    console.log('Disconnected. This token no longer works; remove it from VANTAGE_ADMIN_TOKEN.');
     return;
   }
   throw new Error(`Unknown command: ${cmd}\n${HELP}`);

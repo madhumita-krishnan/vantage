@@ -7,8 +7,8 @@ const crypto = require('crypto');
 
 const SKIP = /(^|\/)(node_modules|\.git|__MACOSX|\.DS_Store|Thumbs\.db)(\/|$)/;
 
-// A vault started on this machine without ADMIN_TOKEN writes its own secrets to DATA_DIR/local-secrets.json.
-// Reading that file is what lets "claude mcp add ... -- node mcp/server.js" and "node cli/vault.js" work with no settings.
+// A Vantage started on this machine without ADMIN_TOKEN writes its own secrets to DATA_DIR/local-secrets.json.
+// Reading that file is what lets "claude mcp add ... -- node mcp/server.js" and "node cli/vantage.js" work with no settings.
 function localSecrets() {
   const candidates = [
     process.env.DATA_DIR && path.resolve(process.env.DATA_DIR, 'local-secrets.json'),
@@ -25,17 +25,17 @@ function localSecrets() {
   return null;
 }
 function config(overrides = {}) {
-  let url = (overrides.url || process.env.VAULT_URL || '').replace(/\/$/, '');
-  let token = overrides.token || process.env.VAULT_ADMIN_TOKEN || '';
+  let url = (overrides.url || process.env.VANTAGE_URL || '').replace(/\/$/, '');
+  let token = overrides.token || process.env.VANTAGE_ADMIN_TOKEN || '';
   if (!url && !token) {
     const s = localSecrets();
     if (s) ({ url, token } = s);
   }
   if (!url)
     throw new Error(
-      'Not connected to a vault. Start one on this machine (node server/server.js) or set VAULT_URL and VAULT_ADMIN_TOKEN for a remote one.'
+      'Not connected to a Vantage. Start one on this machine (node server/server.js) or set VANTAGE_URL and VANTAGE_ADMIN_TOKEN for a remote one.'
     );
-  if (!token) throw new Error('VAULT_ADMIN_TOKEN is not set for ' + url);
+  if (!token) throw new Error('VANTAGE_ADMIN_TOKEN is not set for ' + url);
   return { url: url.replace(/\/$/, ''), token };
 }
 
@@ -49,7 +49,7 @@ async function api(cfg, method, p, body, headers = {}) {
     });
   } catch (e) {
     throw new Error(
-      `Cannot reach the vault at ${cfg.url}. Is it running? (${(e.cause && e.cause.code) || e.message})`,
+      `Cannot reach the Vantage at ${cfg.url}. Is it running? (${(e.cause && e.cause.code) || e.message})`,
       { cause: e }
     );
   }
@@ -60,7 +60,7 @@ async function api(cfg, method, p, body, headers = {}) {
   } catch {
     data = { raw: text };
   }
-  if (!r.ok) throw new Error(`Vault ${r.status}: ${data.error || text.slice(0, 200)}`);
+  if (!r.ok) throw new Error(`Vantage ${r.status}: ${data.error || text.slice(0, 200)}`);
   return data;
 }
 
@@ -100,7 +100,7 @@ function vendorName(url) {
   return crypto.createHash('sha1').update(url).digest('hex').slice(0, 8) + '-' + base;
 }
 async function fetchAsset(url, log) {
-  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh) PrototypeVault/1.0' } });
+  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh) Vantage/1.0' } });
   if (!r.ok) throw new Error(`${r.status} fetching ${url}`);
   log(`  ↓ ${url}`);
   return Buffer.from(await r.arrayBuffer());
@@ -232,7 +232,7 @@ async function replaceAsync(str, re, fn) {
 
 function copyToTemp(target) {
   const src = path.resolve(target);
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vault-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vantage-'));
   if (fs.statSync(src).isFile()) {
     fs.copyFileSync(src, path.join(tmp, path.basename(src)));
     return tmp;
@@ -315,7 +315,7 @@ async function uploadIntroMedia(cfg, shareId, file) {
     duplex: 'half',
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`Vault ${r.status}: ${data.error || 'upload failed'}`);
+  if (!r.ok) throw new Error(`Vantage ${r.status}: ${data.error || 'upload failed'}`);
   return data;
 }
 async function uploadSubtitles(cfg, shareId, lang, file, label) {
@@ -330,13 +330,13 @@ async function uploadSubtitles(cfg, shareId, lang, file, label) {
     body: buf,
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`Vault ${r.status}: ${data.error || 'upload failed'}`);
+  if (!r.ok) throw new Error(`Vantage ${r.status}: ${data.error || 'upload failed'}`);
   return data;
 }
 async function fetchText(cfg, p) {
   const r = await fetch(cfg.url + '/api' + p, { headers: { Authorization: 'Bearer ' + cfg.token } });
   const t = await r.text();
-  if (!r.ok) throw new Error(`Vault ${r.status}: ${t.slice(0, 200)}`);
+  if (!r.ok) throw new Error(`Vantage ${r.status}: ${t.slice(0, 200)}`);
   return t;
 }
 

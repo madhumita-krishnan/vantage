@@ -1,9 +1,9 @@
-/* Prototype Vault interaction tracker. Injected into prototype pages on the content origin.
+/* Vantage interaction tracker. Injected into prototype pages on the content origin.
  * Always: tells the tester shell (parent window, main origin) which screen the tester is on, so tasks and feedback can refer to it.
  * When recording is on: clicks (element description + relative position), navigation, input focus (field type only), scroll depth, JS errors, custom events.
  * Typed text is recorded ONLY when the share enables "record typed text" (never for password fields, never keystrokes: the value on change). */
 (function () {
-  var cfg = window.__VAULT_CFG || {};
+  var cfg = window.__VANTAGE_CFG || {};
   var q = [],
     start = Date.now(),
     lastScroll = 0,
@@ -13,7 +13,7 @@
   }
   function tell() {
     try {
-      if (parent !== window) parent.postMessage({ vault: 'location', path: rel() }, cfg.shell || '*');
+      if (parent !== window) parent.postMessage({ vantage: 'location', path: rel() }, cfg.shell || '*');
     } catch (e) {}
   }
   function push(type, data) {
@@ -146,7 +146,7 @@
   window.addEventListener('error', function (e) {
     push('error', { message: String(e.message || '').slice(0, 200) });
   });
-  window.vault = {
+  window.vantage = {
     event: function (name, data) {
       push(
         'custom:' + String(name).slice(0, 50),

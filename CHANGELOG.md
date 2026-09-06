@@ -17,7 +17,7 @@ Line-by-line review of 0.3.0 by the author and two independent passes. Thirty de
 - Replacing or removing a share's intro recording deleted every voice and screen recording in the share, and its caption files, while the results tab kept listing them. Only the intro and its captions are removed now.
 - A bundle upload deleted the old files before writing the new ones, so a bundle the server refused half-way (a name used as both a file and a folder, a disk error) left the share with no prototype. New files are written beside the old ones and swapped in; a bundle with such a clash, or two paths differing only in case, is refused up front.
 - A tester closing a media download mid-stream left the request waiting forever with an open file. A disk error while an intro uploaded, or a stream failing after its headers were sent, ended the process. All three are handled.
-- Media written before `VAULT_ENCRYPTION_KEY` was set was misread after the key was added. Each file is now read by its own header, like the store.
+- Media written before `VANTAGE_ENCRYPTION_KEY` was set was misread after the key was added. Each file is now read by its own header, like the store.
 - The console's live refresh on the results tab replaced the page every five seconds, discarding a moderator note being typed and stopping a recording being played. It now waits.
 - Only the first item of a multi-item drop reached the New share page, because the browser empties the drop list at the first pause. Every dropped file and folder is taken first.
 - The subtitle list lost an entry on any request naming that language, including a GET or a rejected file. Language codes are normalised the same way on upload and playback, so `zh_TW` plays.
@@ -34,14 +34,14 @@ Line-by-line review of 0.3.0 by the author and two independent passes. Thirty de
 - The tester page ignored the chosen intro kind: text saved under "Your text" still showed after switching back to "Standard", and a removed kind left an empty "Before you start" box. The page follows the kind.
 - The "recording started" mark posted by the tester page went to an address that did not exist, so it never reached the event log.
 - After "Hide tasks", scheduled tasks kept announcing themselves. A task appearing no longer wipes a note being typed. A refused feedback or task answer (rate limit, view-only) now says so instead of "Thanks, feedback sent".
-- The drop zones lost their file pickers after the first pick, so a second click did nothing. A revoked viewer's link no longer shows or copies. Switching a share's purpose in Settings now sets "Show tasks" the way New share does. Results loaded for one share can no longer paint over another share's page. Tag attributes containing `$` survive `vault inline`.
+- The drop zones lost their file pickers after the first pick, so a second click did nothing. A revoked viewer's link no longer shows or copies. Switching a share's purpose in Settings now sets "Show tasks" the way New share does. Results loaded for one share can no longer paint over another share's page. Tag attributes containing `$` survive `vantage inline`.
 - Viewer app: launching it a second time without a link no longer replaces the prototype that is open.
 
 ## 0.3.0 (2026-09-06)
 
 **Recording**
 
-- Screen recording, per share and off by default (`--screen`, the `screen` option in the console and MCP). The tester chooses on the consent screen and picks the prototype tab in the browser's own dialog; the video, with the voice track when both are on, streams to the vault in the same five-second segments as voice and plays back on the results tab. It stops itself when the share's media limit is reached. Desktop browsers only.
+- Screen recording, per share and off by default (`--screen`, the `screen` option in the console and MCP). The tester chooses on the consent screen and picks the prototype tab in the browser's own dialog; the video, with the voice track when both are on, streams to the Vantage in the same five-second segments as voice and plays back on the results tab. It stops itself when the share's media limit is reached. Desktop browsers only.
 - The Recording pill now shows a level meter driven by the microphone, so testers can see their voice is being picked up.
 - Dictation removed. It used the browser's speech service, which sends audio to Google or Apple, and voice recording already covers think-aloud.
 
@@ -50,7 +50,7 @@ Line-by-line review of 0.3.0 by the author and two independent passes. Thirty de
 - Per-share `requireSignIn`: testers must sign in with Google as the invited address before the link opens, so a forwarded link opens nothing. Needs Google sign-in on the server; a mismatch is logged. Console switch, `--require-sign-in`, MCP option.
 - The rate limiter never evicts a live bucket. When its table is full it drops expired entries and, if still full, refuses new keys until a window ends, so a flood of junk keys cannot reset someone's limit.
 - With Google sign-in open to anyone, the server refuses to start on a shared content origin unless `ALLOW_SHARED_CONTENT_ORIGIN=1`.
-- Every refusal (rejected link, failed passcode, wrong sign-in, unauthorized admin call) is also written to stderr as a `vault-refused` line for log-based alerting. The deployment guide gained "Knowing when something is wrong"; the security document gained an adversary's-view appendix.
+- Every refusal (rejected link, failed passcode, wrong sign-in, unauthorized admin call) is also written to stderr as a `vantage-refused` line for log-based alerting. The deployment guide gained "Knowing when something is wrong"; the security document gained an adversary's-view appendix.
 
 **Repository**
 
@@ -118,7 +118,7 @@ First numbered version. Everything before this was a proof of concept at "1.0.0"
 
 **Removed**
 
-- `vault_delete_share` MCP tool. Deletion is a console or CLI action.
+- `vantage_delete_share` MCP tool. Deletion is a console or CLI action.
 
 **Tooling**
 

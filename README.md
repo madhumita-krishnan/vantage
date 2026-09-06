@@ -1,11 +1,11 @@
-# Prototype Vault
+# Vantage
 
 Share coded prototypes with named people through private, expiring links, and learn from how they use them.
 
 Built for product designers who prototype with Claude or any tool that produces HTML and JavaScript. Each viewer gets a personal link that can be revoked. A share is view only unless you set up a usability test, and then testers see a consent screen before anything is recorded. The post that started this is in [PROBLEM.md](PROBLEM.md).
 
 ```
-Designer ──(console / CLI / Claude)──▶ Prototype Vault ◀──(personal link)── Tester
+Designer ──(console / CLI / Claude)──▶ Vantage ◀──(personal link)── Tester
 ```
 
 ## Two ways to use it
@@ -32,7 +32,7 @@ The first start makes its own admin token and encryption key, listens on your ma
 
 **3. Share your own work.** Click **New share**, drop the prototype folder, and type the email address of each person who may open it. You get one link per person. Send each link to its owner however you normally would. That is the whole product; nothing below is required.
 
-**Optional: let Claude do step 3 for you.** If you use Claude Code, paste the command the server printed at start (it looks like `claude mcp add prototype-vault -- node "…/mcp/server.js"`). From then on you can say, in Claude Code, "share the checkout prototype with <each tester's email> for a week". Claude does not know who your testers are. You give it their email addresses, because that is what a personal link is tied to; it asks if you leave them out, and it confirms the people and the expiry before publishing. The command-line tool does the same thing without Claude: `node cli/vault.js publish ./my-prototype --name "Checkout" --viewers "<email>,<email>"`.
+**Optional: let Claude do step 3 for you.** If you use Claude Code, paste the command the server printed at start (it looks like `claude mcp add vantage -- node "…/mcp/server.js"`). From then on you can say, in Claude Code, "share the checkout prototype with <each tester's email> for a week". Claude does not know who your testers are. You give it their email addresses, because that is what a personal link is tied to; it asks if you leave them out, and it confirms the people and the expiry before publishing. The command-line tool does the same thing without Claude: `node cli/vantage.js publish ./my-prototype --name "Checkout" --viewers "<email>,<email>"`.
 
 Secrets live in `server/data/local-secrets.json`, and the server answers on your own machine only until you configure it. To let other people open links, or to run it on a real server, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
@@ -44,9 +44,9 @@ Built in a few days with Claude Code. It has an end-to-end test suite (`cd serve
 
 | Piece                        | What it does                                                                                                                                                                                                                                                                                                    |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`server/`**                | The vault: a Node server with no third-party packages, one Docker image. Stores prototypes encrypted, gates them behind personal links, a passcode, your SSO, or Google sign-in, serves them from a separate origin in a locked-down frame, records access and, for usability tests, interactions and feedback. |
+| **`server/`**                | The Vantage: a Node server with no third-party packages, one Docker image. Stores prototypes encrypted, gates them behind personal links, a passcode, your SSO, or Google sign-in, serves them from a separate origin in a locked-down frame, records access and, for usability tests, interactions and feedback. |
 | **Console** (`/admin`)       | Upload a folder, invite people, copy their links, revoke, extend, read results.                                                                                                                                                                                                                                 |
-| **`cli/vault.js`**           | Publish from the terminal. `vault inline` pulls CDN scripts, styles and fonts into the bundle so the prototype works with no internet access.                                                                                                                                                                   |
+| **`cli/vantage.js`**           | Publish from the terminal. `vantage inline` pulls CDN scripts, styles and fonts into the bundle so the prototype works with no internet access.                                                                                                                                                                   |
 | **`mcp/server.js`**          | An MCP server so Claude Code, Claude Desktop or Cursor can publish, invite, revoke and read usability results.                                                                                                                                                                                                  |
 | **`skill/prototype-share/`** | Optional Claude Code skill with the checked workflow (make self-contained, confirm viewers, publish, report).                                                                                                                                                                                                   |
 | **`viewer-app/`**            | Optional desktop viewer (Electron) whose window is excluded from screenshots and screen sharing on macOS and Windows.                                                                                                                                                                                           |
@@ -68,16 +68,16 @@ What it is _not_: DRM. In a browser, a tester who can see a prototype can screen
 ## Sharing from the terminal or from Claude
 
 ```bash
-node cli/vault.js publish ./my-prototype --name "Checkout v3" --viewers "<Name> <email>,<email>" --expires 7 --tasks "Find the annual price|Add a team member"
+node cli/vantage.js publish ./my-prototype --name "Checkout v3" --viewers "<Name> <email>,<email>" --expires 7 --tasks "Find the annual price|Add a team member"
 ```
 
 A share is **view only** by default: nothing about how it is used is recorded, only who opened it. Giving tasks (or `--mode unmoderated|moderated`) turns it into a usability test with consent, tasks and interaction recording. `--voice` offers think-aloud voice recording and `--screen` a recording of the prototype tab.
 
-**Remote vault.** When the vault runs somewhere other than your laptop, open the console's **Account** page, click _Connect a tool_, and copy the setup it shows. It amounts to two environment variables:
+**Remote vantage.** When the Vantage runs somewhere other than your laptop, open the console's **Account** page, click _Connect a tool_, and copy the setup it shows. It amounts to two environment variables:
 
 ```bash
-export VAULT_URL=https://prototypes.internal.company.com VAULT_ADMIN_TOKEN=...
-claude mcp add prototype-vault -e VAULT_URL=$VAULT_URL -e VAULT_ADMIN_TOKEN=$VAULT_ADMIN_TOKEN -- node "/path/to/mcp/server.js"
+export VANTAGE_URL=https://prototypes.internal.company.com VANTAGE_ADMIN_TOKEN=...
+claude mcp add vantage -e VANTAGE_URL=$VANTAGE_URL -e VANTAGE_ADMIN_TOKEN=$VANTAGE_ADMIN_TOKEN -- node "/path/to/mcp/server.js"
 ```
 
 _Disconnect_ on the same page revokes a tool's token. Other MCP clients are covered in [mcp/README.md](mcp/README.md).
@@ -92,18 +92,18 @@ There is no password store. Designers get in through the company sign-in (SSO), 
 4. The prototype opens full screen, watermarked with their email, with a **Tasks** panel (if you set tasks) and a **Feedback** button.
 5. They mark each task completed or stuck, optionally with a note, and can send feedback at any point. The screen they were on is attached automatically.
 
-You see all of it on the share's **Feedback & results** tab, with `vault results <id>`, or by asking Claude.
+You see all of it on the share's **Feedback & results** tab, with `vantage results <id>`, or by asking Claude.
 
 Nobody needs Claude. Testers need only a browser. Designers use the console in a browser or the command line; Claude is an optional way to drive the same tools by asking.
 
 ## Making prototypes self-contained
 
-Claude-generated prototypes often load React, Tailwind or fonts from a CDN. The vault blocks that by default, because a prototype that loads from the internet can also send to it. Two options:
+Claude-generated prototypes often load React, Tailwind or fonts from a CDN. The Vantage blocks that by default, because a prototype that loads from the internet can also send to it. Two options:
 
-- `node cli/vault.js inline ./my-prototype` downloads those assets into `vendor/` and rewrites the references. `vault publish` and the MCP publish tool do this automatically.
+- `node cli/vantage.js inline ./my-prototype` downloads those assets into `vendor/` and rewrites the references. `vantage publish` and the MCP publish tool do this automatically.
 - Your server admin can allow specific origins with `ALLOWED_EXTERNAL_ORIGINS`, and a share can opt in to them. Prefer inlining.
 
-Prototypes that call a live API will not work in the vault. Mock the data in the prototype instead.
+Prototypes that call a live API will not work in the Vantage. Mock the data in the prototype instead.
 
 ## Development
 
@@ -122,8 +122,8 @@ CI runs the same three commands on Node 20 and 22.
 PROBLEM.md                 the post that started this, and what it asks for
 README.md                  this file
 CHANGELOG.md               what changed in each version
-server/                    the vault (server.js, lib/, public/, Dockerfile, .env.example)
-cli/vault.js               command-line client; cli/lib.js is shared with the MCP server
+server/                    the Vantage (server.js, lib/, public/, Dockerfile, .env.example)
+cli/vantage.js               command-line client; cli/lib.js is shared with the MCP server
 mcp/server.js              MCP server (stdio)
 skill/prototype-share/     optional Claude Code skill
 docs/SECURITY.md           threat model, controls, review checklist

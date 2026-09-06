@@ -1,6 +1,6 @@
 # Deployment
 
-Prototype Vault is one process, one data directory, no database. Deploy it the way you deploy any small internal web app. This document covers running it yourself (Docker, bare Node, behind your proxy with SSO) and running a hosted copy on Google Cloud Run with Google sign-in.
+Vantage is one process, one data directory, no database. Deploy it the way you deploy any small internal web app. This document covers running it yourself (Docker, bare Node, behind your proxy with SSO) and running a hosted copy on Google Cloud Run with Google sign-in.
 
 ## Requirements
 - Node.js 20+ (or the Docker image, which bundles Node 22)
@@ -10,7 +10,7 @@ Prototype Vault is one process, one data directory, no database. Deploy it the w
 
 ## First start: what happens with no configuration
 
-If none of `ADMIN_TOKEN`, `ADMIN_EMAILS` or `GOOGLE_CLIENT_ID` is set, the server generates an admin token, and an encryption key unless `VAULT_ENCRYPTION_KEY` is set, writes both to `DATA_DIR/local-secrets.json` (mode 0600), listens on `127.0.0.1` only, serves prototypes on a second port (`PORT + 1`), and prints a console link that signs you in. Restarts reuse the file. This is what makes "try it" a one-command affair on a laptop.
+If none of `ADMIN_TOKEN`, `ADMIN_EMAILS` or `GOOGLE_CLIENT_ID` is set, the server generates an admin token, and an encryption key unless `VANTAGE_ENCRYPTION_KEY` is set, writes both to `DATA_DIR/local-secrets.json` (mode 0600), listens on `127.0.0.1` only, serves prototypes on a second port (`PORT + 1`), and prints a console link that signs you in. Restarts reuse the file. This is what makes "try it" a one-command affair on a laptop.
 
 For anything beyond a laptop, set the values yourself: a key stored next to the data it encrypts protects against a lost backup of the data alone, not against someone who has the whole disk. Once an admin mechanism is configured the file is ignored.
 
@@ -21,7 +21,7 @@ Prototype files are never served from the console's origin. They come from `CONT
 - **Second port** (default). `CONTENT_PORT` (default `PORT + 1`) listens alongside the main port; `CONTENT_ORIGIN` defaults to `http://localhost:<CONTENT_PORT>`. Fine on a laptop and in Docker on a private network. Set `CONTENT_ORIGIN` to whatever address browsers will use for that port.
 - **Second hostname** (behind a proxy or on Cloud Run). Set `CONTENT_ORIGIN=https://prototypes-content.example.com` and route that hostname to the same process. The server tells the two apart by the `Host` header. Set `CONTENT_PORT=0` if you do not want the extra listener.
 
-Any pair of hostnames works. A sibling subdomain (`content.vault.example.com` next to `vault.example.com`) keeps the session cookie same-site, which every browser handles well.
+Any pair of hostnames works. A sibling subdomain (`content.vantage.example.com` next to `vantage.example.com`) keeps the session cookie same-site, which every browser handles well.
 
 **One origin per share.** `CONTENT_ORIGIN=https://*.content.example.com` (one `*`) gives every share its own hostname, so two prototypes open in the same browser cannot see each other. It needs a wildcard DNS record and a wildcard certificate; Cloud Run's domain mappings cannot do that on their own, so put Cloudflare or a load balancer in front, or use a single content hostname until then (the limitation is stated in [WHAT-IT-CANNOT-DO.md](WHAT-IT-CANNOT-DO.md)).
 
@@ -30,11 +30,11 @@ Any pair of hostnames works. A sibling subdomain (`content.vault.example.com` ne
 ```bash
 cd server
 cp .env.example .env
-# fill in ADMIN_TOKEN (npm run -s gen-token), VAULT_ENCRYPTION_KEY (npm run -s gen-key), PUBLIC_URL, CONTENT_ORIGIN
+# fill in ADMIN_TOKEN (npm run -s gen-token), VANTAGE_ENCRYPTION_KEY (npm run -s gen-key), PUBLIC_URL, CONTENT_ORIGIN
 docker compose up -d --build
 ```
 
-The `.env` is optional: without it the first start behaves as described above and `docker compose logs vault` shows the signed-in link. The image runs as the unprivileged `node` user, exposes ports 8787 and 8788, stores everything in the `vault-data` volume, and has a health check on `/healthz`.
+The `.env` is optional: without it the first start behaves as described above and `docker compose logs vantage` shows the signed-in link. The image runs as the unprivileged `node` user, exposes ports 8787 and 8788, stores everything in the `vantage-data` volume, and has a health check on `/healthz`.
 
 ## Option B: Bare Node
 
@@ -49,16 +49,16 @@ Wrap it in systemd, pm2, or your platform's process manager. Example systemd uni
 
 ```ini
 [Unit]
-Description=Prototype Vault
+Description=Vantage
 After=network.target
 [Service]
-User=vault
-WorkingDirectory=/opt/prototype-vault/server
-EnvironmentFile=/opt/prototype-vault/server/.env
+User=vantage
+WorkingDirectory=/opt/vantage/server
+EnvironmentFile=/opt/vantage/server/.env
 ExecStart=/usr/bin/node server.js
 Restart=always
 ProtectSystem=strict
-ReadWritePaths=/var/lib/prototype-vault
+ReadWritePaths=/var/lib/vantage
 [Install]
 WantedBy=multi-user.target
 ```
@@ -74,23 +74,23 @@ gcloud services enable run.googleapis.com secretmanager.googleapis.com storage.g
 # Storage and secrets
 gcloud storage buckets create gs://YOUR_BUCKET --location=us-central1 --uniform-bucket-level-access
 printf %s "$(cd server && npm run -s gen-token)" | gcloud secrets create admin-token --data-file=-
-printf %s "$(cd server && npm run -s gen-key)"   | gcloud secrets create vault-key --data-file=-
+printf %s "$(cd server && npm run -s gen-key)"   | gcloud secrets create vantage-key --data-file=-
 printf %s "YOUR_GOOGLE_CLIENT_ID"     | gcloud secrets create google-client-id --data-file=-
 printf %s "YOUR_GOOGLE_CLIENT_SECRET" | gcloud secrets create google-client-secret --data-file=-
 
 # Deploy
-gcloud run deploy prototype-vault --source server --region us-central1 --allow-unauthenticated \
+gcloud run deploy vantage --source server --region us-central1 --allow-unauthenticated \
   --max-instances 1 --port 8787 \
   --add-volume name=data,type=cloud-storage,bucket=YOUR_BUCKET --add-volume-mount volume=data,mount-path=/data \
-  --set-env-vars DATA_DIR=/data,TRUST_PROXY=1,CONTENT_PORT=0,PUBLIC_URL=https://vault.example.com,CONTENT_ORIGIN=https://content.vault.example.com,MAX_SHARES_PER_OWNER=10,MAX_STORAGE_MB_PER_OWNER=200 \
-  --set-secrets ADMIN_TOKEN=admin-token:latest,VAULT_ENCRYPTION_KEY=vault-key:latest,GOOGLE_CLIENT_ID=google-client-id:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest
+  --set-env-vars DATA_DIR=/data,TRUST_PROXY=1,CONTENT_PORT=0,PUBLIC_URL=https://vantage.example.com,CONTENT_ORIGIN=https://content.vantage.example.com,MAX_SHARES_PER_OWNER=10,MAX_STORAGE_MB_PER_OWNER=200 \
+  --set-secrets ADMIN_TOKEN=admin-token:latest,VANTAGE_ENCRYPTION_KEY=vantage-key:latest,GOOGLE_CLIENT_ID=google-client-id:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest
 
 # Two hostnames to the same service
-gcloud beta run domain-mappings create --service prototype-vault --region us-central1 --domain vault.example.com
-gcloud beta run domain-mappings create --service prototype-vault --region us-central1 --domain content.vault.example.com
+gcloud beta run domain-mappings create --service vantage --region us-central1 --domain vantage.example.com
+gcloud beta run domain-mappings create --service vantage --region us-central1 --domain content.vantage.example.com
 ```
 
-Then, in the Google Cloud console under APIs & Services, create an OAuth client of type "Web application" with `https://vault.example.com/auth/google/callback` as the authorised redirect URI, and put its ID and secret in the two secrets above.
+Then, in the Google Cloud console under APIs & Services, create an OAuth client of type "Web application" with `https://vantage.example.com/auth/google/callback` as the authorised redirect URI, and put its ID and secret in the two secrets above.
 
 Notes:
 - `--max-instances 1` matters. The metadata store is a single JSON file; two instances writing it would corrupt it. One instance serves a small team comfortably.
@@ -115,16 +115,16 @@ Make sure the proxy **strips** that header from incoming requests before setting
 
 ### How a designer gets in
 
-There are no passwords inside Prototype Vault. Identity comes from one of three places:
+There are no passwords inside Vantage. Identity comes from one of three places:
 
-1. **Company sign-in.** IT puts the vault behind the identity-aware proxy the company already uses. The proxy signs people in with the company MFA and passes their email in a header. Designers listed in `ADMIN_EMAILS` open `/admin` and are in. Removing someone from `ADMIN_EMAILS` (or from the IdP group) removes their access everywhere, including tools they connected.
+1. **Company sign-in.** IT puts the Vantage behind the identity-aware proxy the company already uses. The proxy signs people in with the company MFA and passes their email in a header. Designers listed in `ADMIN_EMAILS` open `/admin` and are in. Removing someone from `ADMIN_EMAILS` (or from the IdP group) removes their access everywhere, including tools they connected.
 2. **Google sign-in.** For a hosted copy, or a self-hosted one without a proxy. See Option C.
 3. **Server admin token.** For a server you run yourself, or as a fallback: one secret set at start, pasted on the sign-in screen, or carried by the signed-in link the server prints.
 
 Once in, the **Account** page is where a designer connects tools. *Connect a tool* creates a personal access token (shown once) for Claude Code, the CLI or the MCP server. *Disconnect* revokes it. *Delete everything I made and leave* removes every share that person created and disconnects all their tools. Every connect, disconnect and leave is in the admin audit log.
 
 ### Mixed audiences (employees via SSO, external testers via links)
-Configure the proxy to require SSO for `/admin`, `/api/*` and `/auth/*`, and to pass `/p/*`, `/vault.css` and `/healthz` through without authentication, on both hostnames. External testers then use personal links (plus passcode if you want). Employees on SSO can be admitted automatically by adding their domain on a share's Settings tab.
+Configure the proxy to require SSO for `/admin`, `/api/*` and `/auth/*`, and to pass `/p/*`, `/vantage.css` and `/healthz` through without authentication, on both hostnames. External testers then use personal links (plus passcode if you want). Employees on SSO can be admitted automatically by adding their domain on a share's Settings tab.
 
 ### nginx example (no SSO, TLS only)
 
@@ -132,8 +132,8 @@ Configure the proxy to require SSO for `/admin`, `/api/*` and `/auth/*`, and to 
 server {
   listen 443 ssl http2;
   server_name prototypes.internal.company.com prototypes-content.internal.company.com;
-  ssl_certificate     /etc/ssl/certs/vault.pem;
-  ssl_certificate_key /etc/ssl/private/vault.key;
+  ssl_certificate     /etc/ssl/certs/vantage.pem;
+  ssl_certificate_key /etc/ssl/private/vantage.key;
   client_max_body_size 25m;
   location / {
     proxy_pass http://127.0.0.1:8787;
@@ -156,8 +156,8 @@ With `CONTENT_ORIGIN=https://prototypes-content.internal.company.com` and `CONTE
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | (empty) | Enable "Sign in with Google". Redirect URI is `PUBLIC_URL/auth/google/callback`. |
 | `ALLOWED_SIGNIN_DOMAINS` | (empty) | Email domains allowed to sign in with Google, e.g. `company.com`. Combines with `ADMIN_EMAILS`; both empty means anyone. |
 | `ABUSE_EMAIL` | (empty) | Address testers see on the consent screen for reporting a link they were not expecting. |
-| `VAULT_ENCRYPTION_KEY` | generated in quick start | 64 hex chars. Encrypts files and metadata at rest. Cannot be changed later without re-uploading. |
-| `PUBLIC_URL` | derived from request | Address of the console and tester pages, e.g. `https://vault.example.com`. Set it. |
+| `VANTAGE_ENCRYPTION_KEY` | generated in quick start | 64 hex chars. Encrypts files and metadata at rest. Cannot be changed later without re-uploading. |
+| `PUBLIC_URL` | derived from request | Address of the console and tester pages, e.g. `https://vantage.example.com`. Set it. |
 | `CONTENT_ORIGIN` | `http://localhost:<CONTENT_PORT>` | Address prototypes are served from. A second hostname behind a proxy, the second port's address, or a wildcard (`https://*.content.example.com`) for one origin per share. |
 | `CONTENT_PORT` | `PORT + 1` | Second listener for prototype content. `0` disables it (hostname routing only). |
 | `TRUST_PROXY` | `0` | Trust `X-Forwarded-*` and the SSO header. |
@@ -189,11 +189,11 @@ Replace the files, restart. The data format is plain JSON and NDJSON. Version 0.
 
 ## Knowing when something is wrong
 
-The vault never calls out, so alerting is the platform's job. Three settings cover the realistic attacks:
+The Vantage never calls out, so alerting is the platform's job. Three settings cover the realistic attacks:
 
 1. **Two-factor sign-in on the Google account that owns the project.** Stealing that account is the cheapest way in and no code in this repository can stop it.
-2. **Alert on secret access.** In Secret Manager, every read of the encryption key is written to Cloud Audit Logs. Create a log-based alert for `protoPayload.methodName="google.cloud.secretmanager.v1.SecretManagerService.AccessSecretVersion"` from any principal other than the vault's service account.
-3. **Alert on refusals.** Every refused link, passcode, sign-in and admin call is written to stderr as one line beginning `vault-refused`. On Cloud Run that lands in Cloud Logging; alert on `textPayload:"vault-refused"` above a rate you choose (ten in five minutes is a reasonable start). A single refusal is a typo; a burst is someone trying.
+2. **Alert on secret access.** In Secret Manager, every read of the encryption key is written to Cloud Audit Logs. Create a log-based alert for `protoPayload.methodName="google.cloud.secretmanager.v1.SecretManagerService.AccessSecretVersion"` from any principal other than the Vantage's service account.
+3. **Alert on refusals.** Every refused link, passcode, sign-in and admin call is written to stderr as one line beginning `vantage-refused`. On Cloud Run that lands in Cloud Logging; alert on `textPayload:"vantage-refused"` above a rate you choose (ten in five minutes is a reasonable start). A single refusal is a typo; a burst is someone trying.
 
-For a hosted copy also: run without `ADMIN_TOKEN` (Google sign-in only), set `CONTENT_ORIGIN` to a wildcard so every share has its own origin, and keep `VAULT_ENCRYPTION_KEY` in Secret Manager, never in the environment file.
+For a hosted copy also: run without `ADMIN_TOKEN` (Google sign-in only), set `CONTENT_ORIGIN` to a wildcard so every share has its own origin, and keep `VANTAGE_ENCRYPTION_KEY` in Secret Manager, never in the environment file.
 

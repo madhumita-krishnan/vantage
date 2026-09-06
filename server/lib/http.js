@@ -52,7 +52,7 @@ async function readJson(req, limit = 1048576) {
 }
 
 module.exports = function httpHelpers(CONFIG) {
-  // CSP for the vault's own pages (console, gates, viewer shell). Only the content origin may be framed.
+  // CSP for the Vantage's own pages (console, gates, viewer shell). Only the content origin may be framed.
   const PAGE_CSP = `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'self' ${CONFIG.contentOrigin}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`;
   const isHttps = (req) =>
     !!req.socket.encrypted ||

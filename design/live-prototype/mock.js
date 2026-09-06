@@ -1,4 +1,4 @@
-/* In-browser stand-in for the Prototype Vault server, used by design/live-prototype/build.js.
+/* In-browser stand-in for the Vantage server, used by design/live-prototype/build.js.
  * The real console, tester shell and gate pages run unchanged against this: it answers the same routes with the same
  * JSON shapes, from seeded demo data that lives only in the page. Nothing here is served by the real server. */
 /* global __RESULTS__ */
@@ -521,7 +521,7 @@
       return json(201, { share: shareView(share, true, links) });
     }
     if (p === '/shares/sample' && method === 'POST') {
-      const { share, links } = createShare({ name: 'Sample: Acme Billing', viewers: body.viewer ? [String(body.viewer)] : [], expiresInDays: 7, files: [{ path: 'index.html', contentBase64: 'x'.repeat(5400) }], entry: 'index.html', mode: 'unmoderated', tasks: CHECKOUT_TASKS.slice(0, 3), notes: 'The example prototype that ships with Prototype Vault. Open your own link to see the tester side, then delete this whenever you like.' });
+      const { share, links } = createShare({ name: 'Sample: Acme Billing', viewers: body.viewer ? [String(body.viewer)] : [], expiresInDays: 7, files: [{ path: 'index.html', contentBase64: 'x'.repeat(5400) }], entry: 'index.html', mode: 'unmoderated', tasks: CHECKOUT_TASKS.slice(0, 3), notes: 'The example prototype that ships with Vantage. Open your own link to see the tester side, then delete this whenever you like.' });
       return json(201, { share: shareView(share, true, links) });
     }
     m = p.match(/^\/shares\/([\w-]+)(?:\/(bundle|viewers|audit|events|feedback|summary|intro|notes|report|subtitles|recordings))?(?:\/([\w-]+))?(?:\/(rotate))?$/);
@@ -618,7 +618,7 @@
   // Tester side: one session, for the share the screen names.
   const sess = { consent: S.consent === undefined ? null : S.consent, passcodeOk: false };
   function viewerRoute(method, p, q, body) {
-    const m = p.match(/^\/p\/([\w-]+)\/_vault\/(.+)$/);
+    const m = p.match(/^\/p\/([\w-]+)\/_vantage\/(.+)$/);
     if (!m) return json(404, { error: 'Not found' });
     const share = shares[m[1]];
     if (!share) return json(404, { error: 'Not found' });
@@ -742,8 +742,8 @@
 
   // ---- the screen this frame was opened on ----
   try {
-    if (signedIn) sessionStorage.setItem('vault_token', 'demo');
-    else sessionStorage.removeItem('vault_token');
+    if (signedIn) sessionStorage.setItem('vantage_token', 'demo');
+    else sessionStorage.removeItem('vantage_token');
   } catch {
     /* storage blocked: the token form still works */
   }
@@ -766,7 +766,7 @@
           });
       } else if (h.startsWith('/docs/') || h.startsWith('/p/')) {
         e.preventDefault();
-        if (typeof toast === 'function') toast('In the demo this opens nothing. On a real vault it opens ' + h + '.'); // eslint-disable-line no-undef
+        if (typeof toast === 'function') toast('In the demo this opens nothing. On a real vantage it opens ' + h + '.'); // eslint-disable-line no-undef
       }
     });
   });

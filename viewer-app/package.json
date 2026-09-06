@@ -1,7 +1,7 @@
 {
-  "name": "prototype-vault-viewer",
+  "name": "vantage-viewer",
   "version": "0.2.0",
-  "description": "Opens Prototype Vault links in a window that is excluded from screenshots and screen sharing.",
+  "description": "Opens Vantage links in a window that is excluded from screenshots and screen sharing.",
   "private": true,
   "license": "MIT",
   "main": "main.js",

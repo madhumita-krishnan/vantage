@@ -25,10 +25,10 @@ table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px so
 <script>
 const show=(id)=>{document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));document.getElementById('s-'+id).classList.remove('hidden');document.querySelectorAll('[data-nav]').forEach(a=>a.classList.toggle('on',a.dataset.nav===id))};
 window.addEventListener('hashchange',()=>show(location.hash.slice(1)||'plans'));show(location.hash.slice(1)||'plans');
-document.querySelectorAll('.plan').forEach(p=>p.onclick=()=>{document.querySelectorAll('.plan').forEach(x=>x.classList.remove('sel'));p.classList.add('sel');if(window.vault)vault.event('plan_selected',{plan:p.dataset.plan})});
+document.querySelectorAll('.plan').forEach(p=>p.onclick=()=>{document.querySelectorAll('.plan').forEach(x=>x.classList.remove('sel'));p.classList.add('sel');if(window.vantage)vantage.event('plan_selected',{plan:p.dataset.plan})});
 const toast=(m)=>{const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),1800)};
 document.getElementById('continue').onclick=()=>{toast('Plan saved');location.hash='team'};
 document.getElementById('addMember').onclick=()=>document.getElementById('addForm').classList.remove('hidden');
-document.getElementById('saveMember').onclick=()=>{const n=document.getElementById('mName').value||'New member';document.getElementById('members').insertAdjacentHTML('beforeend',`<tr><td>${n}</td><td>Member</td><td>Invited</td></tr>`);document.getElementById('addForm').classList.add('hidden');toast('Invite sent');if(window.vault)vault.event('member_added')};
+document.getElementById('saveMember').onclick=()=>{const n=document.getElementById('mName').value||'New member';document.getElementById('members').insertAdjacentHTML('beforeend',`<tr><td>${n}</td><td>Member</td><td>Invited</td></tr>`);document.getElementById('addForm').classList.add('hidden');toast('Invite sent');if(window.vantage)vantage.event('member_added')};
 document.getElementById('saveAddr').onclick=()=>toast('Address saved');
 </script></body></html>

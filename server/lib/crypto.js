@@ -11,14 +11,14 @@ function makeBlob(keyHex) {
       encode: (b) => b,
       decode: (b) => {
         if (b.length >= 4 && b.subarray(0, 4).equals(MAGIC)) {
-          throw new Error('Data is encrypted but VAULT_ENCRYPTION_KEY is not set');
+          throw new Error('Data is encrypted but VANTAGE_ENCRYPTION_KEY is not set');
         }
         return b;
       },
     };
   }
   const key = Buffer.from(keyHex.trim(), 'hex');
-  if (key.length !== 32) throw new Error('VAULT_ENCRYPTION_KEY must be 64 hex characters (32 bytes)');
+  if (key.length !== 32) throw new Error('VANTAGE_ENCRYPTION_KEY must be 64 hex characters (32 bytes)');
   return {
     enabled: true,
     encode(buf) {
@@ -74,7 +74,7 @@ module.exports = { makeBlob, randomId, randomToken, randomKeyHex, sha256, safeEq
 // Plaintext is split into 1 MiB chunks; each chunk is encoded with the blob (encrypted when a key is set),
 // so any byte range can be served by decoding only the chunks it touches. Needed for HTTP Range streaming.
 const CHUNK = 1024 * 1024;
-// Per-file: a file written before VAULT_ENCRYPTION_KEY was set has no header and is read as plaintext, like the store.
+// Per-file: a file written before VANTAGE_ENCRYPTION_KEY was set has no header and is read as plaintext, like the store.
 function chunkOverhead(blob, file) {
   if (!blob.enabled) return 0;
   const fs = require('fs');

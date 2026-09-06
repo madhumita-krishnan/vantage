@@ -37,7 +37,7 @@ const count = (n, icon, word) =>
   `<span class="count" title="${n} ${word}${n === 1 ? '' : 's'}">${ic(icon)}<b>${n}</b></span>`;
 
 // ---- session state shared by every page ----
-let token = sessionStorage.getItem('vault_token') || '';
+let token = sessionStorage.getItem('vantage_token') || '';
 let me = null;
 let view = { page: 'list' };
 let liveTimer = null;
@@ -49,7 +49,7 @@ function tokenFromHash() {
   const m = location.hash.match(/(?:^#|&)token=([^&]+)/);
   if (!m) return false;
   token = decodeURIComponent(m[1]);
-  sessionStorage.setItem('vault_token', token);
+  sessionStorage.setItem('vantage_token', token);
   history.replaceState(null, '', location.pathname);
   return true;
 }
@@ -204,7 +204,7 @@ function shell(content, active) {
   const tagline = me.server.google ? '' : ' · self-hosted, nothing leaves this server';
   return `
     <nav class="nav">
-      <a class="brand" href="#" data-nav="list">${ic('lock', 'lg')}Prototype Vault</a>
+      <a class="brand" href="#" data-nav="list">${ic('lock', 'lg')}Vantage</a>
       <div class="links">${link('list', 'Prototypes')}${link('new', 'New share')}${link('server', 'Server')}</div>
       <span class="spacer"></span>
       <span class="hint">${status} · ${me.server.sso ? 'SSO' : 'personal links'}</span>
@@ -215,7 +215,7 @@ function shell(content, active) {
     <div class="wrap">
       <div class="content">${content}</div>
       <footer class="footer">
-        <span>Prototype Vault ${esc(me.server.version)}${tagline}</span>
+        <span>Vantage ${esc(me.server.version)}${tagline}</span>
         <span class="spacer"></span>
         <a href="/docs/readme" target="_blank">Help</a>
         <a href="/docs/security" target="_blank">Security overview</a>
@@ -270,7 +270,7 @@ async function signOut() {
       /* already gone */
     }
   }
-  sessionStorage.removeItem('vault_token');
+  sessionStorage.removeItem('vantage_token');
   token = '';
   me = null;
   render();

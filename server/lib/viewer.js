@@ -73,7 +73,7 @@ module.exports = function viewer(ctx) {
   }
   function injectTracker(buf, share) {
     const src = buf.toString('utf8');
-    const tag = `<meta name="referrer" content="no-referrer"><script src="/p/${share.id}/_vault/tracker.js"></script>`;
+    const tag = `<meta name="referrer" content="no-referrer"><script src="/p/${share.id}/_vantage/tracker.js"></script>`;
     const head = src.search(/<head[^>]*>/i);
     const at = head >= 0 ? src.indexOf('>', head) + 1 : (src.match(/^\s*<!doctype[^>]*>/i) || [''])[0].length;
     return Buffer.from(src.slice(0, at) + tag + src.slice(at));
@@ -126,7 +126,7 @@ module.exports = function viewer(ctx) {
     return false;
   }
 
-  async function vaultEndpoint(req, res, url, ep, share, sess, viewer, content) {
+  async function vantageEndpoint(req, res, url, ep, share, sess, viewer, content) {
     if (req.method === 'POST' && !sameOrigin(req)) throw httpError(403, 'Cross-origin request rejected');
     // The tracker posts from the content origin; the shell posts its own marks (recording started) from the main one.
     if (ep === 'events' && req.method === 'POST') {
@@ -161,11 +161,11 @@ module.exports = function viewer(ctx) {
           record,
           recordText: record && !!share.recordText,
           share: share.id,
-          endpoint: `/p/${share.id}/_vault/events`,
+          endpoint: `/p/${share.id}/_vantage/events`,
           appBase: `/p/${share.id}/app/`,
           shell: shellOf(sess),
         };
-        return send(req, res, 200, `window.__VAULT_CFG=${JSON.stringify(cfg)};\n${readPublic('tracker.js')}`, {
+        return send(req, res, 200, `window.__VANTAGE_CFG=${JSON.stringify(cfg)};\n${readPublic('tracker.js')}`, {
           'Content-Type': 'text/javascript; charset=utf-8',
         });
       }
@@ -323,7 +323,8 @@ module.exports = function viewer(ctx) {
     )
       return send(req, res, 401, 'No session', { 'Content-Type': 'text/plain' });
     const viewer = share.viewers[sess.viewerId];
-    if (rest.startsWith('/_vault/')) return vaultEndpoint(req, res, url, rest.slice(8), share, sess, viewer, true);
+    if (rest.startsWith('/_vantage/'))
+      return vantageEndpoint(req, res, url, rest.slice('/_vantage/'.length), share, sess, viewer, true);
     if (rest.startsWith('/app/')) return serveFile(req, res, share, sess, dec(rest.slice(5)));
     throw httpError(404, 'Not found');
   }
@@ -465,7 +466,8 @@ module.exports = function viewer(ctx) {
       S.logAudit(share, 'view.open', req, { email: viewer.email, viewerId: viewer.id, session: sess.id });
       return html(req, res, 200, readPublic('viewer.html'));
     }
-    if (rest.startsWith('/_vault/')) return vaultEndpoint(req, res, url, rest.slice(8), share, sess, viewer, false);
+    if (rest.startsWith('/_vantage/'))
+      return vantageEndpoint(req, res, url, rest.slice('/_vantage/'.length), share, sess, viewer, false);
     throw httpError(404, 'Not found');
   }
 };

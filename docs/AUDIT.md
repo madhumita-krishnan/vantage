@@ -102,7 +102,7 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 
 **Where.** `server/lib/results.js:56-79` (`eventsCsv`).
 
-**What is wrong.** Cells are quoted but not neutralised. A value beginning with `=`, `+`, `-` or `@` is executed as a formula when the designer opens the export in Excel or Google Sheets. The `target` column is built from element descriptions the prototype's DOM controls, and `detail` holds whatever a `window.vault.event` call sent, so both a malicious prototype and a tester can plant one.
+**What is wrong.** Cells are quoted but not neutralised. A value beginning with `=`, `+`, `-` or `@` is executed as a formula when the designer opens the export in Excel or Google Sheets. The `target` column is built from element descriptions the prototype's DOM controls, and `detail` holds whatever a `window.vantage.event` call sent, so both a malicious prototype and a tester can plant one.
 
 **Fix.** In `q()`, prefix a single quote (or a tab) when the value starts with one of those characters, and strip control characters.
 
@@ -140,7 +140,7 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 
 **Where.** `server/lib/viewer.js:142-149`.
 
-**What is wrong.** Any valid session can call `_vault/content` in a loop. Tickets expire after 60 seconds but pruning only runs past 1,000 entries and only removes expired ones, so a minute's worth of minting is held in memory. Rate-limit the endpoint per session (a handful per minute is plenty) and cap the map.
+**What is wrong.** Any valid session can call `_vantage/content` in a loop. Tickets expire after 60 seconds but pruning only runs past 1,000 entries and only removes expired ones, so a minute's worth of minting is held in memory. Rate-limit the endpoint per session (a handful per minute is plenty) and cap the map.
 
 ## 12. Retention keeps metadata, events and feedback forever (Low, privacy, S)
 
@@ -188,15 +188,15 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 
 **Where.** `mcp/server.js:192-217` passes `a.path` straight to `cli/lib.js:243` (`publish`), which walks the folder and uploads every file.
 
-**What is wrong.** A prompt-injected agent holding a vault token can publish any directory the user can read to any email address. The skill tells the agent to confirm first; the server does not enforce anything. Refuse paths outside the current working directory unless the user passes an explicit override, require an `.html` file at the top level, and cap the file count.
+**What is wrong.** A prompt-injected agent holding a Vantage token can publish any directory the user can read to any email address. The skill tells the agent to confirm first; the server does not enforce anything. Refuse paths outside the current working directory unless the user passes an explicit override, require an `.html` file at the top level, and cap the file count.
 
 ## 18. Phishing through the hosted service (Low, abuse, M)
 
 **Status, 0.2.0:** partly. The shell shows who shared the prototype, the consent text names custom events, and `ABUSE_EMAIL` puts a report address in front of testers. Open sign-up itself is a product decision; `ALLOWED_SIGNIN_DOMAINS` exists for teams that want it closed.
 
-**Where.** Open sign-up (`config.js:40`), custom events (`server/public/tracker.js`, `window.vault.event`).
+**Where.** Open sign-up (`config.js:40`), custom events (`server/public/tracker.js`, `window.vantage.event`).
 
-**What is wrong.** Anyone with a Google account can publish an arbitrary page on your content domain and send "personal links" to victims. The CSP stops the page sending anything to the internet, but `window.vault.event('pw', value)` records typed values into the events log that the page's owner reads back. So the service can host credential-harvesting pages that look legitimate. Mitigations: show the sharing designer's email in the shell header so the tester sees who sent it, offer a report-abuse link on every tester page, and keep `recordText` and custom events off unless consent was given (they are, through `recording`, but the consent text should name custom events).
+**What is wrong.** Anyone with a Google account can publish an arbitrary page on your content domain and send "personal links" to victims. The CSP stops the page sending anything to the internet, but `window.vantage.event('pw', value)` records typed values into the events log that the page's owner reads back. So the service can host credential-harvesting pages that look legitimate. Mitigations: show the sharing designer's email in the shell header so the tester sees who sent it, offer a report-abuse link on every tester page, and keep `recordText` and custom events off unless consent was given (they are, through `recording`, but the consent text should name custom events).
 
 ## 19. No sign-in domain allowlist (Low, feature, S)
 

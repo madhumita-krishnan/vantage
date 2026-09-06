@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /*
- * Prototype Vault: self-hosted, access-controlled sharing for coded prototypes. Zero third-party dependencies. Node 20+.
+ * Vantage: self-hosted, access-controlled sharing for coded prototypes. Zero third-party dependencies. Node 20+.
  * Wiring and routing live here; everything else is in lib/ (config, http, shares, media, results, admin, viewer).
  * Two origins: the main one (console, tester shell, API) and a content one that serves only prototype files.
  */
@@ -59,8 +59,8 @@ function createApp(env = process.env) {
     const content = onContentPort || CONFIG.contentHostRe.test(hostOf(req));
     try {
       if (p === '/healthz') return send(req, res, 200, 'ok', { 'Content-Type': 'text/plain' });
-      if (p === '/vault.css')
-        return send(req, res, 200, ctx.readPublic('vault.css'), { 'Content-Type': 'text/css; charset=utf-8' });
+      if (p === '/vantage.css')
+        return send(req, res, 200, ctx.readPublic('vantage.css'), { 'Content-Type': 'text/css; charset=utf-8' });
       const m = p.match(/^\/p\/([A-Za-z0-9_-]{6,32})(\/.*)?$/);
       if (m) return await handleViewer(req, res, url, m[1], m[2] || '', content);
       if (content) return ctx.gate(req, res, 404, 'Not found', 'Nothing here.');
@@ -94,7 +94,7 @@ function createApp(env = process.env) {
       const status = e.status || 500;
       if (status >= 500) console.error(e);
       if (res.headersSent) return res.destroy(); // a stream failed mid-body; nothing sensible can be sent now
-      if (p.startsWith('/api/') || p.includes('/_vault/'))
+      if (p.startsWith('/api/') || p.includes('/_vantage/'))
         return json(req, res, status, { error: status >= 500 ? 'Internal error' : e.message });
       return ctx.gate(
         req,
@@ -120,12 +120,12 @@ function createApp(env = process.env) {
 
 function banner(CONFIG, blob, port) {
   const base = CONFIG.publicUrl || `http://localhost:${port}`;
-  console.log(`Prototype Vault listening on http://${CONFIG.host}:${port}`);
+  console.log(`Vantage listening on http://${CONFIG.host}:${port}`);
   console.log(
     `  prototypes served at: ${CONFIG.contentOrigin}${CONFIG.contentPort ? ` (port ${CONFIG.contentPort})` : ' (by hostname)'}`
   );
   console.log(`  data dir:            ${CONFIG.dataDir}`);
-  console.log(`  encryption at rest:  ${blob.enabled ? 'on' : 'OFF (set VAULT_ENCRYPTION_KEY)'}`);
+  console.log(`  encryption at rest:  ${blob.enabled ? 'on' : 'OFF (set VANTAGE_ENCRYPTION_KEY)'}`);
   console.log(
     `  admin sign-in:       ${[CONFIG.adminToken && 'token', CONFIG.adminEmails.length && `sso (${CONFIG.adminEmails.join(', ')})`, CONFIG.googleClientId && 'google'].filter(Boolean).join(' + ')}`
   );
@@ -141,9 +141,9 @@ function banner(CONFIG, blob, port) {
       '',
       'Quick start (no ADMIN_TOKEN was set, so the server made its own and is listening on this machine only):',
       `  Open the console, already signed in:   ${base}/admin#token=${CONFIG.adminToken}`,
-      `  Connect Claude Code on this machine:   claude mcp add prototype-vault -- node "${CONFIG.mcpPath}"`,
+      `  Connect Claude Code on this machine:   claude mcp add vantage -- node "${CONFIG.mcpPath}"`,
       `  Secrets are in ${CONFIG.secretsFile} (keep it private).`,
-      '  To let other devices open links, or for a real deployment, set HOST, ADMIN_TOKEN and VAULT_ENCRYPTION_KEY yourself: docs/DEPLOYMENT.md',
+      '  To let other devices open links, or for a real deployment, set HOST, ADMIN_TOKEN and VANTAGE_ENCRYPTION_KEY yourself: docs/DEPLOYMENT.md',
     ].join('\n')
   );
 }

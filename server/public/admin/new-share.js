@@ -23,7 +23,7 @@ function renderNew(app) {
                <input type="file" id="fileIn" multiple webkitdirectory>
                <input type="file" id="fileIn2" multiple accept=".html,.htm,.css,.js,.png,.jpg,.svg,.json,.woff,.woff2"></div>
              <div class="hint">Everything in the folder is uploaded. Files must be self-contained: scripts, styles and
-               fonts loaded from the internet are blocked. Run <span class="mono">vault inline</span> first if needed.
+               fonts loaded from the internet are blocked. Run <span class="mono">vantage inline</span> first if needed.
                Shift-click the box to pick single files.</div></div>
            <div class="field" id="entryRow" hidden><label>Open this file first</label><select id="entry"></select></div>
          </div>

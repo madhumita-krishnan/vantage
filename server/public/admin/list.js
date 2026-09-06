@@ -87,11 +87,11 @@ async function renderServer(app) {
   const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
   const encryption = s.encryptionAtRest
     ? 'On'
-    : '<span style="color:var(--warn)">Off. Set VAULT_ENCRYPTION_KEY.</span>';
+    : '<span style="color:var(--warn)">Off. Set VANTAGE_ENCRYPTION_KEY.</span>';
   const secrets = s.quickstart
     ? row(
         'Secrets',
-        'Made by the server on first start and kept in the data directory. Fine for trying it out; for a real deployment set <span class="mono">ADMIN_TOKEN</span> and <span class="mono">VAULT_ENCRYPTION_KEY</span> yourself.'
+        'Made by the server on first start and kept in the data directory. Fine for trying it out; for a real deployment set <span class="mono">ADMIN_TOKEN</span> and <span class="mono">VANTAGE_ENCRYPTION_KEY</span> yourself.'
       )
     : '';
   const origins = s.allowedExternalOrigins.length

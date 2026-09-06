@@ -22,7 +22,7 @@ async function renderLogin(app) {
     ? ''
     : a.ssoEmail && !a.ssoAdmin
       ? `<div class="warn">You are signed in as <b>${esc(a.ssoEmail)}</b> through your company sign-in, but that
-           address is not on this server's admin list. Ask whoever runs the vault to add it (ADMIN_EMAILS), then reload.</div>`
+           address is not on this server's admin list. Ask whoever runs the Vantage to add it (ADMIN_EMAILS), then reload.</div>`
       : `
       <div class="stack" style="gap:var(--s2)">
         <button class="btn primary" type="button" id="ssoGo" style="width:100%">Continue with company sign-in</button>
@@ -46,7 +46,7 @@ async function renderLogin(app) {
       </form>`;
   const intro = a.google
     ? 'Sign in to share prototypes with named people through private, expiring links.'
-    : 'Prototype Vault is self-hosted by your company. There is nothing to sign up for: access is granted by whoever runs the server.';
+    : 'Vantage is self-hosted by your company. There is nothing to sign up for: access is granted by whoever runs the server.';
   app.innerHTML = `
     <div class="gate"><div class="card">
       <div class="lock">${ic('lock', 'lg')}</div>
@@ -62,7 +62,7 @@ async function renderLogin(app) {
       token = $('#tok').value.trim();
       try {
         me = await api('/me');
-        sessionStorage.setItem('vault_token', token);
+        sessionStorage.setItem('vantage_token', token);
         render();
       } catch {
         token = '';
@@ -75,7 +75,7 @@ function renderLeft(app) {
   const n = left.shares;
   const t = left.tokens;
   const after = left.sso
-    ? 'Your company sign-in still exists; it is managed by your company, not by this server. Ask whoever runs the vault to remove you from the admin list so this console no longer opens for you.'
+    ? 'Your company sign-in still exists; it is managed by your company, not by this server. Ask whoever runs the Vantage to remove you from the admin list so this console no longer opens for you.'
     : 'Nothing else about you is kept here.';
   app.innerHTML = `
     <div class="gate"><div class="card">

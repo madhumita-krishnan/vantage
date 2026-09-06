@@ -41,7 +41,7 @@ async function renderAccount(app) {
     (s.ssoLogoutUrl
       ? `<a class="btn" href="${esc(s.ssoLogoutUrl)}">Sign out of company sign-in</a>`
       : id.kind === 'sso'
-        ? '<span class="hint">To sign out, sign out of your company identity provider. Ask whoever runs the vault to set SSO_LOGOUT_URL for a button here.</span>'
+        ? '<span class="hint">To sign out, sign out of your company identity provider. Ask whoever runs the Vantage to set SSO_LOGOUT_URL for a button here.</span>'
         : '');
 
   const toolRow = (t) => `
@@ -91,7 +91,7 @@ async function renderAccount(app) {
         <div id="tnew"></div>
         ${disconnected}
       </div></div>
-      <div class="card"><div class="section"><h3>Leave Prototype Vault</h3>${leaveBlock}</div></div>
+      <div class="card"><div class="section"><h3>Leave Vantage</h3>${leaveBlock}</div></div>
       <div class="card"><div class="section"><h3>Recent account activity</h3>
         ${activity.length ? `<ul class="timeline">${activity.slice(0, 30).map(activityRow).join('')}</ul>` : '<p class="muted" style="margin:0">Nothing yet.</p>'}
         <div class="hint">Sign-ins, failed attempts, tools connected or disconnected, shares created, revoked or deleted. The full log is in the data directory.</div>
@@ -106,7 +106,7 @@ async function renderAccount(app) {
           ? ' Your company sign-in is managed by your company; ask IT to remove you from the admin list as well.'
           : '';
       const ok = await ask(
-        'Leave Prototype Vault?',
+        'Leave Vantage?',
         `This deletes the ${n} prototype${n === 1 ? '' : 's'} you shared, with their files, viewer links, recordings, feedback and results, disconnects your ${k} tool${k === 1 ? '' : 's'}, and signs you out. It cannot be undone.${extra}`,
         'Delete everything and leave',
         true
@@ -114,7 +114,7 @@ async function renderAccount(app) {
       if (!ok) return;
       try {
         left = await api('/me/leave', { method: 'POST' });
-        sessionStorage.removeItem('vault_token');
+        sessionStorage.removeItem('vantage_token');
         token = '';
         me = null;
         render();
@@ -161,18 +161,18 @@ async function renderAccount(app) {
 // The token is shown once, with the two setup lines a person copies into their tools.
 function showNewToken(r) {
   const url = me.server.publicUrl;
-  const mcp = me.server.mcpPath || '/path/to/prototype-vault/mcp/server.js';
+  const mcp = me.server.mcpPath || '/path/to/vantage/mcp/server.js';
   $('#tnew').innerHTML = `
     <div class="card" style="background:var(--bg);margin-top:var(--s3)"><div class="stack" style="gap:var(--s3)">
       <div><b>${esc(r.item.name)}</b> is connected. Copy the token now; it is shown only once.</div>
       <div class="tokenbox" id="tokval">${esc(r.token)}</div>
       <div class="row"><button class="btn primary" id="tcopy">Copy token</button><button class="btn" id="tcli">Copy CLI setup</button><button class="btn" id="tmcp">Copy Claude Code setup</button></div>
-      <div class="hint">CLI and MCP read <span class="mono">VAULT_URL</span> and <span class="mono">VAULT_ADMIN_TOKEN</span>.
-        In Claude Code: <span class="mono">claude mcp add prototype-vault -e VAULT_URL=${esc(url)} -e VAULT_ADMIN_TOKEN=… -- node "${esc(mcp)}"</span>
+      <div class="hint">CLI and MCP read <span class="mono">VANTAGE_URL</span> and <span class="mono">VANTAGE_ADMIN_TOKEN</span>.
+        In Claude Code: <span class="mono">claude mcp add vantage -e VANTAGE_URL=${esc(url)} -e VANTAGE_ADMIN_TOKEN=… -- node "${esc(mcp)}"</span>
         (the path to mcp/server.js in your copy of the repository).</div>
     </div></div>`;
   $('#tcopy').onclick = () => copy(r.token);
-  $('#tcli').onclick = () => copy(`export VAULT_URL=${url} VAULT_ADMIN_TOKEN=${r.token}`);
+  $('#tcli').onclick = () => copy(`export VANTAGE_URL=${url} VANTAGE_ADMIN_TOKEN=${r.token}`);
   $('#tmcp').onclick = () =>
-    copy(`claude mcp add prototype-vault -e VAULT_URL=${url} -e VAULT_ADMIN_TOKEN=${r.token} -- node "${mcp}"`);
+    copy(`claude mcp add vantage -e VANTAGE_URL=${url} -e VANTAGE_ADMIN_TOKEN=${r.token} -- node "${mcp}"`);
 }

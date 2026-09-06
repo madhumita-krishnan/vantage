@@ -1,5 +1,5 @@
 {
-  "name": "prototype-vault-workspace",
+  "name": "vantage-workspace",
   "private": true,
   "description": "Development tooling only (formatter, linter). The server itself has no dependencies: see server/package.json.",
   "scripts": {

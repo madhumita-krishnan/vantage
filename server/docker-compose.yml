@@ -1,16 +1,16 @@
 services:
-  vault:
+  vantage:
     build: .
     restart: unless-stopped
     ports:
       - '8787:8787' # console, tester pages, API
       - '8788:8788' # prototype content (second origin); set CONTENT_ORIGIN to the address browsers use for it
     # Optional. Without a .env the server makes its own admin token and encryption key on first start
-    # (kept in the vault-data volume) and prints a signed-in console link: docker compose logs vault
+    # (kept in the Vantage-data volume) and prints a signed-in console link: docker compose logs vantage
     env_file:
       - path: .env
         required: false
     volumes:
-      - vault-data:/data
+      - vantage-data:/data
 volumes:
-  vault-data:
+  vantage-data:

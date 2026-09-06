@@ -10,7 +10,7 @@ const { createApp } = require('../server');
 
 const listen = (server) =>
   new Promise((k) => server.listen(0, '127.0.0.1', () => k(`http://127.0.0.1:${server.address().port}`)));
-async function boot(env = {}, dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vault-test-'))) {
+async function boot(env = {}, dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vantage-test-'))) {
   const { server, contentServer, ctx } = createApp({ DATA_DIR: dataDir, PORT: '0', ...env });
   const base = await listen(server);
   const content = contentServer ? await listen(contentServer) : null;
@@ -71,7 +71,7 @@ async function redeem(v, link) {
 const legacyLink = (link) => link.replace('#k=', '?k=');
 // Walks the shell -> ticket -> content-origin cookie path a browser takes when it loads the prototype iframe.
 async function enterContent(v, id, cookie) {
-  const c = await v.call('GET', `/p/${id}/_vault/content`, null, cookie, null);
+  const c = await v.call('GET', `/p/${id}/_vantage/content`, null, cookie, null);
   assert.equal(c.status, 200);
   assert.ok(c.data.url.startsWith(v.content), 'content url is on the content origin');
   const r = await fetch(c.data.url, { redirect: 'manual' });
@@ -184,7 +184,7 @@ test('tester flow: redeem link, consent, events, feedback, results; prototype on
   const shell = await v.call('GET', `/p/${id}`, null, cookie, null);
   assert.equal(shell.status, 200);
   assert.match(shell.data, /<title>Prototype<\/title>/);
-  const meta = await v.call('GET', `/p/${id}/_vault/meta`, null, cookie, null);
+  const meta = await v.call('GET', `/p/${id}/_vantage/meta`, null, cookie, null);
   assert.equal(meta.data.viewer.email, 'priya@example.com');
   assert.equal(meta.data.consent, null);
   assert.equal(meta.data.voice, false);
@@ -195,7 +195,7 @@ test('tester flow: redeem link, consent, events, feedback, results; prototype on
   assert.equal((await fetch(ticketUrl, { redirect: 'manual' })).status, 403, 'ticket is one-time');
   const page = await v.callContent('GET', `/p/${id}/app/index.html`, null, ccookie);
   assert.equal(page.status, 200);
-  assert.match(page.data, /_vault\/tracker\.js/);
+  assert.match(page.data, /_vantage\/tracker\.js/);
   assert.match(page.headers.get('content-security-policy'), /connect-src 'self';/);
   assert.ok(
     page.headers.get('content-security-policy').includes(`frame-ancestors ${v.base};`),
@@ -204,23 +204,23 @@ test('tester flow: redeem link, consent, events, feedback, results; prototype on
   assert.equal(page.headers.get('x-frame-options'), null);
   assert.equal((await v.callContent('GET', `/p/${id}/app/..%2F..%2Fstore.json`, null, ccookie)).status, 404);
   // The content origin knows nothing else: no shell, no console, no meta
-  assert.equal((await v.callContent('GET', `/p/${id}/_vault/meta`, null, ccookie)).status, 404);
+  assert.equal((await v.callContent('GET', `/p/${id}/_vantage/meta`, null, ccookie)).status, 404);
   assert.equal((await v.callContent('GET', '/admin', null, {})).status, 404);
   assert.equal((await v.callContent('GET', '/api/shares', null, {})).status, 404);
-  const tracker = await v.callContent('GET', `/p/${id}/_vault/tracker.js`, null, ccookie);
+  const tracker = await v.callContent('GET', `/p/${id}/_vantage/tracker.js`, null, ccookie);
   assert.match(tracker.data, /"record":false/);
   // Before consent nothing is recorded
   assert.equal(
-    (await v.callContent('POST', `/p/${id}/_vault/events`, [{ t: 1, type: 'click', path: '/' }], ccookie)).data.ok,
+    (await v.callContent('POST', `/p/${id}/_vantage/events`, [{ t: 1, type: 'click', path: '/' }], ccookie)).data.ok,
     0
   );
-  assert.equal((await v.call('POST', `/p/${id}/_vault/consent`, { accept: true }, cookie, null)).data.consent, true);
-  assert.match((await v.callContent('GET', `/p/${id}/_vault/tracker.js`, null, ccookie)).data, /"record":true/);
+  assert.equal((await v.call('POST', `/p/${id}/_vantage/consent`, { accept: true }, cookie, null)).data.consent, true);
+  assert.match((await v.callContent('GET', `/p/${id}/_vantage/tracker.js`, null, ccookie)).data, /"record":true/);
   assert.equal(
     (
       await v.callContent(
         'POST',
-        `/p/${id}/_vault/events`,
+        `/p/${id}/_vantage/events`,
         [
           { t: 1, type: 'click', path: '/', data: { target: 'a' } },
           { t: 2, type: 'pageview', path: '/' },
@@ -234,7 +234,7 @@ test('tester flow: redeem link, consent, events, feedback, results; prototype on
     (
       await v.call(
         'POST',
-        `/p/${id}/_vault/feedback`,
+        `/p/${id}/_vantage/feedback`,
         { kind: 'task', taskIndex: 0, result: 'done', text: 'easy' },
         cookie,
         null
@@ -243,7 +243,7 @@ test('tester flow: redeem link, consent, events, feedback, results; prototype on
     201
   );
   assert.equal(
-    (await v.call('POST', `/p/${id}/_vault/feedback`, { kind: 'feedback', text: 'Nice' }, cookie, null)).status,
+    (await v.call('POST', `/p/${id}/_vantage/feedback`, { kind: 'feedback', text: 'Nice' }, cookie, null)).status,
     201
   );
   // Cross-origin posts are refused on both origins
@@ -251,7 +251,7 @@ test('tester flow: redeem link, consent, events, feedback, results; prototype on
     (
       await v.call(
         'POST',
-        `/p/${id}/_vault/feedback`,
+        `/p/${id}/_vantage/feedback`,
         { text: 'x' },
         { ...cookie, Origin: 'https://evil.example' },
         null
@@ -260,13 +260,21 @@ test('tester flow: redeem link, consent, events, feedback, results; prototype on
     403
   );
   assert.equal(
-    (await v.callContent('POST', `/p/${id}/_vault/events`, [], { ...ccookie, Origin: 'https://evil.example' })).status,
+    (await v.callContent('POST', `/p/${id}/_vantage/events`, [], { ...ccookie, Origin: 'https://evil.example' }))
+      .status,
     403
   );
   // Voice is off for this share
   assert.equal(
-    (await v.call('POST', `/p/${id}/_vault/recording?seq=0`, 'abc', { ...cookie, 'Content-Type': 'audio/webm' }, null))
-      .status,
+    (
+      await v.call(
+        'POST',
+        `/p/${id}/_vantage/recording?seq=0`,
+        'abc',
+        { ...cookie, 'Content-Type': 'audio/webm' },
+        null
+      )
+    ).status,
     403
   );
   // Results
@@ -311,12 +319,15 @@ test('view-only share records nothing and has no feedback', async () => {
     data: { share },
   } = await v.call('POST', '/api/shares', { name: 'Review', viewers: ['tom@example.com'], files: FILES });
   const cookie = await redeem(v, share.viewers[0].link);
-  const meta = await v.call('GET', `/p/${share.id}/_vault/meta`, null, cookie, null);
+  const meta = await v.call('GET', `/p/${share.id}/_vantage/meta`, null, cookie, null);
   assert.equal(meta.data.mode, 'view');
   assert.equal(meta.data.recordSessions, false);
-  assert.equal((await v.call('POST', `/p/${share.id}/_vault/feedback`, { text: 'x' }, cookie, null)).status, 403);
+  assert.equal((await v.call('POST', `/p/${share.id}/_vantage/feedback`, { text: 'x' }, cookie, null)).status, 403);
   const { cookie: ccookie } = await enterContent(v, share.id, cookie);
-  assert.equal((await v.callContent('POST', `/p/${share.id}/_vault/events`, [{ type: 'click' }], ccookie)).data.ok, 0);
+  assert.equal(
+    (await v.callContent('POST', `/p/${share.id}/_vantage/events`, [{ type: 'click' }], ccookie)).data.ok,
+    0
+  );
   assert.equal((await v.call('GET', `/api/shares/${share.id}/summary`)).data.eventCount, 0);
   await v.close();
 });
@@ -344,7 +355,7 @@ test('passcode, rotation, expiry and revocation', async () => {
   const gate = await v.call('GET', `/p/${id}`, null, cookie, null);
   assert.equal(gate.status, 200);
   assert.match(gate.data, /needs the passcode/);
-  assert.equal((await v.call('GET', `/p/${id}/_vault/meta`, null, cookie, null)).status, 401);
+  assert.equal((await v.call('GET', `/p/${id}/_vantage/meta`, null, cookie, null)).status, 401);
   assert.equal(
     (
       await v.call(
@@ -619,8 +630,8 @@ test('require sign-in: a forwarded link opens nothing until the invited address 
   const shell = await v.call('GET', `/p/${id}`, null, cookie, null);
   assert.equal(shell.status, 200);
   assert.match(shell.data, /Sign in with Google/);
-  assert.equal((await v.call('GET', `/p/${id}/_vault/meta`, null, cookie, null)).status, 401);
-  assert.equal((await v.call('GET', `/p/${id}/_vault/content`, null, cookie, null)).status, 401);
+  assert.equal((await v.call('GET', `/p/${id}/_vantage/meta`, null, cookie, null)).status, 401);
+  assert.equal((await v.call('GET', `/p/${id}/_vantage/content`, null, cookie, null)).status, 401);
   // The same session token, replayed on the content origin, opens nothing either
   assert.equal((await v.callContent('GET', `/p/${id}/app/index.html`, null, cookie)).status, 401);
   const verify = async (email) => {
@@ -639,14 +650,14 @@ test('require sign-in: a forwarded link opens nothing until the invited address 
   const wrong = await verify('someone@else.example');
   assert.equal(wrong.status, 403);
   assert.match(wrong.data, /Not the invited address/);
-  assert.equal((await v.call('GET', `/p/${id}/_vault/meta`, null, cookie, null)).status, 401);
+  assert.equal((await v.call('GET', `/p/${id}/_vantage/meta`, null, cookie, null)).status, 401);
   const log = (await v.call('GET', `/api/shares/${id}/audit`)).data;
   assert.ok(JSON.stringify(log).includes('identity.mismatch'));
   // The invited address gets in; the check is case-insensitive
   const right = await verify('Tia@Example.com');
   assert.equal(right.status, 302);
   assert.equal(right.headers.get('location'), `/p/${id}`);
-  assert.equal((await v.call('GET', `/p/${id}/_vault/meta`, null, cookie, null)).status, 200);
+  assert.equal((await v.call('GET', `/p/${id}/_vantage/meta`, null, cookie, null)).status, 200);
   // A state that was never issued is refused
   assert.equal(
     (await v.call('GET', '/auth/google/viewer?code=x&state=nope', null, { Cookie: 'oauth_state=nope' }, null)).status,
@@ -696,10 +707,10 @@ test('storage limit per person applies to uploads', async () => {
   );
   assert.equal(small.status, 201);
   const cookie = await redeem(v, small.data.share.viewers[0].link);
-  await v.call('POST', `/p/${small.data.share.id}/_vault/consent`, { accept: true }, cookie, null);
+  await v.call('POST', `/p/${small.data.share.id}/_vantage/consent`, { accept: true }, cookie, null);
   const rec = await v.call(
     'POST',
-    `/p/${small.data.share.id}/_vault/recording?seq=0`,
+    `/p/${small.data.share.id}/_vantage/recording?seq=0`,
     'x'.repeat(64),
     { ...cookie, 'Content-Type': 'audio/webm' },
     null
@@ -714,11 +725,11 @@ test('screen recording: video accepted only when the share allows it, listed wit
   const mk = async (opts) => {
     const r = await v.call('POST', '/api/shares', { name: 'R', tasks: ['x'], viewers: ['t@example.com'], ...opts });
     const cookie = await redeem(v, r.data.share.viewers[0].link);
-    await v.call('POST', `/p/${r.data.share.id}/_vault/consent`, { accept: true }, cookie, null);
+    await v.call('POST', `/p/${r.data.share.id}/_vantage/consent`, { accept: true }, cookie, null);
     return { id: r.data.share.id, cookie };
   };
   const post = (s, mime) =>
-    v.call('POST', `/p/${s.id}/_vault/recording?seq=0`, 'x'.repeat(64), { ...s.cookie, 'Content-Type': mime }, null);
+    v.call('POST', `/p/${s.id}/_vantage/recording?seq=0`, 'x'.repeat(64), { ...s.cookie, 'Content-Type': mime }, null);
   const voiceOnly = await mk({ voice: true });
   assert.equal((await post(voiceOnly, 'video/webm')).status, 415, 'video refused on a voice-only share');
   const screenOnly = await mk({ screen: true });
@@ -735,7 +746,7 @@ test('screen recording: video accepted only when the share allows it, listed wit
   const put = (body) =>
     v.call('PUT', `/api/shares/${screenOnly.id}/intro`, body, { 'Content-Type': 'audio/wav', 'X-File-Name': 'i.wav' });
   assert.equal((await put('abcdefghij')).status, 200);
-  const suffix = await fetch(`${v.base}/p/${screenOnly.id}/_vault/intro`, {
+  const suffix = await fetch(`${v.base}/p/${screenOnly.id}/_vantage/intro`, {
     headers: { ...screenOnly.cookie, Range: 'bytes=-3' },
   });
   assert.equal(suffix.status, 206);
@@ -812,10 +823,10 @@ test('hardening: proxy IP from the right, framed-only pages, CSV formulas defuse
     /frame-ancestors 'self'/
   );
   // Oversized event data is kept, truncated, instead of failing the batch; CSV defuses formulas
-  await v.call('POST', `/p/${id}/_vault/consent`, { accept: true }, cookie, null);
+  await v.call('POST', `/p/${id}/_vantage/consent`, { accept: true }, cookie, null);
   const posted = await v.callContent(
     'POST',
-    `/p/${id}/_vault/events`,
+    `/p/${id}/_vantage/events`,
     [
       { type: 'click', path: '/', data: { target: '=1+1' } },
       { type: 'custom:big', path: '/', data: { big: 'x'.repeat(5000) } },
@@ -868,9 +879,9 @@ test('hardening 2: failed bundle keeps the old one, prototype ids, bad cookies, 
   );
   // Recording segments arrive in order; a retried segment replaces the earlier copy
   const cookie = await redeem(v, share.viewers[0].link);
-  await v.call('POST', `/p/${id}/_vault/consent`, { accept: true }, cookie, null);
+  await v.call('POST', `/p/${id}/_vantage/consent`, { accept: true }, cookie, null);
   const seg = (n, body) =>
-    v.call('POST', `/p/${id}/_vault/recording?seq=${n}`, body, { ...cookie, 'Content-Type': 'video/webm' }, null);
+    v.call('POST', `/p/${id}/_vantage/recording?seq=${n}`, body, { ...cookie, 'Content-Type': 'video/webm' }, null);
   assert.equal((await seg(5, 'x')).status, 400);
   assert.equal((await seg(0, 'x'.repeat(10))).status, 200);
   assert.equal((await seg(0, 'y'.repeat(10))).status, 200);

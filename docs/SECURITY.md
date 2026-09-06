@@ -1,8 +1,8 @@
 # Security overview
 
-Written for the people who have to approve Prototype Vault: security, privacy and IT. It says what the system does, what it protects against, what it does not, and how to configure it for a strict environment.
+Written for the people who have to approve Vantage: security, privacy and IT. It says what the system does, what it protects against, what it does not, and how to configure it for a strict environment.
 
-**Status.** Prototype Vault is a proof of concept written largely with an AI coding assistant. It has an end-to-end test suite (`cd server && npm test`), a linter and formatter in CI, and no third-party code in the server. It has had no independent security review or penetration test. Treat this document as the author's claims, verify them against the code (it is small on purpose), and report what you find. Known weaknesses and their fix order are in [OBJECTIONS.md](OBJECTIONS.md).
+**Status.** Vantage is a proof of concept written largely with an AI coding assistant. It has an end-to-end test suite (`cd server && npm test`), a linter and formatter in CI, and no third-party code in the server. It has had no independent security review or penetration test. Treat this document as the author's claims, verify them against the code (it is small on purpose), and report what you find. Known weaknesses and their fix order are in [OBJECTIONS.md](OBJECTIONS.md).
 
 ## 0. Reporting a vulnerability
 
@@ -29,7 +29,7 @@ A single Node.js process with no third-party packages that:
 | Tester who leaks content | A valid session | Watermark with their email on every screen, pages served only inside the frame, access log, viewer app with OS content protection | A phone camera; a browser screenshot |
 | Malicious or tampered prototype | Designer uploaded it | Runs on its own origin, cannot reach console or shell, CSP blocks all other origins, no popups or downloads | Whatever the prototype does inside its own frame; another share open in the same browser, unless each share has its own hostname |
 | Stolen personal token | A token for one designer | Sees and changes only that designer's shares; revocable from the Account page; hashed at rest | Everything that designer could do until revoked |
-| Stolen server admin token | The shared token | Nothing inside the vault | Rotate `ADMIN_TOKEN` and revoke personal tokens |
+| Stolen server admin token | The shared token | Nothing inside the Vantage | Rotate `ADMIN_TOKEN` and revoke personal tokens |
 | Copy of the data directory | The disk without the key | AES-256-GCM on files and metadata; link secrets, tokens and passcodes stored as hashes | With the key, everything |
 | Host compromise | Root on the server | Standard host hardening; short retention | Everything |
 | The operator | Runs the server | Nothing technical; audit log; MIT licence means you can run your own | |
@@ -38,7 +38,7 @@ A single Node.js process with no third-party packages that:
 
 | Data | Where | Protection |
 |---|---|---|
-| Prototype files | `DATA_DIR/bundles/<share>/` | AES-256-GCM per file when `VAULT_ENCRYPTION_KEY` is set; file mode 0600 |
+| Prototype files | `DATA_DIR/bundles/<share>/` | AES-256-GCM per file when `VANTAGE_ENCRYPTION_KEY` is set; file mode 0600 |
 | Share metadata, viewer names and emails, session records, admin sessions | `DATA_DIR/store.json` | Same encryption; atomic writes; mode 0600 |
 | Viewer link secrets, personal access tokens, Google sign-in sessions | inside store.json | SHA-256 hashes only |
 | Passcodes | inside store.json | scrypt hash + salt |
@@ -51,12 +51,12 @@ The audit, events and feedback logs are not encrypted at rest because they are a
 ## 4. Access control
 
 ### Designers
-There are no passwords stored in the vault. Four ways in:
+There are no passwords stored in the Vantage. Four ways in:
 
 - **SSO** (recommended for self-hosted teams): when the server sits behind an identity-aware proxy that sets a trusted email header, `ADMIN_EMAILS` grants console access to those identities. Requires `TRUST_PROXY=1` and `TRUSTED_HEADER_EMAIL`. MFA, device posture and offboarding come from the identity provider.
-- **Google sign-in** (hosted deployments): `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` enable "Sign in with Google" on the console. The authorization-code flow with a state cookie; the ID token is taken from Google's token endpoint over TLS, which OpenID Connect Core 3.1.3.7 accepts in place of a signature check, and its audience, issuer and verified-email claims are checked. The session is a 30-day HttpOnly cookie, stored server-side as a hash. Cookie-authenticated requests that change anything must carry an `Origin` header matching the vault. `ADMIN_EMAILS`, if set, restricts who may sign in.
+- **Google sign-in** (hosted deployments): `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` enable "Sign in with Google" on the console. The authorization-code flow with a state cookie; the ID token is taken from Google's token endpoint over TLS, which OpenID Connect Core 3.1.3.7 accepts in place of a signature check, and its audience, issuer and verified-email claims are checked. The session is a 30-day HttpOnly cookie, stored server-side as a hash. Cookie-authenticated requests that change anything must carry an `Origin` header matching the Vantage. `ADMIN_EMAILS`, if set, restricts who may sign in.
 - **Server admin token**: `ADMIN_TOKEN` (min 24 chars), compared in constant time, sent as a Bearer header. The fallback for a server without a proxy, and the only identity that sees every share.
-- **Personal access tokens**: created on the console's Account page ("Connect a tool"), one per tool. Random 24-byte secret shown once, stored as a SHA-256 hash, tagged with the creating identity. Revoked individually from the Account page or with `vault disconnect`. Creation and revocation are audited.
+- **Personal access tokens**: created on the console's Account page ("Connect a tool"), one per tool. Random 24-byte secret shown once, stored as a SHA-256 hash, tagged with the creating identity. Revoked individually from the Account page or with `vantage disconnect`. Creation and revocation are audited.
 
 **Visibility.** Everyone except the server admin token sees, changes and deletes only the shares they created. Personal tokens inherit their creator's view.
 
@@ -100,17 +100,17 @@ In-memory per-process limits on link redemption (30 per address per 10 min), pas
 With `requireSignIn` on a share, redeeming the link creates a session that cannot be used until the tester signs in with Google and the verified email equals the invited address (case-insensitive). The OAuth state is bound to the browser by a cookie and to the session by a server-side map, so a callback cannot be replayed into someone else's session. A mismatch is logged as `identity.mismatch` and the session stays unusable. Only available where Google sign-in is configured; the server refuses the option otherwise.
 
 ### CSRF
-Viewer and content-origin POSTs check the `Origin` header against the vault's own origins. Cookie-authenticated console requests that change anything do the same. Bearer tokens are not attached by browsers automatically.
+Viewer and content-origin POSTs check the `Origin` header against the Vantage's own origins. Cookie-authenticated console requests that change anything do the same. Bearer tokens are not attached by browsers automatically.
 
 ### Voice, screen and captions
-- **Think-aloud voice recording** is off unless the share creator turns it on. The tester still decides on the consent screen, a persistent red "Recording" indicator with a level meter and a Stop button shows throughout, and 5-second audio segments stream to the vault over the authenticated session. Segments are stored encrypted, listed on the results tab, and deleted with the share.
-- **Screen recording** (per share, off by default) captures the prototype tab with `getDisplayMedia`, so the tester picks the tab in the browser's own dialog and the browser shows its own "sharing" bar with a stop control. It cannot capture other tabs or windows without the tester choosing them. The video (with the voice track, when both are on) streams in the same 5-second segments to the same endpoint, which accepts video only when the share allows it, and stops when the share's media limit is reached. Nothing leaves the tester's device except to the vault.
+- **Think-aloud voice recording** is off unless the share creator turns it on. The tester still decides on the consent screen, a persistent red "Recording" indicator with a level meter and a Stop button shows throughout, and 5-second audio segments stream to the Vantage over the authenticated session. Segments are stored encrypted, listed on the results tab, and deleted with the share.
+- **Screen recording** (per share, off by default) captures the prototype tab with `getDisplayMedia`, so the tester picks the tab in the browser's own dialog and the browser shows its own "sharing" bar with a stop control. It cannot capture other tabs or windows without the tester choosing them. The video (with the voice track, when both are on) streams in the same 5-second segments to the same endpoint, which accepts video only when the share allows it, and stops when the share's media limit is reached. Nothing leaves the tester's device except to the Vantage.
 - **Dictation was removed in 0.3.0.** It relied on the browser's speech service, which sends audio to Google or Apple; it was the one feature where anything left the tester's device to a third party.
-- **Captions and translations** are WebVTT files uploaded by the designer and served from the vault. Translation is done at authoring time, never by a live service.
+- **Captions and translations** are WebVTT files uploaded by the designer and served from the Vantage. Translation is done at authoring time, never by a live service.
 
 ## 5. What it does not protect against
 
-- **Screenshots and screen recording by an authorised viewer, in a browser.** No web page can block them. The optional [viewer app](../viewer-app/README.md) requests the operating system's content-protection flag so captures of its window come out black on macOS and Windows. Nothing stops a phone camera. Inside the vault the per-viewer watermark and the audit log make a leak attributable.
+- **Screenshots and screen recording by an authorised viewer, in a browser.** No web page can block them. The optional [viewer app](../viewer-app/README.md) requests the operating system's content-protection flag so captures of its window come out black on macOS and Windows. Nothing stops a phone camera. Inside the Vantage the per-viewer watermark and the audit log make a leak attributable.
 - **A viewer saving the page source.** The prototype is delivered to their browser; that is the point.
 - **A compromised admin token.** Treat it like a production secret. Prefer SSO or Google sign-in for teams.
 - **Host compromise.** If someone has the encryption key and the disk, they have the prototypes.
@@ -122,8 +122,8 @@ Four actions cover most incidents, each a single step:
 
 1. **Rotate `ADMIN_TOKEN`** (set a new value, restart).
 2. **Revoke personal tokens** on the Account page, or delete the `tokens` object in `store.json` and restart.
-3. **Revoke affected shares** (console, `vault revoke`, or `PATCH /api/shares/:id {revoked:true}`). Every link and session for that share stops working.
-4. **Rotate viewer links** for people who should keep access (console "Rotate", or `vault rotate`).
+3. **Revoke affected shares** (console, `vantage revoke`, or `PATCH /api/shares/:id {revoked:true}`). Every link and session for that share stops working.
+4. **Rotate viewer links** for people who should keep access (console "Rotate", or `vantage rotate`).
 
 The `_admin.ndjson` log shows what happened and when.
 
@@ -133,7 +133,7 @@ The `_admin.ndjson` log shows what happened and when.
 TRUST_PROXY=1
 TRUSTED_HEADER_EMAIL=<your proxy's email header>
 ADMIN_EMAILS=designer1@company.com,designer2@company.com
-VAULT_ENCRYPTION_KEY=<64 hex chars, from a secrets manager>
+VANTAGE_ENCRYPTION_KEY=<64 hex chars, from a secrets manager>
 PUBLIC_URL=https://prototypes.internal.company.com
 CONTENT_ORIGIN=https://*.prototypes-content.internal.company.com   (a wildcard, one origin per share; or a single hostname)
 TRUSTED_PROXY_HOPS=1
@@ -175,7 +175,7 @@ How an attacker would actually approach this, in the order a real one would, wit
 
 | Route | Cost to attacker | What it yields | What closes it |
 |---|---|---|---|
-| Phish the designer's Google account | Low | Everything that designer owns | Two-factor on the account; the vault cannot help here. `admin.signin` from a new address shows in the log. |
+| Phish the designer's Google account | Low | Everything that designer owns | Two-factor on the account; the Vantage cannot help here. `admin.signin` from a new address shows in the log. |
 | Steal the server admin token | Low if it is ever exposed | Everything, all designers | Hosted copies run without one (Google sign-in only). Quick start keeps it in a 0600 file and binds to localhost. Never paste it into chat or a screenshot. |
 | A malicious prototype reading another designer's prototype (shared content origin) | Medium; needs an account and a victim with both open | The other prototype's content | One origin per share (`CONTENT_ORIGIN` wildcard). The server refuses to start with open Google sign-up on a shared origin unless `ALLOW_SHARED_CONTENT_ORIGIN=1`. |
 | A forwarded or intercepted personal link | Low | One prototype, as that tester | Passcode by a second channel, or `requireSignIn` (the link opens only for the invited Google account). Every opening and refusal is logged. |
@@ -186,5 +186,5 @@ How an attacker would actually approach this, in the order a real one would, wit
 | Physical access to the server or the operator's laptop | Medium | Encryption key and therefore everything | Key in a secrets manager, never in quick-start mode for a real deployment; disk encryption on the laptop. |
 | Supply chain through development tooling or the Electron viewer's dependencies | High | The developer's machine and its secrets | The server has no third-party packages. `npm ci` from the lockfile in CI; the viewer app has one dependency. |
 
-Every refusal the vault records (`link.rejected`, `passcode.fail`, `identity.mismatch`, `sso.denied`, `admin.unauthorized`, `admin.denied`) is also written to stderr as a `vault-refused` line, so the hosting platform's log alerts can page the operator. The deployment guide has the recipe.
+Every refusal the Vantage records (`link.rejected`, `passcode.fail`, `identity.mismatch`, `sso.denied`, `admin.unauthorized`, `admin.denied`) is also written to stderr as a `vantage-refused` line, so the hosting platform's log alerts can page the operator. The deployment guide has the recipe.
 

@@ -1,11 +1,11 @@
 {
   "mcpServers": {
-    "prototype-vault": {
+    "vantage": {
       "command": "node",
       "args": ["/absolute/path/to/Connector for designer and usability testing/mcp/server.js"],
       "env": {
-        "VAULT_URL": "https://prototypes.internal.company.com",
-        "VAULT_ADMIN_TOKEN": "${VAULT_ADMIN_TOKEN}"
+        "VANTAGE_URL": "https://prototypes.internal.company.com",
+        "VANTAGE_ADMIN_TOKEN": "${VANTAGE_ADMIN_TOKEN}"
       }
     }
   }

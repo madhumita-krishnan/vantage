@@ -14,7 +14,7 @@ Effort: **S** = an hour or two, **M** = a day, **L** = several days or a design 
 
 **Fixed in 0.1.0.** Prototypes are served from `CONTENT_ORIGIN` (a second port by default, a second hostname behind a proxy). The shell hands over the session with a one-time ticket; the prototype reports its screen by `postMessage`. Covered by the tester-flow test.
 
-**What they will say.** The prototype iframe in `server/public/viewer.html` uses `sandbox="allow-scripts allow-same-origin …"`. The HTML specification warns that this combination lets the framed page remove its own sandbox attribute, because it is same-origin with the parent. On top of that, prototypes are served from the vault's own origin (`/p/<id>/app/…`), the same origin as the designer console at `/admin`. So the browser's same-origin policy, the strongest boundary a browser has, does not separate a prototype from the console or from other prototypes.
+**What they will say.** The prototype iframe in `server/public/viewer.html` uses `sandbox="allow-scripts allow-same-origin …"`. The HTML specification warns that this combination lets the framed page remove its own sandbox attribute, because it is same-origin with the parent. On top of that, prototypes are served from the Vantage's own origin (`/p/<id>/app/…`), the same origin as the designer console at `/admin`. So the browser's same-origin policy, the strongest boundary a browser has, does not separate a prototype from the console or from other prototypes.
 
 **Concrete consequence.** A prototype's JavaScript can reach into the viewer shell and remove the watermark overlay, call the tester endpoints, and, if a designer opens a prototype in a tab that also holds a console session, read the admin token from `sessionStorage`. Prototypes are uploaded by trusted designers, so the attacker here is a malicious or compromised prototype, for example one whose inlined CDN bundle was tampered with. The CSP still blocks sending anything to the internet, but the console API is same-origin and in scope.
 
@@ -80,7 +80,7 @@ Effort: **S** = an hour or two, **M** = a day, **L** = several days or a design 
 
 **Partly done.** The delete tool is gone from the MCP server. Scoped tokens are still open.
 
-Personal access tokens have no scopes. The MCP server exposes `vault_delete_share` and `vault_get_events`. A prompt-injected Claude session holding that token can do anything the designer can.
+Personal access tokens have no scopes. The MCP server exposes `vantage_delete_share` and `vantage_get_events`. A prompt-injected Claude session holding that token can do anything the designer can.
 
 **Design response (M).** Scoped tokens: `publish`, `results`, `admin`. The "Connect a tool" dialog defaults to `publish` + `results`. Remove delete from the MCP tool list; deletion is a console action with a confirm dialog.
 
@@ -133,7 +133,7 @@ There are ten end-to-end tests, which is more than most proof-of-concepts have, 
 
 Most of Part 1 applies. Beyond it:
 
-**"Who is the threat?"** Done in 0.1.0 (SECURITY.md section 2). The ask was: make the threat model explicit in one table: outsider with a guessed link; ex-tester with an old link; insider with a stolen admin token; malicious prototype; compromised host; the vault operator themselves. Say which controls address each and which do not. SECURITY.md has the pieces; it does not have the table. (S)
+**"Who is the threat?"** Done in 0.1.0 (SECURITY.md section 2). The ask was: make the threat model explicit in one table: outsider with a guessed link; ex-tester with an old link; insider with a stolen admin token; malicious prototype; compromised host; the Vantage operator themselves. Say which controls address each and which do not. SECURITY.md has the pieces; it does not have the table. (S)
 
 **"Unaudited means unaudited."** The answer is: small, readable, tested, threat-modelled, with a disclosure route, and looking for reviewers. Ask them to be one.
 
@@ -159,7 +159,7 @@ Most of Part 1 applies. Beyond it:
 
 ## Part 4. What an engineering director or design leader will say
 
-**"Why not Cloudflare Access in front of a static bucket?"** Fair, and the honest answer is that the hosting and sign-in half of Prototype Vault is commodity. Any identity-aware proxy gives SSO, MFA and an access log for internal viewers in an afternoon. What it does not give is per-person expiring links for external testers, a consent screen, tasks, interaction recording and feedback with no data leaving the network. Position the product as the research layer that happens to include hosting, not as hosting. The DEPLOYMENT.md path "behind your proxy" should be the headline path, and the laptop quick start should be labelled as a demo.
+**"Why not Cloudflare Access in front of a static bucket?"** Fair, and the honest answer is that the hosting and sign-in half of Vantage is commodity. Any identity-aware proxy gives SSO, MFA and an access log for internal viewers in an afternoon. What it does not give is per-person expiring links for external testers, a consent screen, tasks, interaction recording and feedback with no data leaving the network. Position the product as the research layer that happens to include hosting, not as hosting. The DEPLOYMENT.md path "behind your proxy" should be the headline path, and the laptop quick start should be labelled as a demo.
 
 **"You built a usability-testing product, not a sharing tool."** Also fair. Seven passes added moderated mode, timed questions, intro video with subtitles and translation, dictation and think-aloud audio before the core was tested by anyone. A director will call it scope creep. Say so: the first pass was sharing; the design passes turned it into Lookback without the SaaS. The design response is to tier it: a **core** profile (share, view only, links, expiry, audit) and a **research** profile (everything else), so a security review of the core is a short read. (M, mostly configuration and docs)
 
@@ -183,8 +183,8 @@ If you present this, someone will ask one of these. Short answers:
 - **Why AES-GCM and not CBC?** GCM authenticates as well as encrypts; a tampered file fails to decrypt instead of decrypting to garbage. 96-bit random IV per file, never reused because each file is encrypted once.
 - **Why scrypt for passcodes?** Memory-hard, so brute force on a stolen store is expensive. The sync call is the mistake, not the algorithm.
 - **Why hash tokens but encrypt files?** Tokens only ever need comparing; files need reading back. Hash what you compare, encrypt what you read. Viewer links break that rule (1.2).
-- **What does the CSP actually stop?** A prototype loading or sending anything to an origin other than the vault. It does not stop inline scripts, because prototypes are inline scripts.
-- **Why no accounts?** Every password store is a liability; the company already has one. The vault trusts a header the proxy sets and a list of admin emails.
+- **What does the CSP actually stop?** A prototype loading or sending anything to an origin other than the Vantage. It does not stop inline scripts, because prototypes are inline scripts.
+- **Why no accounts?** Every password store is a liability; the company already has one. The Vantage trusts a header the proxy sets and a list of admin emails.
 - **Where is the tester's session?** An HttpOnly, SameSite=Lax cookie scoped to `/p/<share>`, stored server-side as a hash, expiring with the share or after `SESSION_HOURS`.
 - **What happens if the encryption key is lost?** Everything encrypted with it is gone. Shares are short-lived by design, so the recovery is "re-publish".
 - **How would you scale it?** You would not, past one team; you would run one per team. Past that, SQLite via `node:sqlite` and a separate content origin.

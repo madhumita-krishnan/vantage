@@ -195,9 +195,9 @@ module.exports = function shares(ctx) {
     };
     audit.append(share ? share.id : '_admin', rec);
     if (share && /^(share\.|admin\.)/.test(type)) audit.append('_admin', rec); // the account page's window
-    // One line per refusal on stderr, so a hosting platform's log alert can page the operator without the vault
+    // One line per refusal on stderr, so a hosting platform's log alert can page the operator without the Vantage
     // ever calling out.
-    if (/rejected|denied|fail|mismatch|unauthorized/.test(type)) console.error('vault-refused', JSON.stringify(rec));
+    if (/rejected|denied|fail|mismatch|unauthorized/.test(type)) console.error('vantage-refused', JSON.stringify(rec));
   }
 
   // A personal link's secret is stored only as a hash, like the API tokens, so a copy of the store cannot open
@@ -304,7 +304,7 @@ module.exports = function shares(ctx) {
       if (!CONFIG.allowedExternalOrigins.includes(u.origin))
         throw httpError(
           400,
-          `External origin not allowed by server policy: ${u.origin}. Ask the server admin to add it to ALLOWED_EXTERNAL_ORIGINS, or inline the asset with "vault inline".`
+          `External origin not allowed by server policy: ${u.origin}. Ask the server admin to add it to ALLOWED_EXTERNAL_ORIGINS, or inline the asset with "vantage inline".`
         );
       out.add(u.origin);
     }
@@ -528,7 +528,7 @@ module.exports = function shares(ctx) {
           },
         ],
         notes:
-          'The example prototype that ships with Prototype Vault. Open your own link to see the tester side, then delete this whenever you like.',
+          'The example prototype that ships with Vantage. Open your own link to see the tester side, then delete this whenever you like.',
       },
       req,
       admin,

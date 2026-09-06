@@ -1,10 +1,10 @@
-# What Prototype Vault cannot do
+# What Vantage cannot do
 
-Written for designers, not engineers. Every tool that shares work with other people has limits, and the honest ones say what they are. Here are Prototype Vault's, and what to do about each.
+Written for designers, not engineers. Every tool that shares work with other people has limits, and the honest ones say what they are. Here are Vantage's, and what to do about each.
 
 ## Nobody can stop a screenshot
 
-If a person can see your prototype on their screen, they can photograph it, screenshot it, or record it. No website can prevent that. What the vault does instead:
+If a person can see your prototype on their screen, they can photograph it, screenshot it, or record it. No website can prevent that. What the Vantage does instead:
 
 - **Their name is on every screen.** The prototype is shown with the viewer's email printed faintly across it. If a picture of your work turns up somewhere, you know whose link it came from. Think of it as a signature on a loan copy, not a lock.
 - **Only the framed page shows the prototype.** Pasting the prototype's address into a new tab, to get a clean copy without the name on it, is refused by the server in current browsers. Safari older than 16.4 does not send the signal the server relies on, so it cannot refuse there.
@@ -20,7 +20,7 @@ What to do: send each link to one person. For anything sensitive, either add a p
 
 ## Testers can read the prototype's code
 
-Your prototype is HTML and JavaScript running in the tester's browser. Anyone who knows how can open the browser's developer tools and read it. The vault stops the prototype from calling out to the internet and keeps it off search engines, but it cannot hide code from the person running it.
+Your prototype is HTML and JavaScript running in the tester's browser. Anyone who knows how can open the browser's developer tools and read it. The Vantage stops the prototype from calling out to the internet and keeps it off search engines, but it cannot hide code from the person running it.
 
 What to do: keep secrets out of prototypes. No real API keys, no real customer data. Use invented names and numbers.
 
@@ -32,17 +32,17 @@ On a hosted copy where many designers share one address, every prototype is serv
 
 Files are encrypted on disk, but the server holds the key so it can show the prototype to testers. The person who operates the server can read what is on it. That is true of every service that shows you your own content.
 
-What to do: if the work is confidential to your company, run the vault inside your company. That is what the self-hosted path is for.
+What to do: if the work is confidential to your company, run the Vantage inside your company. That is what the self-hosted path is for.
 
 ## The one-command start is for a laptop
 
-When you start the vault with no settings, it makes its own secret key and keeps it next to the data. That is fine for trying things on your own machine and not fine for a server other people use. The deployment guide shows how to keep the key somewhere else.
+When you start the Vantage with no settings, it makes its own secret key and keeps it next to the data. That is fine for trying things on your own machine and not fine for a server other people use. The deployment guide shows how to keep the key somewhere else.
 
 ## Recording is limited on purpose
 
-For a usability test the vault can record where testers click, which screens they visit, and, if you turn each on, what they type, what they say and a video of the prototype tab. A share that is "view only" records nothing but the fact that it was opened. Testers see a note before anything is recorded and can say no to each part.
+For a usability test the Vantage can record where testers click, which screens they visit, and, if you turn each on, what they type, what they say and a video of the prototype tab. A share that is "view only" records nothing but the fact that it was opened. Testers see a note before anything is recorded and can say no to each part.
 
-Screen recording works in desktop browsers only, records the one tab the tester picks, and takes about 5 MB a minute, so a long session is a big file. It stops on its own when the share's media limit is reached. Nothing the vault records goes anywhere but the vault.
+Screen recording works in desktop browsers only, records the one tab the tester picks, and takes about 5 MB a minute, so a long session is a big file. It stops on its own when the share's media limit is reached. Nothing the Vantage records goes anywhere but the Vantage.
 
 ## Data is kept, then deleted
 
@@ -55,6 +55,6 @@ The code is small, tested, and has been read line by line by its author with a c
 ## Things that are simply not there
 
 - No comments on the prototype, no version history, no Figma import.
-- No editing: the vault shows what you upload.
-- Prototypes that call a live server will not work, because the vault blocks calls to the internet. Put sample data inside the prototype instead.
+- No editing: the Vantage shows what you upload.
+- Prototypes that call a live server will not work, because the Vantage blocks calls to the internet. Put sample data inside the prototype instead.
 - Prototypes from a framework (React, Vite, Next) must be built into plain files first.

@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 'use strict';
-/* Prototype Vault MCP server (stdio). Zero dependencies.
- * Lets Claude Code / Claude Desktop / Cursor publish prototypes to your self-hosted vault and read back results.
- * Config: VAULT_URL and VAULT_ADMIN_TOKEN, or nothing at all when a vault started on this machine (it reads server/data/local-secrets.json). */
+/* Vantage MCP server (stdio). Zero dependencies.
+ * Lets Claude Code / Claude Desktop / Cursor publish prototypes to your self-hosted Vantage and read back results.
+ * Config: VANTAGE_URL and VANTAGE_ADMIN_TOKEN, or nothing at all when a Vantage started on this machine (it reads server/data/local-secrets.json). */
 const path = require('path');
 const L = require(path.join(__dirname, '..', 'cli', 'lib.js'));
 
 const TOOLS = [
   {
-    name: 'vault_publish_prototype',
+    name: 'vantage_publish_prototype',
     description:
-      'Publish a coded prototype (folder or single HTML file) to the self-hosted Prototype Vault and get one private link per viewer. External scripts/styles/fonts are bundled locally first so the prototype is self-contained. Confirm viewers and expiry with the user before calling.',
+      'Publish a coded prototype (folder or single HTML file) to the self-hosted Vantage and get one private link per viewer. External scripts/styles/fonts are bundled locally first so the prototype is self-contained. Confirm viewers and expiry with the user before calling.',
     inputSchema: {
       type: 'object',
       required: ['path', 'name', 'viewers'],
@@ -93,7 +93,7 @@ const TOOLS = [
     },
   },
   {
-    name: 'vault_add_subtitles',
+    name: 'vantage_add_subtitles',
     description:
       'Add captions or a translation to the "Before you start" video as a WebVTT file. Claude can transcribe and translate the video into any language and write the .vtt first.',
     inputSchema: {
@@ -108,7 +108,7 @@ const TOOLS = [
     },
   },
   {
-    name: 'vault_add_note',
+    name: 'vantage_add_note',
     description: 'Add a moderator note to a share during or after a session, optionally about one viewer.',
     inputSchema: {
       type: 'object',
@@ -117,7 +117,7 @@ const TOOLS = [
     },
   },
   {
-    name: 'vault_set_intro',
+    name: 'vantage_set_intro',
     description: 'Set the "Before you start" screen: custom text and/or a voice or video file.',
     inputSchema: {
       type: 'object',
@@ -126,18 +126,18 @@ const TOOLS = [
     },
   },
   {
-    name: 'vault_list_shares',
-    description: 'List prototypes shared through the vault with status, viewer count and expiry.',
+    name: 'vantage_list_shares',
+    description: 'List prototypes shared through the Vantage with status, viewer count and expiry.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
-    name: 'vault_get_share',
+    name: 'vantage_get_share',
     description:
       'Get one share with its viewers. Personal links are shown once, when issued (publish, add viewers, rotate), and are not stored.',
     inputSchema: { type: 'object', required: ['shareId'], properties: { shareId: { type: 'string' } } },
   },
   {
-    name: 'vault_add_viewers',
+    name: 'vantage_add_viewers',
     description: 'Invite more people to an existing share. Returns their personal links.',
     inputSchema: {
       type: 'object',
@@ -146,7 +146,7 @@ const TOOLS = [
     },
   },
   {
-    name: 'vault_revoke',
+    name: 'vantage_revoke',
     description: 'Revoke a whole share, or a single viewer. Links stop working immediately.',
     inputSchema: {
       type: 'object',
@@ -158,7 +158,7 @@ const TOOLS = [
     },
   },
   {
-    name: 'vault_extend',
+    name: 'vantage_extend',
     description: 'Extend a share expiry by N days.',
     inputSchema: {
       type: 'object',
@@ -167,7 +167,7 @@ const TOOLS = [
     },
   },
   {
-    name: 'vault_get_results',
+    name: 'vantage_get_results',
     description:
       'Usability results for a share: task outcomes, per-tester interaction summary, written feedback and moderator notes. format "markdown" returns a shareable report; "json" returns structured data (default).',
     inputSchema: {
@@ -177,12 +177,12 @@ const TOOLS = [
     },
   },
   {
-    name: 'vault_get_activity',
+    name: 'vantage_get_activity',
     description: 'Access log for a share: who opened it, when, from where, and rejected attempts.',
     inputSchema: { type: 'object', required: ['shareId'], properties: { shareId: { type: 'string' } } },
   },
   {
-    name: 'vault_get_events',
+    name: 'vantage_get_events',
     description:
       'Raw recorded interaction events (clicks, navigation, focus, scroll, errors) for a share. Can be large.',
     inputSchema: {
@@ -206,7 +206,7 @@ function fmtShare(s) {
 async function call(name, a) {
   const cfg = L.config();
   switch (name) {
-    case 'vault_publish_prototype': {
+    case 'vantage_publish_prototype': {
       const abs = path.resolve(String(a.path || ''));
       if (!a.allowAnyPath && !abs.startsWith(process.cwd() + path.sep) && abs !== process.cwd())
         throw new Error(
@@ -245,19 +245,19 @@ async function call(name, a) {
         out += `\nWARNING — still referenced externally and will be blocked when served:\n  ${inlineReport.remaining.join('\n  ')}`;
       return out + (logs.length ? `\n\nLog:\n${logs.join('\n')}` : '');
     }
-    case 'vault_list_shares': {
+    case 'vantage_list_shares': {
       const { shares } = await L.api(cfg, 'GET', '/shares');
       return shares.length ? shares.map(fmtShare).join('\n') : 'No shares yet.';
     }
-    case 'vault_get_share': {
+    case 'vantage_get_share': {
       const { share } = await L.api(cfg, 'GET', `/shares/${a.shareId}`);
       return fmtShare(share);
     }
-    case 'vault_add_viewers': {
+    case 'vantage_add_viewers': {
       const { viewers } = await L.api(cfg, 'POST', `/shares/${a.shareId}/viewers`, { viewers: a.viewers });
       return viewers.map((v) => `${v.name} <${v.email}>\n  ${v.link}`).join('\n');
     }
-    case 'vault_revoke': {
+    case 'vantage_revoke': {
       if (a.viewerId) {
         await L.api(cfg, 'DELETE', `/shares/${a.shareId}/viewers/${a.viewerId}`);
         return 'Viewer revoked.';
@@ -265,24 +265,24 @@ async function call(name, a) {
       await L.api(cfg, 'PATCH', `/shares/${a.shareId}`, { revoked: true });
       return 'Share revoked; all links stop working now.';
     }
-    case 'vault_extend': {
+    case 'vantage_extend': {
       const { share } = await L.api(cfg, 'PATCH', `/shares/${a.shareId}`, { extendDays: a.days });
       return `Now expires ${share.expiresAt}`;
     }
-    case 'vault_add_subtitles': {
+    case 'vantage_add_subtitles': {
       await L.uploadSubtitles(cfg, a.shareId, a.lang, a.vttPath, a.label);
       return `Captions (${a.lang}) uploaded.`;
     }
-    case 'vault_add_note': {
+    case 'vantage_add_note': {
       const { note } = await L.api(cfg, 'POST', `/shares/${a.shareId}/notes`, { text: a.text, viewerId: a.viewerId });
       return `Noted at ${note.ts}`;
     }
-    case 'vault_set_intro': {
+    case 'vantage_set_intro': {
       if (a.text != null) await L.api(cfg, 'PATCH', `/shares/${a.shareId}`, { intro: { kind: 'text', text: a.text } });
       if (a.mediaPath) await L.uploadIntroMedia(cfg, a.shareId, a.mediaPath);
       return 'Intro updated.';
     }
-    case 'vault_get_results': {
+    case 'vantage_get_results': {
       if (a.format === 'markdown') return await L.fetchText(cfg, `/shares/${a.shareId}/report`);
       const [{ feedback }, sum] = await Promise.all([
         L.api(cfg, 'GET', `/shares/${a.shareId}/feedback`),
@@ -290,7 +290,7 @@ async function call(name, a) {
       ]);
       return JSON.stringify({ summary: sum, feedback }, null, 1);
     }
-    case 'vault_get_activity': {
+    case 'vantage_get_activity': {
       const { audit } = await L.api(cfg, 'GET', `/shares/${a.shareId}/audit`);
       return (
         audit
@@ -300,7 +300,7 @@ async function call(name, a) {
           .join('\n') || 'No activity.'
       );
     }
-    case 'vault_get_events': {
+    case 'vantage_get_events': {
       const { events } = await L.api(cfg, 'GET', `/shares/${a.shareId}/events`);
       return JSON.stringify(events.slice(-(a.limit || 500)));
     }
@@ -338,7 +338,7 @@ async function handle(line) {
       return reply(id, {
         protocolVersion: (params && params.protocolVersion) || '2025-06-18',
         capabilities: { tools: {} },
-        serverInfo: { name: 'prototype-vault', version: '0.3.1' },
+        serverInfo: { name: 'vantage', version: '0.3.1' },
       });
     if (method === 'notifications/initialized' || method === 'notifications/cancelled') return;
     if (method === 'ping') return reply(id, {});

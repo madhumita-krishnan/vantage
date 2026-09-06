@@ -55,7 +55,7 @@ async function renderShare(app) {
         <span class="hint">or set a date</span><input type="date" id="extDate"><button class="btn small" id="extSet">Set</button>
         <span class="hint">Server maximum ${me.server.maxExpiryDays} days from today.</span>
       </div>
-      ${share.files ? '' : '<div class="warn" style="margin-top:var(--s4)">No prototype files yet. Upload a folder under Settings & files, or run <span class="mono">vault publish</span>.</div>'}
+      ${share.files ? '' : '<div class="warn" style="margin-top:var(--s4)">No prototype files yet. Upload a folder under Settings & files, or run <span class="mono">vantage publish</span>.</div>'}
       <div class="tabs">${Object.entries(tabs)
         .map(([k, v]) => `<button data-t="${k}" class="${view.tab === k ? 'on' : ''}">${v}</button>`)
         .join('')}</div>
@@ -130,8 +130,8 @@ function tabLinks(t, share) {
         : '<span class="muted">Issued earlier. Rotate for a new link.</span>';
     const copyButtons = l
       ? `<button class="btn small" data-copy="${esc(l)}">Copy</button>
-         <button class="btn small" data-copy="prototypevault://open?u=${encodeURIComponent(l)}"
-           title="Same link, for the Prototype Vault viewer app: it blacks out screenshots and screen sharing on macOS and Windows">App link</button>`
+         <button class="btn small" data-copy="vantage://open?u=${encodeURIComponent(l)}"
+           title="Same link, for the Vantage viewer app: it blacks out screenshots and screen sharing on macOS and Windows">App link</button>`
       : '';
     const manage = v.revoked
       ? ''
@@ -150,7 +150,7 @@ function tabLinks(t, share) {
     <div class="stack">
       <div class="hint">Send each person their own link through your normal channel. A link is shown once, when it is
         issued, and is not stored: copy it now, or <b>Rotate</b> to issue a new one (the old one stops working).
-        <b>App link</b> opens the same prototype in the Prototype Vault viewer app (see the README), whose window is
+        <b>App link</b> opens the same prototype in the Vantage viewer app (see the README), whose window is
         excluded from screenshots and screen sharing on macOS and Windows.</div>
       <table>
         <thead><tr><th>Viewer</th><th class="num">Opens</th><th style="width:160px">Last seen</th><th>Personal link</th><th class="actions"></th></tr></thead>
