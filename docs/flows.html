@@ -1,0 +1,1028 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Vantage Flows</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #ffffff; --ink: #1c1b19; --muted: #6b6862; --line: #d9d6cf;
+    --stroke: #3a3835; --accent: #0b6e4f; --accent-soft: #dff2ea;
+    --start: #e6f0fb; --process: #ffffff; --decision: #fff4d6; --io: #ece8fb; --data: #e8f5ee; --doc: #fbe9e0; --conn: #eeeeee;
+    --end-bad: #fde8e8; --end-good: #e3f4e8; --yes: #0b6e4f; --no: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17181a; --panel: #202226; --ink: #ecebe7; --muted: #a09d96; --line: #34363b;
+      --stroke: #d5d3cd; --accent: #5cc8a2; --accent-soft: #163a2f;
+      --start: #22324a; --process: #2a2c31; --decision: #4a3d1c; --io: #35304d; --data: #1f3a2c; --doc: #4a2f24; --conn: #3a3c40;
+      --end-bad: #4a2224; --end-good: #1e3d29; --yes: #5cc8a2; --no: #f28b82;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .app { display: grid; grid-template-columns: 230px 1fr 300px; height: 100vh; }
+  nav { border-right: 1px solid var(--line); overflow: auto; padding: 14px 10px; background: var(--panel); }
+  nav h1 { font-size: 15px; margin: 4px 6px 12px; }
+  nav h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 6px 4px; }
+  nav button { display: block; width: 100%; text-align: left; border: 0; background: none; color: var(--ink); padding: 6px 8px; border-radius: 6px; cursor: pointer; font: inherit; }
+  nav button:hover { background: var(--accent-soft); }
+  nav button.active { background: var(--accent); color: #fff; }
+  nav button:disabled { color: var(--muted); cursor: default; background: none; }
+  nav button:disabled::after { content: " · not drawn yet"; font-size: 11px; }
+  main { overflow: auto; padding: 18px; }
+  main header { margin-bottom: 8px; }
+  main header h2 { margin: 0 0 4px; font-size: 18px; }
+  main header p { margin: 0; color: var(--muted); max-width: 70ch; }
+  svg { display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  aside { border-left: 1px solid var(--line); background: var(--panel); padding: 16px; overflow: auto; }
+  aside h3 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  aside .shape { font-size: 12px; color: var(--accent); margin-bottom: 8px; }
+  aside .title { font-weight: 600; margin-bottom: 6px; }
+  aside .tip { color: var(--ink); }
+  aside .hint { color: var(--muted); font-style: italic; }
+  .node { cursor: pointer; }
+  .node .shape { fill: var(--process); stroke: var(--stroke); stroke-width: 1.5; transition: stroke-width .1s; }
+  .node.start .shape { fill: var(--start); }
+  .node.decision .shape { fill: var(--decision); }
+  .node.io .shape { fill: var(--io); }
+  .node.data .shape { fill: var(--data); }
+  .node.doc .shape { fill: var(--doc); }
+  .node.conn .shape { fill: var(--conn); }
+  .node.end-bad .shape { fill: var(--end-bad); }
+  .node.end-good .shape { fill: var(--end-good); }
+  .node.place .shape { fill: none; stroke-dasharray: 6 4; }
+  .node.note .shape { fill: none; }
+  .node.sub .shape { fill: var(--process); }
+  .node.note text { font-style: italic; fill: var(--muted); }
+  .node:hover .shape, .node.lit .shape { stroke: var(--accent); stroke-width: 3; }
+  .node text { fill: var(--ink); font-size: 12px; pointer-events: none; }
+  .edge path { fill: none; stroke: var(--stroke); stroke-width: 1.4; }
+  .edge .lbl rect { fill: var(--panel); stroke: var(--line); stroke-width: 1; }
+  .edge text { font-size: 11px; font-weight: 600; fill: var(--muted); dominant-baseline: middle; text-anchor: middle; }
+  .edge.yes text { fill: var(--yes); }
+  .edge.no text { fill: var(--no); }
+  .edge.yes path { stroke: var(--yes); }
+  .edge.no path { stroke: var(--no); }
+  .edge.yes .lbl rect { stroke: var(--yes); }
+  .edge.no .lbl rect { stroke: var(--no); }
+  .note { fill: var(--muted); font-size: 11px; font-style: italic; }
+  main { min-width: 0; }
+  .bar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .bar select { display: none; font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); flex: 1; min-width: 0; }
+  .bar button { font: inherit; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; min-height: 40px; }
+  .bar button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  #canvas { overflow: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y pinch-zoom; }
+  #canvas.fit svg { width: 100%; height: auto; }
+  aside .close { display: none; }
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; height: auto; }
+    nav { display: none; }
+    .bar select { display: block; }
+    main { padding: 12px; padding-bottom: 45vh; }
+    aside { position: fixed; left: 0; right: 0; bottom: 0; max-height: 42vh; overflow: auto; border: 0; border-top: 1px solid var(--line); box-shadow: 0 -6px 20px rgba(0,0,0,.12); border-radius: 14px 14px 0 0; padding: 12px 16px 20px; z-index: 5; transform: translateY(calc(100% - 44px)); transition: transform .2s; }
+    aside.open { transform: none; }
+    aside .close { display: block; position: absolute; right: 12px; top: 8px; border: 0; background: none; font: inherit; color: var(--accent); cursor: pointer; padding: 4px 8px; }
+    aside h3 { cursor: pointer; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav id="nav"><h1>Vantage flows</h1></nav>
+  <main>
+    <div class="bar">
+      <select id="pick" aria-label="Choose a diagram"></select>
+      <button id="prev" title="Previous diagram">‹ Prev</button>
+      <button id="next" title="Next diagram">Next ›</button>
+      <button id="fit" title="Fit the whole diagram on screen, or show it at full size">Fit</button>
+    </div>
+    <header><h2 id="dTitle"></h2><p id="dDesc"></p></header>
+    <div id="canvas"></div>
+  </main>
+  <aside id="aside">
+    <button class="close" id="asideClose">Close</button>
+    <h3 id="asideTitle">Explanation</h3>
+    <div class="shape" id="eShape"></div>
+    <div class="title" id="eTitle"></div>
+    <div class="tip" id="eTip"><span class="hint">Hover over any shape (or tap it on a phone) and its explanation appears here.</span></div>
+  </aside>
+</div>
+
+<script>
+// ---------- The diagrams. Grid positions: c = column, r = row. ----------
+// Node types: start, end-bad, end-good (ovals), process (rectangle), decision (diamond),
+// io (parallelogram), data (cylinder), doc (document), conn (small circle = go to another diagram).
+
+const SHAPE_NAMES = {
+  start: 'Oval · Start', 'end-bad': 'Oval · End (refused)', 'end-good': 'Oval · End', process: 'Rectangle · Action',
+  decision: 'Diamond · Question', io: 'Parallelogram · Input / Output', data: 'Cylinder · Stored data',
+  doc: 'Document · A file that comes out', conn: 'Circle · Continue on another diagram',
+  place: 'Dashed box · A place or setting, not a step', note: 'Bracket · A side note, not part of the flow',
+  sub: 'Double-barred box · A whole flow drawn on another diagram',
+};
+
+const DIAGRAMS = {
+  D00: {
+    title: 'D00 · Legend',
+    desc: 'The shapes every flowchart uses. Hover each one to read what it means. All the other diagrams are built from these.',
+    nodes: [
+      { id: 'a', type: 'start', c: 0, r: 0, label: 'Start or End', tip: 'An oval marks where a flow begins or where it stops. Green ends are good ("Done"). Red ends are refusals ("Link expired").' },
+      { id: 'b', type: 'process', c: 1, r: 0, label: 'Action', tip: 'A rectangle is one thing that somebody, or the computer, does. "Click the link." "Open the prototype."' },
+      { id: 'c', type: 'decision', c: 2, r: 0, label: 'Question?', tip: 'A diamond is a question with two or more exits, usually Yes and No. The flow follows the exit that is true.' },
+      { id: 'd', type: 'io', c: 3, r: 0, label: 'Input / Output', tip: 'A slanted box is information going in (you type something) or coming out (a page is shown to you).' },
+      { id: 'e', type: 'data', c: 0, r: 1, label: 'Stored data', tip: 'A cylinder is something saved on the server, like the access log (the diary of who opened what).' },
+      { id: 'f', type: 'doc', c: 1, r: 1, label: 'Document', tip: 'A page with a wavy bottom is a file that comes out, like an exported report.' },
+      { id: 'g', type: 'conn', c: 2, r: 1, label: 'D15', tip: 'A small circle means "this flow continues on another diagram". The label says which one.' },
+      { id: 'h', type: 'end-bad', c: 3, r: 1, label: 'Refused', tip: 'A red oval is an end where the person is turned away. Every refusal names its reason.' },
+      { id: 'i', type: 'place', c: 0, r: 2, label: 'Place or setting', tip: 'A dashed box is not a step. It is where the steps happen, or a state things are in: "hosted", "on a phone", "recording on". You do not do a place; you are in one.' },
+      { id: 'k', type: 'sub', c: 2, r: 2, label: 'A whole flow drawn elsewhere', tip: 'A box with double side bars stands for a whole diagram drawn somewhere else. The master map (D19) is made of these.' },
+      { id: 'j', type: 'note', c: 1, r: 2, label: 'A side note, like an analogy, that explains but is not part of the flow', tip: 'The bracket is the standard annotation symbol. Use it for a plain-words explanation next to a hard part. Nothing flows into or out of it.' },
+    ],
+    edges: [
+      { from: 'a', to: 'b', label: 'arrow', tip: 'An arrow means "what happens next". A label on it (Yes / No) says which exit of a question it is.' },
+      { from: 'b', to: 'c' }, { from: 'c', to: 'd', label: 'Yes', kind: 'yes' },
+    ],
+  },
+
+  D14: {
+    title: 'D14 · The Viewer\'s door',
+    desc: 'What happens between a Viewer clicking their personal link and the prototype opening. Identical on hosted and self-hosted copies. The one exception, company-login entry, is the grey path on the right. Read top to bottom; every red oval is a refusal.',
+    nodes: [
+      { id: 'start', type: 'start', c: 1, r: 0, label: 'Viewer clicks their personal link', tip: 'The Viewer got a message from the Tester with a link made just for them. The link carries a secret key at its end, after a # sign.' },
+      { id: 'gate', type: 'process', c: 1, r: 1, label: 'Door page opens. The key is read from the link and wiped from the address bar', tip: 'The first page is a plain "door". It quietly takes the secret out of the link and hands it to the server, then removes it from the address bar so it never ends up in a browser history or a log.' },
+      { id: 'hasKey', type: 'decision', c: 1, r: 2, label: 'Did the link carry a key?', tip: 'Someone might open the address without the secret part, for example by retyping it. Without a key, the door cannot know who they are.' },
+      { id: 'noKey', type: 'end-bad', c: 0, r: 2, label: '"Invitation required"', tip: 'The page says: this prototype is confidential, open it using the personal link you were sent, or ask the person who shared it.' },
+      { id: 'rate', type: 'decision', c: 1, r: 3, label: 'Too many attempts from this address?', tip: 'If one computer tries the door many times in a few minutes, it is told to wait. This stops someone guessing keys.' },
+      { id: 'slow', type: 'end-bad', c: 0, r: 3, label: '"Slow down"', tip: 'Too many attempts. Try again in a few minutes.' },
+      { id: 'valid', type: 'decision', c: 1, r: 4, label: 'Is the key known and still switched on?', tip: 'The server keeps a scrambled copy of every key it made. It checks this one matches, and that the Tester has not switched this person off (revoked them).' },
+      { id: 'invalid', type: 'end-bad', c: 0, r: 4, label: '"Link not valid"', tip: 'Either the key is wrong (mistyped, made up) or the Tester revoked this person. The page says: ask the person who shared it for a new link. The attempt is written to the access log.' },
+      { id: 'active', type: 'decision', c: 1, r: 5, label: 'Is the share still active?', tip: 'A share stops when its expiry date passes, or when the Tester withdraws the whole thing. Then every key on it stops working.' },
+      { id: 'gone', type: 'end-bad', c: 0, r: 5, label: '"No longer available"', tip: 'The page says either "this link has expired" or "access has been withdrawn", depending on which happened.' },
+      { id: 'limit', type: 'decision', c: 1, r: 6, label: 'Has this person hit their open limit?', tip: 'The Tester can set how many times one person may open the prototype. This is optional; most shares have no limit.' },
+      { id: 'limitEnd', type: 'end-bad', c: 0, r: 6, label: '"Open limit reached"', tip: 'This invitation has been used the maximum number of times.' },
+      { id: 'admit', type: 'process', c: 1, r: 7, label: 'Let in. Browser remembers them for a few hours. The opening is written down', tip: 'The server gives the browser a small "remember me" note (a session) so the Viewer is not asked again for a few hours. It also writes "this person opened it, at this time, from this place" in the access log.' },
+      { id: 'log', type: 'data', c: 0, r: 7, label: 'Access log', tip: 'The diary. Every opening and every refusal lands here, with time and rough location. The Tester reads it on the "Access log" tab. This is how a forwarded link gets noticed.' },
+      { id: 'needSign', type: 'decision', c: 1, r: 8, label: 'Does the share say "must sign in with Google"?', tip: 'An optional extra lock the Tester can turn on. It makes a forwarded link useless, because the link then only opens for the Google account it was sent to. Only possible where Google sign-in is set up: always on hosted, only sometimes on self-hosted. This is the exception to "same everywhere".' },
+      { id: 'google', type: 'process', c: 2, r: 8, label: 'Sign in with Google', tip: 'The page says "Hi Sam, this opens only for the Google account sam@…". A button sends them to Google\'s own sign-in and back.' },
+      { id: 'sameAddr', type: 'decision', c: 3, r: 8, label: 'Same address the link was sent to?', tip: 'The server compares the Google account they used with the email the Tester typed when inviting them.' },
+      { id: 'wrongAddr', type: 'end-bad', c: 4, r: 8, label: '"Not the invited address"', tip: 'The page says: you signed in as X, but this link was sent to Y. Sign in with that account, or ask the person who shared it to invite this one. The mismatch is written to the access log.' },
+      { id: 'needPass', type: 'decision', c: 1, r: 9, label: 'Does the share have a passcode?', tip: 'Another optional lock. The Tester tells the Viewer the passcode by a different route (a call, a text), so a stolen link alone is not enough.' },
+      { id: 'typePass', type: 'io', c: 2, r: 9, label: 'Type the passcode', tip: 'The page says "Hi Sam, this prototype also needs the passcode you were given separately" with one box and a Continue button.' },
+      { id: 'passOk', type: 'decision', c: 3, r: 9, label: 'Correct?', tip: 'Right or wrong is written to the access log either way. After about eight wrong tries from one place the door says "Too many attempts, wait a while".' },
+      { id: 'passMany', type: 'end-bad', c: 4, r: 9, label: '"Too many attempts"', tip: 'About eight wrong passcodes in fifteen minutes from one place, and the door pauses. Wait a while and try again.' },
+      { id: 'shell', type: 'process', c: 1, r: 10, label: 'The prototype screen opens', tip: 'The Viewer is through the door. What they see next depends on whether the Tester set up a test: an intro or consent screen first, or straight to the prototype with their name watermarked over it.' },
+      { id: 'next', type: 'conn', c: 1, r: 11, label: 'D15', tip: 'Continue on diagram D15: Consent and recording. From there, D16 (doing the test) or D17 (a view-only visit).' },
+      // Company-login side entrance (self-hosted only)
+      { id: 'sso', type: 'start', c: 3, r: 0, label: 'Employee opens the share address, already signed in to the company (self-hosted only)', tip: 'Exception. On a self-hosted copy that sits behind the company\'s own login (SSO), an employee can arrive without any personal link. The company login already told the server who they are.' },
+      { id: 'ssoOk', type: 'decision', c: 3, r: 1, label: 'Does the share allow their email or their company domain?', tip: 'The Tester can allow "anyone @company.com" or specific addresses on a share. If so, this person is let in and added to the viewer list automatically.' },
+      { id: 'ssoNo', type: 'end-bad', c: 4, r: 1, label: '"Not invited"', tip: 'The page says: you are signed in as X, but this prototype has not been shared with you.' },
+    ],
+    edges: [
+      { from: 'start', to: 'gate' },
+      { from: 'gate', to: 'hasKey' },
+      { from: 'hasKey', to: 'noKey', label: 'No', kind: 'no' },
+      { from: 'hasKey', to: 'rate', label: 'Yes', kind: 'yes' },
+      { from: 'rate', to: 'slow', label: 'Yes', kind: 'no' },
+      { from: 'rate', to: 'valid', label: 'No', kind: 'yes' },
+      { from: 'valid', to: 'invalid', label: 'No', kind: 'no' },
+      { from: 'valid', to: 'active', label: 'Yes', kind: 'yes' },
+      { from: 'active', to: 'gone', label: 'No', kind: 'no' },
+      { from: 'active', to: 'limit', label: 'Yes', kind: 'yes' },
+      { from: 'limit', to: 'limitEnd', label: 'Yes', kind: 'no' },
+      { from: 'limit', to: 'admit', label: 'No', kind: 'yes' },
+      { from: 'admit', to: 'log', label: 'writes', kind: 'plain', dashed: true },
+      { from: 'admit', to: 'needSign' },
+      { from: 'needSign', to: 'google', label: 'Yes', kind: 'yes' },
+      { from: 'google', to: 'sameAddr' },
+      { from: 'sameAddr', to: 'wrongAddr', label: 'No', kind: 'no' },
+      { from: 'sameAddr', to: 'needPass', label: 'Yes', kind: 'yes', route: 'downLeft' },
+      { from: 'needSign', to: 'needPass', label: 'No', kind: 'plain' },
+      { from: 'needPass', to: 'typePass', label: 'Yes', kind: 'yes' },
+      { from: 'typePass', to: 'passOk' },
+      { from: 'passOk', to: 'typePass', label: 'Wrong', kind: 'no', route: 'loopBelow' },
+      { from: 'passOk', to: 'passMany', label: 'Too many', kind: 'no' },
+      { from: 'passOk', to: 'shell', label: 'Yes', kind: 'yes', route: 'downSide' },
+      { from: 'needPass', to: 'shell', label: 'No', kind: 'plain' },
+      { from: 'shell', to: 'next' },
+      { from: 'sso', to: 'ssoOk' },
+      { from: 'ssoOk', to: 'ssoNo', label: 'No', kind: 'no' },
+      { from: 'ssoOk', to: 'admit', label: 'Yes', kind: 'yes', route: 'downLeft' },
+    ],
+  },
+  D15: {
+    title: 'D15 · Consent and recording',
+    desc: 'After the door. If the Tester set up a test, the Viewer is told what would be recorded and chooses. Nothing is recorded before they answer. Same everywhere.',
+    nodes: [
+      { id: 'start', type: 'start', c: 1, r: 0, label: 'Through the door (from D14)', tip: 'The Viewer has passed every check in D14 and the prototype screen is loading.' },
+      { id: 'test', type: 'decision', c: 1, r: 1, label: 'Did the Tester set up a test, or write an intro?', tip: 'A share is view-only unless the Tester added tasks or turned on recording. If nothing was set up and no intro was written, there is no screen here at all.' },
+      { id: 'viewOnly', type: 'conn', c: 3, r: 1, label: 'D17', tip: 'Nothing to ask. Go to D17: a view-only visit.' },
+      { id: 'consent', type: 'io', c: 1, r: 2, label: 'Consent screen: the intro (if any) and a plain list of what would be recorded', tip: 'The screen says "The designer would like to record how you use the prototype" and lists exactly what: taps and clicks, screens visited, which fields were focused (never what is typed unless the Tester switched that on), and anything the prototype itself notes. If the Tester only wrote a welcome and records nothing, this screen just says Continue.' },
+      { id: 'extras', type: 'decision', c: 1, r: 3, label: 'Voice or screen recording offered?', tip: 'Each is off unless the Tester turned it on for this share. Screen recording is only offered on desktop browsers.' },
+      { id: 'switches', type: 'io', c: 2, r: 3, label: 'Two switches, on by default: record my voice; record my screen (this tab only)', tip: 'The Viewer can flip either off before agreeing. Voice is for thinking aloud. Screen is a video of this one browser tab, about 5 MB a minute.' },
+      { id: 'choose', type: 'decision', c: 1, r: 4, label: '"Record my session" or "Don\'t record"?', tip: 'Two buttons. Saying no is a real choice: they still get to see the prototype.' },
+      { id: 'no', type: 'place', c: 0, r: 4, label: 'Nothing is recorded, only that they opened it', tip: 'Their "no" is saved so they are not asked again. The Tester will see that this person opened the prototype and declined recording, and nothing else.' },
+      { id: 'yes', type: 'process', c: 1, r: 5, label: 'Choice saved. Taps and screens start being recorded', tip: 'From this moment, every tap, click and screen change is sent to the server and kept with this session. It stops if the session hits its size limit, so one person cannot fill the disk.' },
+      { id: 'want', type: 'decision', c: 1, r: 6, label: 'Voice or screen switch left on?', tip: 'Only if the Tester offered them and the Viewer did not flip them off.' },
+      { id: 'browser', type: 'process', c: 2, r: 6, label: 'The browser itself asks: allow the microphone? Which tab to share?', tip: 'These prompts come from Chrome, Safari or Firefox, not from Vantage. Vantage cannot skip them. For screen, the Viewer must pick this tab.' },
+      { id: 'allowed', type: 'decision', c: 3, r: 6, label: 'Allowed?', tip: 'The Viewer can say no to the browser, or pick the wrong tab, or have no microphone.' },
+      { id: 'denied', type: 'process', c: 4, r: 6, label: 'Continues without that recording', tip: 'Not an error. Taps and screens are still recorded; only the refused part is skipped.' },
+      { id: 'pill', type: 'place', c: 3, r: 7, label: 'Recording, with a red pill and a Stop button in the header', tip: 'Always visible while voice or screen is recording, with a level meter for the voice. Stop ends it at any time. The browser\'s own "Stop sharing" bar does the same.' },
+      { id: 'open', type: 'process', c: 1, r: 8, label: 'Prototype opens full screen, their email watermarked across it', tip: 'The prototype itself runs inside a locked frame. Their email is printed faintly over every screen so a leaked screenshot can be traced.' },
+      { id: 'next', type: 'conn', c: 1, r: 9, label: 'D16', tip: 'Continue on D16: doing the test (tasks, feedback, stopping, leaving).' },
+    ],
+    edges: [
+      { from: 'start', to: 'test' },
+      { from: 'test', to: 'viewOnly', label: 'No', kind: 'no' },
+      { from: 'test', to: 'consent', label: 'Yes', kind: 'yes' },
+      { from: 'consent', to: 'extras' },
+      { from: 'extras', to: 'switches', label: 'Yes', kind: 'yes' },
+      { from: 'switches', to: 'choose', route: 'downLeft' },
+      { from: 'extras', to: 'choose', label: 'No', kind: 'plain' },
+      { from: 'choose', to: 'no', label: 'Don\'t record', kind: 'no' },
+      { from: 'choose', to: 'yes', label: 'Record', kind: 'yes' },
+      { from: 'no', to: 'open', route: 'downLeft' },
+      { from: 'yes', to: 'want' },
+      { from: 'want', to: 'browser', label: 'Yes', kind: 'yes' },
+      { from: 'browser', to: 'allowed' },
+      { from: 'allowed', to: 'denied', label: 'No', kind: 'no' },
+      { from: 'allowed', to: 'pill', label: 'Yes', kind: 'yes' },
+      { from: 'denied', to: 'open', route: 'downLeft' },
+      { from: 'pill', to: 'open', route: 'downLeft' },
+      { from: 'want', to: 'open', label: 'No', kind: 'plain' },
+      { from: 'open', to: 'next' },
+    ],
+  },
+
+  D16: {
+    title: 'D16 · Doing the test',
+    desc: 'The Viewer inside a usability test: tasks appear, they try each one and say how it went, and they can send feedback or stop recording at any time. The right column is things they can do whenever they like.',
+    nodes: [
+      { id: 'start', type: 'start', c: 1, r: 0, label: 'Prototype open, tasks set (from D15)', tip: 'The Tester wrote a list of tasks or questions when making the share.' },
+      { id: 'panel', type: 'process', c: 1, r: 1, label: 'Tasks panel opens on desktop. On a phone: "3 tasks to try, tap Tasks"', tip: 'On a wide screen the panel slides in on the right. On a phone it is a bottom sheet behind a Tasks button, so the prototype keeps the room. In a moderated test the panel stays closed and the moderator leads.' },
+      { id: 'appear', type: 'process', c: 1, r: 2, label: 'A task appears: at the start, after another task, after some minutes, or on reaching a screen', tip: 'The Tester chose when each task shows up. A small toast says "New task: …". A badge on the Tasks button counts what is left.' },
+      { id: 'try', type: 'process', c: 1, r: 3, label: 'Viewer tries it in the prototype', tip: 'They use the prototype as they would the real thing. If recording is on, every tap and screen is kept with this session.' },
+      { id: 'kind', type: 'decision', c: 1, r: 4, label: 'A question or a task?', tip: 'Two kinds. A question wants a typed answer. A task wants to know whether they managed it.' },
+      { id: 'answer', type: 'io', c: 2, r: 4, label: 'Type an answer, press "Send answer"', tip: 'Free text. Saved with the screen they were on.' },
+      { id: 'mark', type: 'io', c: 1, r: 5, label: 'Press "Completed" or "Couldn\'t do it", with an optional note', tip: 'One tap each. The note is optional. The card then shows "Marked as completed" or "Marked as could not complete".' },
+      { id: 'results', type: 'data', c: 0, r: 5, label: 'Results', tip: 'Every answer, mark, note and piece of feedback lands here, with the prototype screen it happened on. The Tester reads it on the "Feedback & results" tab (D11).' },
+      { id: 'left', type: 'decision', c: 1, r: 6, label: 'Any tasks left?', tip: 'A toast says "2 left", or "All done, thank you" when the last one is marked. Tasks scheduled for later still count as left.' },
+      { id: 'done', type: 'end-good', c: 1, r: 7, label: '"All done, thank you"', tip: 'The prototype stays open; they can keep exploring, send more feedback, or close the tab. There is no separate goodbye page.' },
+      { id: 'any', type: 'place', c: 3, r: 0, label: 'Available at any time, in any order', tip: 'These do not wait for a task. They are always one tap away in the header.' },
+      { id: 'fb', type: 'io', c: 3, r: 1, label: 'Feedback button: write a note, the screen is attached automatically', tip: 'A text box and a Send button. Vantage attaches which prototype screen they were looking at. A toast confirms "Thanks, feedback sent".' },
+      { id: 'stop', type: 'process', c: 3, r: 2, label: 'Stop on the Recording pill ends voice or screen recording', tip: 'Taps and screens keep being recorded; only the voice or video stops. Recording also stops by itself when the share\'s media limit is reached, with a note saying so.' },
+      { id: 'hide', type: 'process', c: 3, r: 3, label: 'Hide tasks for this session', tip: 'Puts the list away until they open the link again. Nothing is deleted.' },
+      { id: 'fs', type: 'process', c: 3, r: 4, label: 'Full screen', tip: 'Makes the prototype fill the display. The watermark and the header stay.' },
+      { id: 'close', type: 'end-bad', c: 3, r: 5, label: 'Closes the tab midway', tip: 'Allowed at any moment. Whatever was recorded so far is kept as a partial session. The Tester sees which tasks were never marked. Reopening the link within a few hours continues the same session (D18).' },
+    ],
+    edges: [
+      { from: 'start', to: 'panel' }, { from: 'panel', to: 'appear' }, { from: 'appear', to: 'try' }, { from: 'try', to: 'kind' },
+      { from: 'kind', to: 'answer', label: 'Question', kind: 'plain' },
+      { from: 'kind', to: 'mark', label: 'Task', kind: 'plain' },
+      { from: 'answer', to: 'left', route: 'downLeft' },
+      { from: 'mark', to: 'results', label: 'saved', kind: 'plain', dashed: true },
+      { from: 'mark', to: 'left' },
+      { from: 'left', to: 'appear', label: 'Yes', kind: 'yes', route: 'loopLeft', lane: 'far' },
+      { from: 'left', to: 'done', label: 'No', kind: 'plain' },
+          ],
+  },
+
+  D17: {
+    title: 'D17 · A view-only visit',
+    desc: 'The simplest visit. No test, no consent screen, no recording beyond the fact that it was opened. Same everywhere.',
+    nodes: [
+      { id: 'start', type: 'start', c: 1, r: 0, label: 'Through the door, no test set up (from D14)', tip: 'The Tester made a plain share: files, people, expiry. Nothing about how it is used gets recorded.' },
+      { id: 'intro', type: 'decision', c: 1, r: 1, label: 'Did the Tester write an intro?', tip: 'Optional welcome text or a short video: who shared this, that it is confidential, when it expires.' },
+      { id: 'introScreen', type: 'io', c: 2, r: 1, label: 'Intro screen, then "Continue"', tip: 'Shown once per session. No choices to make.' },
+      { id: 'open', type: 'process', c: 1, r: 2, label: 'Prototype opens full screen, their email watermarked across it', tip: 'Same frame and watermark as a test. Full screen button in the header.' },
+      { id: 'log', type: 'data', c: 0, r: 2, label: 'Access log', tip: 'Only "opened, when, from where" is written. No taps, no screens, nothing typed.' },
+      { id: 'use', type: 'process', c: 1, r: 3, label: 'Viewer clicks around as long as they like', tip: 'Nothing is watched. If they come back within a few hours, they walk straight in (D18).' },
+      { id: 'fbq', type: 'decision', c: 1, r: 4, label: 'Wants to say something?', tip: 'The Feedback button is there even on a view-only share.' },
+      { id: 'fb', type: 'io', c: 2, r: 4, label: 'Feedback: write a note, the screen is attached', tip: 'This is the one thing a view-only Viewer can send. It shows up on the Tester\'s results tab.' },
+      { id: 'close', type: 'end-good', c: 1, r: 5, label: 'Closes the tab', tip: 'Done. There is no goodbye page. Their name stays on the Tester\'s viewer list with "last seen" and a count of opens.' },
+    ],
+    edges: [
+      { from: 'start', to: 'intro' },
+      { from: 'intro', to: 'introScreen', label: 'Yes', kind: 'yes' },
+      { from: 'introScreen', to: 'open', route: 'downLeft' },
+      { from: 'intro', to: 'open', label: 'No', kind: 'plain' },
+      { from: 'open', to: 'log', label: 'writes', kind: 'plain', dashed: true },
+      { from: 'open', to: 'use' }, { from: 'use', to: 'fbq' },
+      { from: 'fbq', to: 'fb', label: 'Yes', kind: 'yes' },
+      { from: 'fb', to: 'close', route: 'downLeft' },
+      { from: 'fbq', to: 'close', label: 'No', kind: 'plain' },
+    ],
+  },
+  D18: {
+    title: 'D18 · Coming back, on a phone, in the desktop app',
+    desc: 'Three variations on the same visit. Coming back later depends on how much time has passed. A phone and the desktop app change the frame, not the steps.',
+    nodes: [
+      { id: 'start', type: 'start', c: 1, r: 0, label: 'Viewer opens the same link again', tip: 'They already got in once. What happens now depends on how long ago that was.' },
+      { id: 'sess', type: 'decision', c: 1, r: 1, label: 'Still within the same session (about 8 hours)?', tip: 'After the door, the browser holds a "remember me" note for a number of hours the operator sets (8 by default). While it lasts, no checks are repeated.' },
+      { id: 'straight', type: 'process', c: 2, r: 1, label: 'Straight to the prototype. Tasks and answers are where they left them', tip: 'No door, no consent screen again. If they hid the tasks, they stay hidden for this session.' },
+      { id: 'active', type: 'decision', c: 1, r: 2, label: 'Is the share still active?', tip: 'Expired or withdrawn shares refuse everyone, however many times they got in before.' },
+      { id: 'gone', type: 'end-bad', c: 0, r: 2, label: '"No longer available"', tip: 'Same page as in D14.' },
+      { id: 'key', type: 'decision', c: 1, r: 3, label: 'Does the link they kept still carry a key?', tip: 'The very first open wiped the key from the address bar. If they bookmarked the page afterwards, the bookmark has no key. The original message still does.' },
+      { id: 'noKey', type: 'end-bad', c: 0, r: 3, label: '"Invitation required"', tip: 'The page says to open it from the personal link they were sent. Going back to the original message fixes it.' },
+      { id: 'door', type: 'conn', c: 1, r: 4, label: 'D14', tip: 'The key is checked again exactly as in D14: valid, not revoked, open limit, sign-in, passcode. Then a fresh session starts and a new open is counted.' },
+      { id: 'phone', type: 'place', c: 3, r: 0, label: 'On a phone', tip: 'Any Viewer flow at phone width. Same steps, different frame.' },
+      { id: 'p1', type: 'place', c: 3, r: 1, label: 'Tasks and Feedback become bottom sheets behind two buttons', tip: 'The prototype keeps the whole screen. A toast says "3 tasks to try, tap Tasks".' },
+      { id: 'p2', type: 'place', c: 3, r: 2, label: 'Screen recording is not offered', tip: 'Phone browsers cannot record a tab. Voice can still be offered. The consent list adapts.' },
+      { id: 'p3', type: 'place', c: 3, r: 3, label: 'Watermark stays readable', tip: 'Their email is still printed over the prototype.' },
+      { id: 'app', type: 'place', c: 4, r: 0, label: 'In the desktop viewer app', tip: 'Optional. The Tester tells the Viewer to use it for sensitive work. Mac and Windows only.' },
+      { id: 'a1', type: 'process', c: 4, r: 1, label: 'Viewer installs the app from where the Tester says', tip: 'It is not in an app store and not yet signed with a developer certificate, so the computer may warn before opening it.' },
+      { id: 'a2', type: 'process', c: 4, r: 2, label: 'Opens the personal link inside the app', tip: 'Everything from D14 onward happens inside the app window instead of a browser tab.' },
+      { id: 'a3', type: 'place', c: 4, r: 3, label: 'Screenshots and screen sharing of the window come out black', tip: 'The operating system is told this window is protected. A phone camera pointed at the screen still works; nothing stops that.' },
+    ],
+    edges: [
+      { from: 'start', to: 'sess' },
+      { from: 'sess', to: 'straight', label: 'Yes', kind: 'yes' },
+      { from: 'sess', to: 'active', label: 'No', kind: 'plain' },
+      { from: 'active', to: 'gone', label: 'No', kind: 'no' },
+      { from: 'active', to: 'key', label: 'Yes', kind: 'yes' },
+      { from: 'key', to: 'noKey', label: 'No', kind: 'no' },
+      { from: 'key', to: 'door', label: 'Yes', kind: 'yes' },
+            { from: 'app', to: 'a1' }, { from: 'a1', to: 'a2' }, { from: 'a2', to: 'a3' },
+    ],
+  },
+
+  D01: {
+    title: 'D01 · The big picture',
+    desc: 'The whole story as one loop, read clockwise from the top left: the Tester puts a prototype in, a link goes out by hand, the Viewer uses it, and what they did comes back to the Tester. Underneath, in dashed boxes because they are places and not steps: where Vantage lives.',
+    nodes: [
+      { id: 't0', type: 'start', c: 0, r: 0, label: 'Tester has a working prototype', tip: 'Made with Claude or any tool that produces web page files. It works when you press its buttons.' },
+      { id: 'make', type: 'process', c: 1, r: 0, label: 'Tester makes a share: drops the folder, names the people, sets the expiry', tip: 'In the console, from the command line, or by asking Claude. Optionally adds tasks to turn it into a usability test (D07, D08, D06).' },
+      { id: 'v', type: 'place', c: 2, r: 0, label: 'Vantage: a locked room with a guest list', tip: 'Keeps the files encrypted. Makes one personal link per person. Checks every visitor at the door. Writes down who came. Records how the prototype is used only if the Tester set up a test and the Viewer agreed.' },
+      { id: 'links', type: 'io', c: 3, r: 0, label: 'One personal link per person, shown once', tip: 'The link is the key. It is tied to one email, can be switched off, and stops at expiry.' },
+      { id: 'send', type: 'process', c: 3, r: 1, label: 'Tester sends each link by hand, one message per person', tip: 'Vantage sends no email and calls no outside service, on purpose. The Tester pastes each link into a message (D09).' },
+      { id: 'v0', type: 'start', c: 4, r: 1, label: 'Viewer clicks their link', tip: 'Needs only a browser. No account, nothing to install. The door checks the link, then maybe a passcode or a sign-in (D14).' },
+      { id: 'v1', type: 'process', c: 4, r: 2, label: 'Viewer tries the prototype; maybe does tasks, maybe sends feedback', tip: 'D15, D16, D17. Their email is watermarked over every screen. Same experience whether Vantage is hosted or self-hosted.' },
+      { id: 'store', type: 'data', c: 3, r: 2, label: 'Vantage keeps: who came, and what they did', tip: 'The access log (every opening and refusal) and, for a test, the results (taps, screens, task marks, feedback, recordings). Deleted 30 days after the share expires.' },
+      { id: 'read', type: 'process', c: 2, r: 2, label: 'Tester reads the access log and the results', tip: 'Who opened it, from where, who was refused (D12). What each person did and said (D11).' },
+      { id: 'end', type: 'end-good', c: 1, r: 2, label: 'Tester revokes, extends, or lets it expire', tip: 'Any link can be switched off at any time. The whole share stops at its expiry date, then is deleted (D10, D13).' },
+      { id: 'w0', type: 'start', c: 0, r: 4, label: 'Where does Vantage live?', tip: 'A one-time choice per team. It changes how the Tester signs in, and nothing about what the Viewer sees.' },
+      { id: 'analogy', type: 'note', c: 0, r: 5, label: 'Like posting a letter: the letter is posted the same way whether the post office is a public one downtown or the mailroom inside your building', tip: 'Making a share is the letter. Hosted or self-hosted is the building. What changes is who else could see the mailroom and how you get through its door.' },
+      { id: 'w1', type: 'decision', c: 1, r: 4, label: 'May your prototypes sit on someone else\'s server?', tip: 'Company policy usually answers this.' },
+      { id: 'h', type: 'place', c: 2, r: 4, label: 'Hosted: it runs on someone else\'s computer on the internet. Tester signs in with Google', tip: 'No public hosted copy exists yet; the recipe does. Each person sees only their own shares and has per-person limits (D02).' },
+      { id: 'sh', type: 'place', c: 2, r: 5, label: 'Self-hosted: it runs on your own machine or your company\'s server', tip: 'One command on a laptop, or a company server behind the company login. Nothing leaves the building (D03, D04).' },
+      { id: 'same', type: 'end-good', c: 3, r: 4, label: 'Same product either way. The Viewer cannot tell the difference', tip: 'Same door, same screens, same words. Two small exceptions are marked in D14.' },
+    ],
+    edges: [
+      { from: 't0', to: 'make' }, { from: 'make', to: 'v', label: 'uploads', kind: 'plain' }, { from: 'v', to: 'links', label: 'makes', kind: 'plain' },
+      { from: 'links', to: 'send' },
+      { from: 'send', to: 'v0', label: 'by hand', kind: 'yes' },
+      { from: 'v0', to: 'v1' },
+      { from: 'v1', to: 'store', label: 'recorded', kind: 'plain' },
+      { from: 'store', to: 'read', label: 'shown to', kind: 'plain' },
+      { from: 'read', to: 'end' },
+      { from: 'w0', to: 'w1' },
+      { from: 'w1', to: 'h', label: 'Yes', kind: 'yes' },
+      { from: 'w1', to: 'sh', label: 'No', kind: 'no' },
+      { from: 'h', to: 'same' },
+      { from: 'sh', to: 'same', route: 'upRight' },
+    ],
+  },
+
+  D02: {
+    title: 'D02 · Tester gets in, hosted',
+    desc: 'How a designer reaches the console on a hosted copy. Two ways to arrive, one door: Google.',
+    nodes: [
+      { id: 'post', type: 'start', c: 0, r: 0, label: 'Reads the post or the README', tip: 'A stranger. Found Vantage on LinkedIn or GitHub.' },
+      { id: 'mate', type: 'start', c: 2, r: 0, label: 'A teammate sends the console address', tip: 'Someone already using it pastes the address in a message. Nothing more is needed; there are no invitations inside the product.' },
+      { id: 'landing', type: 'io', c: 0, r: 1, label: 'Landing page (does not exist yet): what it is, and the one question', tip: 'Gap: today there is no landing page. Strangers land straight on the sign-in form. The question is "may your prototypes sit on someone else\'s server?"' },
+      { id: 'signin', type: 'io', c: 1, r: 2, label: 'Sign-in page: "Sign in with Google"', tip: 'One button. The page says "Sign in to share prototypes with named people through private, expiring links." Every attempt, good or bad, is written to the access log.' },
+      { id: 'google', type: 'process', c: 1, r: 3, label: 'Google\'s own account picker and permission screen', tip: 'Google asks which account and whether to share the email address. Vantage only ever learns the email.' },
+      { id: 'listed', type: 'decision', c: 1, r: 4, label: 'Is this address, or its company domain, on the allowed list?', tip: 'The operator can allow specific emails or whole domains. If no list is set at all, anyone with a Google account may sign in ("open signup"). The public copy, when it exists, will decide this.' },
+      { id: 'refused', type: 'end-bad', c: 0, r: 4, label: '"Not on the list" for this address', tip: 'Gap: today this is a bare error. Should say "you are signed in as X, this copy is for Y, ask Z". They can try another account.' },
+      { id: 'limits', type: 'place', c: 1, r: 5, label: 'Per-person limits apply: number of shares, storage', tip: 'Set by the operator (or an entitlements module). Shown on the Account page as "you are at N of M".' },
+      { id: 'empty', type: 'end-good', c: 1, r: 6, label: 'Empty console: only your own shares, none yet', tip: 'Each person sees only what they created. A teammate\'s shares are invisible, which can be confusing. Next: D05, the sample.' },
+    ],
+    edges: [
+      { from: 'post', to: 'landing' },
+      { from: 'landing', to: 'signin', route: 'downLeft' },
+      { from: 'mate', to: 'signin', route: 'downLeft' },
+      { from: 'signin', to: 'google' }, { from: 'google', to: 'listed' },
+      { from: 'listed', to: 'refused', label: 'No', kind: 'no' },
+      { from: 'listed', to: 'limits', label: 'Yes', kind: 'yes' },
+      { from: 'limits', to: 'empty' },
+    ],
+  },
+
+  D03: {
+    title: 'D03 · Tester gets in, self-hosted, on a laptop',
+    desc: 'The one-command try-out. Nothing to configure, nothing to install beyond Node. This copy only answers on your own machine.',
+    nodes: [
+      { id: 'start', type: 'start', c: 1, r: 0, label: 'Tester has Node 20 or newer on their laptop', tip: 'Node is the one thing to install. It is the program that runs Vantage. No account, no Claude needed.' },
+      { id: 'run', type: 'io', c: 1, r: 1, label: 'Types one command in the terminal: node server/server.js', tip: 'The terminal is the text window where you type commands. This starts Vantage.' },
+      { id: 'first', type: 'decision', c: 1, r: 2, label: 'First ever start?', tip: 'Vantage checks whether it already has secrets saved next to its data.' },
+      { id: 'gen', type: 'process', c: 2, r: 2, label: 'Makes its own admin secret and encryption key, saves them next to the data', tip: 'Fine for a laptop, not for a shared server: the key sits beside the files it protects. The deployment guide moves it.' },
+      { id: 'print', type: 'io', c: 1, r: 3, label: 'Terminal prints: a link that signs you in, a Claude Code command, and the status lines', tip: 'The status lines say where the data lives, whether encryption is on, and that it listens on this machine only. The printed link carries the admin secret so you do not have to paste it.' },
+      { id: 'open', type: 'process', c: 1, r: 4, label: 'Tester opens the printed link in a browser', tip: 'Click it or copy it. It goes to the console already signed in.' },
+      { id: 'note', type: 'io', c: 1, r: 5, label: 'Console with a note: this copy is for your laptop only', tip: 'Nobody else can open links until the server is given a public address (D04). Good for trying the sample with yourself.' },
+      { id: 'empty', type: 'end-good', c: 1, r: 6, label: 'Empty console, signed in as the server admin', tip: 'The server admin sees everything on this copy. Next: D05, the sample.' },
+    ],
+    edges: [
+      { from: 'start', to: 'run' }, { from: 'run', to: 'first' },
+      { from: 'first', to: 'gen', label: 'Yes', kind: 'yes' },
+      { from: 'gen', to: 'print', route: 'downLeft' },
+      { from: 'first', to: 'print', label: 'No', kind: 'plain' },
+      { from: 'print', to: 'open' }, { from: 'open', to: 'note' }, { from: 'note', to: 'empty' },
+    ],
+  },
+
+  D04: {
+    title: 'D04 · Tester gets in, self-hosted, team server',
+    desc: 'An IT person (the Operator) stands the server up once, on the left. Then each designer arrives through one of three doors, on the right.',
+    nodes: [
+      { id: 'op', type: 'start', c: 0, r: 0, label: 'Operator reads the deployment guide', tip: 'The IT or engineering person. Exists only for self-hosted copies.' },
+      { id: 'how', type: 'decision', c: 0, r: 1, label: 'Docker, bare Node, or Cloud Run?', tip: 'Three recipes in the guide. Docker is one container. Bare Node is the same command as the laptop with settings. Cloud Run is Google\'s hosting.' },
+      { id: 'secrets', type: 'process', c: 0, r: 2, label: 'Generates the admin secret and the encryption key, keeps them outside the data folder', tip: 'Two commands make them. The key must not sit next to the encrypted files on a shared server.' },
+      { id: 'origins', type: 'process', c: 0, r: 3, label: 'Sets the public address and a second address for prototypes', tip: 'Two web addresses: one for the console and the door, one for the prototype files. Keeping them apart stops a prototype from reading the console. The same trick GitHub Pages uses.' },
+      { id: 'front', type: 'process', c: 0, r: 4, label: 'Puts the company login in front and lists the designers\' emails', tip: 'Optional but usual. The company\'s own sign-in (SSO) sits in front; the allowed designers go in a list called ADMIN_EMAILS. Or Google sign-in can be set up instead.' },
+      { id: 'health', type: 'decision', c: 0, r: 5, label: 'Does the health check answer?', tip: 'One address, /healthz, says "ok" when the server is up. The Server page in the console lists anything still wrong: encryption off, second address missing.' },
+      { id: 'fix', type: 'process', c: 1, r: 5, label: 'Fix what the Server page lists, then check again', tip: 'The Server page names each problem and how to fix it. Back to the health check until it answers.' },
+      { id: 'tell', type: 'process', c: 0, r: 6, label: 'Sends designers the console address', tip: 'By message. Vantage sends nothing. Off-product.' },
+      { id: 'd0', type: 'start', c: 2, r: 0, label: 'Designer gets the address the Operator sent (left column), or from a teammate', tip: 'Opens /admin in a browser.' },
+      { id: 'door', type: 'decision', c: 2, r: 1, label: 'Which door is set up?', tip: 'There are no passwords inside Vantage. Identity comes from one of three places, decided by the Operator.' },
+      { id: 'sso', type: 'process', c: 1, r: 2, label: 'Company sign-in: let in silently, no typing', tip: 'The company login already knows who they are and passes the email along. Nothing to type.' },
+      { id: 'goog', type: 'process', c: 2, r: 2, label: 'Google sign-in, as on a hosted copy', tip: 'Same as D02. Only if the Operator set it up.' },
+      { id: 'tok', type: 'io', c: 3, r: 2, label: 'Paste the server admin secret', tip: 'The fallback. The secret the Operator generated, pasted in a box on the sign-in page. Whoever holds it is the server admin and sees everything.' },
+      { id: 'listed', type: 'decision', c: 2, r: 3, label: 'Is their email on the list?', tip: 'For the company-login and Google doors. The admin secret skips this.' },
+      { id: 'no', type: 'end-bad', c: 1, r: 3, label: '"Signed in as X, but not on this server\'s list. Ask whoever runs it."', tip: 'The exact words on the page today. Reload after being added.' },
+      { id: 'empty', type: 'end-good', c: 2, r: 4, label: 'Empty console: only your own shares', tip: 'Next: D05, the sample. The server admin (secret holder) sees everyone\'s shares instead.' },
+    ],
+    edges: [
+      { from: 'op', to: 'how' }, { from: 'how', to: 'secrets' }, { from: 'secrets', to: 'origins' }, { from: 'origins', to: 'front' }, { from: 'front', to: 'health' },
+      { from: 'health', to: 'fix', label: 'No', kind: 'no' },
+      { from: 'health', to: 'tell', label: 'Yes', kind: 'yes' },
+      { from: 'd0', to: 'door' },
+      { from: 'door', to: 'sso', label: 'Company', kind: 'plain' },
+      { from: 'door', to: 'goog', label: 'Google', kind: 'plain' },
+      { from: 'door', to: 'tok', label: 'Secret', kind: 'plain' },
+      { from: 'sso', to: 'listed', route: 'downLeft' },
+      { from: 'goog', to: 'listed' },
+      { from: 'tok', to: 'empty', route: 'downLeft' },
+      { from: 'listed', to: 'no', label: 'No', kind: 'no' },
+      { from: 'listed', to: 'empty', label: 'Yes', kind: 'yes' },
+    ],
+  },
+  D05: {
+    title: 'D05 · First share, guided by the sample',
+    desc: 'The empty console offers a sample prototype. The Tester shares it with themselves, opens their own link, and sees exactly what a Viewer sees. Same on hosted and self-hosted.',
+    nodes: [
+      { id: 'start', type: 'start', c: 1, r: 0, label: 'Empty console (from D02, D03 or D04)', tip: 'No shares yet. A card explains the sample.' },
+      { id: 'email', type: 'io', c: 1, r: 1, label: 'Type your own email, click "Try it with the sample prototype"', tip: 'Your email becomes the one Viewer on this share. It is what the personal link is tied to and what the watermark shows.' },
+      { id: 'make', type: 'process', c: 1, r: 2, label: 'Vantage makes a share of the sample: tasks, intro, recording on', tip: 'A ready-made usability test so every part of the product shows up: consent screen, tasks, feedback button, results.' },
+      { id: 'link', type: 'io', c: 1, r: 3, label: 'Your personal link, shown once', tip: 'Same as any Viewer\'s link. Copy it if you want to open it on your phone too.' },
+      { id: 'open', type: 'process', c: 1, r: 4, label: 'Open it in a new tab. You are now a Viewer', tip: 'Best done in a second tab so the console stays open.' },
+      { id: 'door', type: 'conn', c: 2, r: 4, label: 'D14', tip: 'You walk through the door (D14), the consent screen (D15), the tasks and feedback (D16), as a Viewer would.' },
+      { id: 'back', type: 'io', c: 1, r: 5, label: 'Back in the console: the share\'s "Feedback & results" tab fills in as you click around', tip: 'Refreshes every few seconds while a session runs. You see your own taps, task marks and feedback arrive.' },
+      { id: 'results', type: 'data', c: 0, r: 5, label: 'Results', tip: 'Your session is stored like any Viewer\'s. Delete the sample share when done, or let it expire.' },
+      { id: 'ready', type: 'decision', c: 1, r: 6, label: 'Ready to share your own work?', tip: 'The sample has shown every screen. Nothing else is required to understand the product.' },
+      { id: 'explore', type: 'end-good', c: 0, r: 6, label: 'Explore the tabs: Viewers & links, Access log, Settings & files', tip: 'Every share has the same four tabs (D10).' },
+      { id: 'next', type: 'conn', c: 1, r: 7, label: 'D07', tip: 'Continue on D07: make a view-only share, or D08: set up a usability test.' },
+    ],
+    edges: [
+      { from: 'start', to: 'email' }, { from: 'email', to: 'make' }, { from: 'make', to: 'link' }, { from: 'link', to: 'open' },
+      { from: 'open', to: 'door', label: 'opens', kind: 'plain' },
+      { from: 'open', to: 'back' },
+      { from: 'back', to: 'results', label: 'reads', kind: 'plain', dashed: true },
+      { from: 'back', to: 'ready' },
+      { from: 'ready', to: 'explore', label: 'Not yet', kind: 'no' },
+      { from: 'ready', to: 'next', label: 'Yes', kind: 'yes' },
+    ],
+  },
+
+  D06: {
+    title: 'D06 · Connect Claude Code or the command line',
+    desc: 'Optional. Lets the Tester publish by asking Claude, or by typing one command, instead of clicking through the console. Ends with disconnecting.',
+    nodes: [
+      { id: 'start', type: 'start', c: 1, r: 0, label: 'Tester wants Claude or the terminal to publish for them', tip: 'Nobody needs this. The console does everything. This is for people who make prototypes in Claude Code and want to stay there.' },
+      { id: 'where', type: 'decision', c: 1, r: 1, label: 'Where does Vantage run?', tip: 'On the laptop the terminal already printed the setup. On a server the Account page gives it.' },
+      { id: 'laptop', type: 'io', c: 0, r: 2, label: 'The terminal printed the Claude Code command at start', tip: 'It looks like: claude mcp add vantage -- node ".../mcp/server.js". Paste it once.' },
+      { id: 'account', type: 'process', c: 1, r: 2, label: 'Account → "Connect a tool" → name it', tip: 'Each tool gets its own token so one can be disconnected without touching the others.' },
+      { id: 'token', type: 'io', c: 2, r: 2, label: 'A personal access token, shown once, inside a paste-ready command', tip: 'A token is a long secret that stands in for your sign-in. It is shown one time. Anyone holding it can publish as you, so it is treated like a password.' },
+      { id: 'paste', type: 'io', c: 1, r: 3, label: 'Paste the command in the terminal', tip: 'For Claude Code it registers Vantage as a tool Claude may use. For the plain command line it sets two environment variables (the address and the token).' },
+      { id: 'ask', type: 'io', c: 1, r: 4, label: 'In Claude Code: "Share the checkout prototype with A and B for a week"', tip: 'Or from the terminal: node cli/vantage.js publish ./folder --name "…" --viewers "…" --expires 7 --tasks "…".' },
+      { id: 'emails', type: 'decision', c: 1, r: 5, label: 'Did the Tester name every person\'s email?', tip: 'Claude does not know who your testers are. A personal link is tied to an email, so it needs each one.' },
+      { id: 'asks', type: 'process', c: 0, r: 5, label: 'Claude asks for the missing addresses', tip: 'It will not guess or invent an address.' },
+      { id: 'confirm', type: 'decision', c: 1, r: 6, label: 'Claude repeats the people and the expiry. Confirm?', tip: 'The last check before anything is published.' },
+      { id: 'nothing', type: 'end-bad', c: 0, r: 6, label: 'Nothing published', tip: 'Say what to change and ask again.' },
+      { id: 'inline', type: 'process', c: 1, r: 7, label: 'Makes the prototype self-contained, uploads it, invites the people', tip: 'Claude-made prototypes often load fonts or React from the internet. Vantage blocks that, so the tool first downloads those files into the folder. Then it uploads and creates the share.' },
+      { id: 'links', type: 'io', c: 1, r: 8, label: 'The links come back in the chat, one per person', tip: 'Same links as the console would show. Shown once.' },
+      { id: 'send', type: 'conn', c: 2, r: 8, label: 'D09', tip: 'Send them by hand, as always.' },
+      { id: 'console', type: 'end-good', c: 1, r: 9, label: 'The share appears in the console like any other', tip: 'From here on it is managed the same way (D10). Claude can also read results back ("what did A get stuck on?").' },
+      { id: 'disc', type: 'start', c: 3, r: 0, label: 'Later: disconnect', tip: 'Ending a tool\'s access.' },
+      { id: 'disc1', type: 'process', c: 3, r: 1, label: 'Account → Disconnect next to the tool', tip: 'Immediate. Nothing already shared changes.' },
+      { id: 'disc2', type: 'end-good', c: 3, r: 2, label: 'The token stops working. Claude\'s next attempt fails with an error', tip: 'Reconnect by making a new token (top of this diagram).' },
+    ],
+    edges: [
+      { from: 'start', to: 'where' },
+      { from: 'where', to: 'laptop', label: 'Laptop', kind: 'plain' },
+      { from: 'where', to: 'account', label: 'Server', kind: 'plain' },
+      { from: 'account', to: 'token' },
+      { from: 'laptop', to: 'paste', route: 'downLeft' },
+      { from: 'token', to: 'paste', route: 'downLeft' },
+      { from: 'paste', to: 'ask' }, { from: 'ask', to: 'emails' },
+      { from: 'emails', to: 'asks', label: 'No', kind: 'no' },
+      { from: 'asks', to: 'ask', route: 'loopLeft' },
+      { from: 'emails', to: 'confirm', label: 'Yes', kind: 'yes' },
+      { from: 'confirm', to: 'nothing', label: 'No', kind: 'no' },
+      { from: 'confirm', to: 'inline', label: 'Yes', kind: 'yes' },
+      { from: 'inline', to: 'links' },
+      { from: 'links', to: 'send', label: 'send', kind: 'plain' },
+      { from: 'links', to: 'console' },
+      { from: 'disc', to: 'disc1' }, { from: 'disc1', to: 'disc2' },
+    ],
+  },
+
+  D07: {
+    title: 'D07 · Make a view-only share',
+    desc: 'The basic share: files, people, expiry. Nothing about how it is used gets recorded. Same on hosted and self-hosted; only the limits differ.',
+    nodes: [
+      { id: 'start', type: 'start', c: 1, r: 0, label: 'Console → "New share"', tip: 'Or ask Claude (D06). Same fields either way.' },
+      { id: 'drop', type: 'io', c: 1, r: 1, label: 'Drop the prototype folder onto the page, or pick it', tip: 'The folder of web files the prototype is made of. A framework project (React, Vite) must be built into plain files first.' },
+      { id: 'entry', type: 'decision', c: 1, r: 2, label: 'Does Vantage find the start page?', tip: 'It looks for index.html, the file browsers open first.' },
+      { id: 'pick', type: 'io', c: 2, r: 2, label: 'Pick the start file from a list', tip: 'Shown only when there is no obvious front page.' },
+      { id: 'size', type: 'decision', c: 1, r: 3, label: 'Under the upload limit?', tip: 'The operator sets it (shown on the Server page). Hosted copies also count it against your storage.' },
+      { id: 'big', type: 'end-bad', c: 0, r: 3, label: '"Too big"', tip: 'Shrink images, drop unused files, or ask the operator.' },
+      { id: 'ext', type: 'decision', c: 1, r: 4, label: 'Does it load anything from the internet (fonts, code)?', tip: 'A prototype that can load from the internet can also send to it, so Vantage blocks it by default. The page will look broken in the frame.' },
+      { id: 'fix', type: 'process', c: 2, r: 4, label: 'Run "vantage inline" to pull those files into the folder, or the operator allows that address', tip: 'Claude and the command line do this automatically. Prefer inlining. Live APIs cannot work at all: put sample data inside the prototype.' },
+      { id: 'meta', type: 'io', c: 1, r: 5, label: 'Name, and expiry in days', tip: 'The name is what the Viewer sees at the top. Expiry is when every link stops. The operator can cap the maximum.' },
+      { id: 'people', type: 'io', c: 1, r: 6, label: 'People: "Priya Shah <the invited address>", one per line', tip: 'Each line becomes one personal link. The email is what the link is tied to and what the watermark shows.' },
+      { id: 'options', type: 'io', c: 1, r: 7, label: 'Optional: passcode; "must sign in with Google"; allow a company domain; notes', tip: 'Passcode is a second secret sent by another route. "Must sign in" only appears where Google is set up. Company domain admits employees without a link (self-hosted with company login). Notes are for you.' },
+      { id: 'create', type: 'process', c: 1, r: 8, label: 'Click "Create"', tip: 'Files are encrypted and saved. Links are made.' },
+      { id: 'limit', type: 'decision', c: 1, r: 9, label: 'Over your share or storage limit?', tip: 'Hosted copies cap shares and storage per person. Self-hosted: whatever the operator set, often nothing.' },
+      { id: 'limitEnd', type: 'end-bad', c: 0, r: 9, label: '"You are at N of M". Delete an old share first', tip: 'The Account page shows the numbers. Deleting an expired share frees space at once.' },
+      { id: 'links', type: 'io', c: 1, r: 10, label: 'One link per person, shown once. Copy each now', tip: 'The secret in a link is not stored, only a scrambled version, so it cannot be shown again. Lost one? Rotate it (D10) to get a new one.' },
+      { id: 'store', type: 'data', c: 0, r: 10, label: 'Share saved, files encrypted', tip: 'On disk, encrypted with the operator\'s key. Only this Tester (and the server admin) can see the share in the console.' },
+      { id: 'send', type: 'conn', c: 1, r: 11, label: 'D09', tip: 'Continue on D09: send the links.' },
+    ],
+    edges: [
+      { from: 'start', to: 'drop' }, { from: 'drop', to: 'entry' },
+      { from: 'entry', to: 'pick', label: 'No', kind: 'no' },
+      { from: 'pick', to: 'size', route: 'downLeft' },
+      { from: 'entry', to: 'size', label: 'Yes', kind: 'yes' },
+      { from: 'size', to: 'big', label: 'No', kind: 'no' },
+      { from: 'size', to: 'ext', label: 'Yes', kind: 'yes' },
+      { from: 'ext', to: 'fix', label: 'Yes', kind: 'no' },
+      { from: 'fix', to: 'meta', route: 'downLeft' },
+      { from: 'ext', to: 'meta', label: 'No', kind: 'yes' },
+      { from: 'meta', to: 'people' }, { from: 'people', to: 'options' }, { from: 'options', to: 'create' }, { from: 'create', to: 'limit' },
+      { from: 'limit', to: 'limitEnd', label: 'Yes', kind: 'no' },
+      { from: 'limit', to: 'links', label: 'No', kind: 'yes' },
+      { from: 'links', to: 'store', label: 'saved', kind: 'plain', dashed: true },
+      { from: 'links', to: 'send' },
+    ],
+  },
+
+  D08: {
+    title: 'D08 · Set up a usability test',
+    desc: 'Everything in D07, plus the "Test setup" section. This is what turns a share from view-only into a test with consent, tasks and recording.',
+    nodes: [
+      { id: 'start', type: 'start', c: 1, r: 0, label: 'On "New share", open "Test setup" (or ask Claude with --tasks)', tip: 'All of D07 still applies: files, people, expiry, options.' },
+      { id: 'mode', type: 'io', c: 1, r: 1, label: 'Mode: unmoderated (they do it alone) or moderated (you are on a call with them)', tip: 'Moderated keeps the task panel closed so the moderator leads; the consent wording changes to "your moderator will guide you".' },
+      { id: 'tasks', type: 'io', c: 1, r: 2, label: 'Tasks and questions, each with when it appears', tip: 'A task wants "Completed / Couldn\'t do it". A question wants a typed answer. Each can appear at the start, after another task, after N minutes, or when the Viewer reaches a certain screen.' },
+      { id: 'intro', type: 'io', c: 1, r: 3, label: 'Intro: welcome text, or a short video or audio', tip: 'Shown before the consent list. Media counts against the share\'s media limit (intro plus voice recordings).' },
+      { id: 'rec', type: 'io', c: 1, r: 4, label: 'What gets recorded: taps and screens (on); typed text (off); voice (off); screen (off); consent required (on)', tip: 'Each is a switch. Voice and screen are offered to the Viewer as their own switches. Turning consent off is possible but the sample and the docs keep it on.' },
+      { id: 'preview', type: 'decision', c: 1, r: 5, label: 'Look at the consent screen the Viewer will see?', tip: 'It is generated from the switches above, so the words match exactly what will be recorded.' },
+      { id: 'prev', type: 'io', c: 2, r: 5, label: 'Consent preview', tip: 'The same screen as D15, read-only.' },
+      { id: 'create', type: 'process', c: 1, r: 6, label: 'Click "Create" (the rest is D07: limits, links)', tip: 'Same checks and the same one-time links.' },
+      { id: 'd07', type: 'conn', c: 2, r: 6, label: 'D07', tip: 'Limit check and the links, shown once.' },
+      { id: 'tab', type: 'end-good', c: 1, r: 7, label: 'The share now has a "Feedback & results" tab', tip: 'View-only shares do not have it. Results arrive there as Viewers go (D11).' },
+    ],
+    edges: [
+      { from: 'start', to: 'mode' }, { from: 'mode', to: 'tasks' }, { from: 'tasks', to: 'intro' }, { from: 'intro', to: 'rec' }, { from: 'rec', to: 'preview' },
+      { from: 'preview', to: 'prev', label: 'Yes', kind: 'yes' },
+      { from: 'prev', to: 'create', route: 'downLeft' },
+      { from: 'preview', to: 'create', label: 'No', kind: 'plain' },
+      { from: 'create', to: 'd07', label: 'then', kind: 'plain' },
+      { from: 'create', to: 'tab' },
+    ],
+  },
+
+  D09: {
+    title: 'D09 · Send the links',
+    desc: 'Off-product. Vantage sends no email and calls no outside service, on purpose. Every link travels by hand, one per person.',
+    nodes: [
+      { id: 'start', type: 'start', c: 1, r: 0, label: 'Links shown once (from D07, D08 or D06)', tip: 'This is the moment to copy them. They cannot be shown again, only rotated.' },
+      { id: 'copy', type: 'process', c: 1, r: 1, label: 'Copy one person\'s link', tip: 'A copy button next to each name. Careful: each link belongs to one named person and shows their email on screen.' },
+      { id: 'msg', type: 'io', c: 1, r: 2, label: 'Paste it into a message to that person: what it is, that it is confidential, when it expires, what to do', tip: 'Email, chat, whatever you normally use. Gap: the product could offer a suggested message.' },
+      { id: 'pass', type: 'decision', c: 1, r: 3, label: 'Passcode set on the share?', tip: 'If a stolen message should not be enough, the passcode goes another way.' },
+      { id: 'passSend', type: 'process', c: 2, r: 3, label: 'Send the passcode by a different route: a call, a text', tip: 'Never in the same message as the link.' },
+      { id: 'sign', type: 'decision', c: 1, r: 4, label: '"Must sign in with Google" set?', tip: 'Then the link only opens for that Google account.' },
+      { id: 'signTell', type: 'process', c: 2, r: 4, label: 'Tell them which Google account to use, and that they will be asked to sign in', tip: 'People with several accounts pick the wrong one. Say which.' },
+      { id: 'app', type: 'decision', c: 1, r: 5, label: 'Want the desktop viewer app?', tip: 'Optional, for sensitive work. Blocks screenshots of its window on Mac and Windows.' },
+      { id: 'appTell', type: 'process', c: 2, r: 5, label: 'Tell them where to get the app and to open the link inside it', tip: 'Not in an app store. The Tester or IT hands it out.' },
+      { id: 'more', type: 'decision', c: 1, r: 6, label: 'More people?', tip: 'One message per person. Never send two links in one message.' },
+      { id: 'done', type: 'end-good', c: 1, r: 7, label: 'Done. Now watch the access log (D12)', tip: 'Openings and refusals appear there within seconds of each Viewer\'s click.' },
+      { id: 'lost', type: 'start', c: 3, r: 0, label: 'Lost a link, or sent it to the wrong person?', tip: 'It happens.' },
+      { id: 'rotate', type: 'process', c: 3, r: 1, label: 'On the share page: Rotate that person\'s link', tip: 'A new link is issued and the old one stops at once (D10).' },
+      { id: 'door', type: 'conn', c: 0, r: 7, label: 'D14', tip: 'What happens when the person clicks: the Viewer\'s door.' },
+    ],
+    edges: [
+      { from: 'start', to: 'copy' }, { from: 'copy', to: 'msg' }, { from: 'msg', to: 'pass' },
+      { from: 'pass', to: 'passSend', label: 'Yes', kind: 'yes' },
+      { from: 'passSend', to: 'sign', route: 'downLeft' },
+      { from: 'pass', to: 'sign', label: 'No', kind: 'plain' },
+      { from: 'sign', to: 'signTell', label: 'Yes', kind: 'yes' },
+      { from: 'signTell', to: 'app', route: 'downLeft' },
+      { from: 'sign', to: 'app', label: 'No', kind: 'plain' },
+      { from: 'app', to: 'appTell', label: 'Yes', kind: 'yes' },
+      { from: 'appTell', to: 'more', route: 'downLeft' },
+      { from: 'app', to: 'more', label: 'No', kind: 'plain' },
+      { from: 'more', to: 'copy', label: 'Yes', kind: 'yes', route: 'loopLeft' },
+      { from: 'more', to: 'done', label: 'No', kind: 'plain' },
+      { from: 'done', to: 'door', label: 'click', kind: 'plain' },
+      { from: 'lost', to: 'rotate' },
+      { from: 'rotate', to: 'copy', label: 'new link', kind: 'plain' },
+    ],
+  },
+  D10: {
+    title: 'D10 · Run a live share',
+    desc: 'Everything a Tester can do to a share that is already out. One page with a header and four tabs. Each action is one click plus a confirm.',
+    nodes: [
+      { id: 'start', type: 'start', c: 1, r: 0, label: 'Prototypes list → click a share', tip: 'The list shows every share you made, with its state: active, expired, revoked.' },
+      { id: 'page', type: 'io', c: 1, r: 1, label: 'Share page: name, expiry, "Revoke access", "Extend…", and four tabs', tip: 'Tabs: Viewers & links, Access log, Feedback & results (tests only), Settings & files.' },
+      { id: 'what', type: 'decision', c: 1, r: 2, label: 'What needs doing?', tip: 'Pick the branch. All of them can be done any number of times while the share is active.' },
+      { id: 'add', type: 'process', c: 0, r: 3, label: 'Viewers & links → "Add viewer": name and email', tip: 'A new personal link for someone who joined late. Shown once. Send it (D09).' },
+      { id: 'rotate', type: 'process', c: 0, r: 4, label: '"Rotate" next to a person: new link, old one stops', tip: 'For a lost or leaked link. Confirm: "Issue a new link? The current one stops working."' },
+      { id: 'revokeOne', type: 'process', c: 0, r: 5, label: '"Revoke" next to a person', tip: 'Their next open says "Link not valid". Their past sessions and recordings stay with the share. Confirm: "Revoke this viewer?"' },
+      { id: 'extend', type: 'process', c: 2, r: 3, label: '"Extend…": add days to the expiry', tip: 'Everyone\'s links keep working longer. The operator may cap the maximum.' },
+      { id: 'revokeAll', type: 'process', c: 2, r: 4, label: '"Revoke access": every link stops at once', tip: 'Confirm: "Revoke access for everyone? Links stop working immediately." A "Restore access" button undoes it.' },
+      { id: 'replace', type: 'process', c: 2, r: 5, label: 'Settings & files → "Replace prototype files"', tip: 'Drop a new folder. Same links keep working; Viewers see the new version on their next open. Results from before and after are mixed together, so for a real comparison make a new share.' },
+      { id: 'limitQ', type: 'decision', c: 1, r: 6, label: 'Hit a limit?', tip: 'Shares per person, storage per person, upload size, media size per share.' },
+      { id: 'limit', type: 'process', c: 0, r: 6, label: '"You are at N of M". Delete an old share, or ask the operator', tip: 'Hosted: the entitlement decides. Self-hosted: the operator changes a setting.' },
+      { id: 'log', type: 'data', c: 3, r: 4, label: 'Access log', tip: 'Every one of these actions is written down: who did it and when. The server admin can read it too.' },
+      { id: 'end', type: 'end-good', c: 1, r: 7, label: 'Share carries on until expiry or revoke (D13)', tip: 'Meanwhile: read results (D11) and watch the door (D12).' },
+    ],
+    edges: [
+      { from: 'start', to: 'page' }, { from: 'page', to: 'what' },
+      { from: 'what', to: 'add', label: 'New person', kind: 'plain' },
+      { from: 'add', to: 'rotate', label: 'or', kind: 'plain' }, { from: 'rotate', to: 'revokeOne', label: 'or', kind: 'plain' },
+      { from: 'what', to: 'extend', label: 'More time', kind: 'plain' },
+      { from: 'extend', to: 'revokeAll', label: 'or', kind: 'plain' }, { from: 'revokeAll', to: 'replace', label: 'or', kind: 'plain' },
+      { from: 'revokeAll', to: 'log', label: 'written', kind: 'plain', dashed: true },
+      { from: 'revokeOne', to: 'limitQ', route: 'downLeft' },
+      { from: 'replace', to: 'limitQ', route: 'downLeft' },
+      { from: 'limitQ', to: 'limit', label: 'Yes', kind: 'no' },
+      { from: 'limitQ', to: 'end', label: 'No', kind: 'yes' },
+    ],
+  },
+
+  D11: {
+    title: 'D11 · Read results',
+    desc: 'The "Feedback & results" tab of a usability test. What each Viewer did, what they said, what they recorded, and how to take it out of Vantage.',
+    nodes: [
+      { id: 'start', type: 'start', c: 1, r: 0, label: 'Share page → "Feedback & results"', tip: 'Only shares with a test have this tab. Refreshes every 5 seconds while someone is in a session, if you switch "live" on.' },
+      { id: 'sum', type: 'io', c: 1, r: 1, label: 'Summary: how many people had sessions, interactions, errors', tip: 'The top strip. One row per Viewer below it with sessions, clicks, screens.' },
+      { id: 'viewer', type: 'io', c: 1, r: 2, label: 'Per Viewer: task outcomes, answers, notes, feedback with the screen it was on', tip: 'Completed, could not complete, or never marked (a partial session, when they closed the tab midway).' },
+      { id: 'rec', type: 'decision', c: 1, r: 3, label: 'Voice or screen recordings?', tip: 'Only if the Tester offered them and the Viewer left the switch on and the browser allowed it (D15).' },
+      { id: 'play', type: 'process', c: 2, r: 3, label: 'Play it in the page, download it, or delete it', tip: 'Delete asks "Delete this recording?" and cannot be undone. Screen recordings are about 5 MB a minute.' },
+      { id: 'export', type: 'decision', c: 1, r: 4, label: 'Take it out of Vantage?', tip: 'Exports are the only way anything leaves the server, and only when you click.' },
+      { id: 'md', type: 'doc', c: 2, r: 4, label: 'Report (.md): a readable write-up', tip: 'Opens in any text editor. Good for sharing with a team that has no access.' },
+      { id: 'csv', type: 'doc', c: 3, r: 4, label: 'Events (.csv): every tap and screen, one per row', tip: 'Opens in a spreadsheet.' },
+      { id: 'json', type: 'doc', c: 4, r: 4, label: 'Everything (.json): the whole share, for tools', tip: 'The raw data. Claude can read results too by asking "what did Priya get stuck on?" (D06).' },
+      { id: 'ask', type: 'decision', c: 1, r: 5, label: 'A Viewer asks for their data to go?', tip: 'There is no self-service door for Viewers; they contact the Tester (the consent screen names an address if the operator set one).' },
+      { id: 'del', type: 'process', c: 2, r: 5, label: 'Delete their recording, or the whole share, and tell them', tip: 'A single person\'s taps cannot be deleted on their own today; a recording can, and the share can.' },
+      { id: 'results', type: 'data', c: 0, r: 2, label: 'Results', tip: 'Stored with the share, encrypted, deleted with it.' },
+      { id: 'end', type: 'end-good', c: 1, r: 6, label: 'Done reading. The data stays until the share is deleted (D13)', tip: 'Thirty days after expiry it all goes on its own.' },
+    ],
+    edges: [
+      { from: 'start', to: 'sum' }, { from: 'sum', to: 'viewer' },
+      { from: 'results', to: 'viewer', label: 'read', kind: 'plain', dashed: true },
+      { from: 'viewer', to: 'rec' },
+      { from: 'rec', to: 'play', label: 'Yes', kind: 'yes' },
+      { from: 'play', to: 'export', route: 'downLeft' },
+      { from: 'rec', to: 'export', label: 'No', kind: 'plain' },
+      { from: 'export', to: 'md', label: 'Yes', kind: 'yes' }, { from: 'md', to: 'csv', label: 'or', kind: 'plain' }, { from: 'csv', to: 'json', label: 'or', kind: 'plain' },
+      { from: 'export', to: 'ask', label: 'No', kind: 'plain' },
+      { from: 'ask', to: 'del', label: 'Yes', kind: 'yes' },
+      { from: 'del', to: 'end', route: 'downLeft' },
+      { from: 'ask', to: 'end', label: 'No', kind: 'plain' },
+    ],
+  },
+
+  D12: {
+    title: 'D12 · Watch the door, and handle a leak',
+    desc: 'The "Access log" tab is the diary of every opening and every refusal. It is how a forwarded link, or a leaked token, gets noticed and stopped.',
+    nodes: [
+      { id: 'start', type: 'start', c: 1, r: 0, label: 'Share page → "Access log"', tip: 'Also on the Account page for your own sign-ins and tool use. The server admin sees all of it.' },
+      { id: 'log', type: 'data', c: 0, r: 1, label: 'Access log', tip: 'Append-only, trimmed after the retention window. Nothing in it can be edited.' },
+      { id: 'rows', type: 'io', c: 1, r: 1, label: 'Rows: who opened, when, from where; and every refusal with its reason', tip: 'Reasons you will see: link not valid, viewer revoked, expired, withdrawn, open limit, wrong passcode, signed in as the wrong Google account, company login but not invited.' },
+      { id: 'odd', type: 'decision', c: 1, r: 2, label: 'Anything odd?', tip: 'One person opening from two cities in an hour. Many wrong passcodes. A refusal for a name you never invited. An opening after you thought everyone was done.' },
+      { id: 'fine', type: 'end-good', c: 0, r: 2, label: 'All as expected', tip: 'Check again after the next round of messages.' },
+      { id: 'what', type: 'decision', c: 1, r: 3, label: 'What leaked?', tip: 'Pick the smallest fix that closes the hole.' },
+      { id: 'rotate', type: 'process', c: 0, r: 4, label: 'One person\'s link: "Rotate" it, send the new one to the right person', tip: 'The old link dies at once. Whoever had it sees "Link not valid".' },
+      { id: 'revoke', type: 'process', c: 1, r: 4, label: 'Not sure who: "Revoke" that person, or "Revoke access" for the whole share', tip: 'Restore access later if it was a false alarm.' },
+      { id: 'tool', type: 'process', c: 2, r: 4, label: 'A tool token: Account → "Disconnect"', tip: 'Anything published with it stays; the token stops.' },
+      { id: 'server', type: 'process', c: 3, r: 4, label: 'The server admin secret: the operator rotates it (self-hosted)', tip: 'A setting on the server. Every tool connected with the old secret must reconnect.' },
+      { id: 'after', type: 'process', c: 1, r: 5, label: 'Read the log again: what happened between the leak and the fix', tip: 'Every opening in between is listed. That is the record to hand to whoever asks.' },
+      { id: 'harder', type: 'decision', c: 1, r: 6, label: 'Make the next one harder to forward?', tip: 'For the next share, not this one.' },
+      { id: 'hard', type: 'process', c: 2, r: 6, label: 'Add a passcode, or "must sign in with Google", or the desktop app', tip: 'A forwarded link then opens nothing without the second secret or the right account. Nothing stops a phone camera.' },
+      { id: 'end', type: 'end-good', c: 1, r: 7, label: 'Closed', tip: 'The log keeps the story for the retention window.' },
+    ],
+    edges: [
+      { from: 'start', to: 'rows' },
+      { from: 'log', to: 'rows', label: 'read', kind: 'plain', dashed: true },
+      { from: 'rows', to: 'odd' },
+      { from: 'odd', to: 'fine', label: 'No', kind: 'yes' },
+      { from: 'odd', to: 'what', label: 'Yes', kind: 'no' },
+      { from: 'what', to: 'rotate', label: 'Link', kind: 'plain' },
+      { from: 'what', to: 'revoke', label: 'Unknown', kind: 'plain' },
+      { from: 'what', to: 'tool', label: 'Token', kind: 'plain' },
+      { from: 'what', to: 'server', label: 'Secret', kind: 'plain' },
+      { from: 'rotate', to: 'after' },
+      { from: 'revoke', to: 'after' },
+      { from: 'tool', to: 'after' },
+      { from: 'server', to: 'after' },
+      { from: 'after', to: 'harder' },
+      { from: 'harder', to: 'hard', label: 'Yes', kind: 'yes' },
+      { from: 'hard', to: 'end', route: 'downLeft' },
+      { from: 'harder', to: 'end', label: 'No', kind: 'plain' },
+    ],
+  },
+
+  D13: {
+    title: 'D13 · Endings: a share, a Tester, an instance',
+    desc: 'Three columns for three kinds of ending. Left: one share reaches the end of its life. Middle: a Tester leaves. Right: the operator removes someone or shuts the whole thing down (self-hosted only).',
+    nodes: [
+      { id: 's0', type: 'start', c: 0, r: 0, label: 'A share reaches the end: its date passes, or the Tester revokes it', tip: 'Both stop every link the same way. The share stays in the list marked expired or revoked.' },
+      { id: 's2', type: 'process', c: 0, r: 1, label: 'Every link stops. Viewers see "No longer available"', tip: 'Sessions already open end at their next request.' },
+      { id: 's3', type: 'decision', c: 0, r: 2, label: 'Delete now, or wait?', tip: 'Settings & files → "Delete share and all data". Confirm: "Delete this share and every record attached to it?"' },
+      { id: 's4', type: 'place', c: 1, r: 3, label: 'Retention window: 30 days after expiry by default', tip: 'The operator sets the number. Nothing is deleted during it, so results can still be read and exported.' },
+      { id: 's5', type: 'end-bad', c: 0, r: 4, label: 'Deleted: files, viewers, recordings, feedback, events, its log', tip: 'Cannot be undone. Exports made before this are the only copy left. The server\'s own admin log keeps a one-line note that a deletion happened.' },
+      { id: 't0', type: 'start', c: 2, r: 0, label: 'A Tester leaves', tip: 'Account page, bottom.' },
+      { id: 't1', type: 'process', c: 2, r: 1, label: 'Account → "Delete everything I made and leave"', tip: 'Not offered to the server admin secret, which is not a person; they delete shares one by one.' },
+      { id: 't2', type: 'decision', c: 2, r: 2, label: 'Confirm, with the counts: N shares, tools connected', tip: 'Gap: the confirm should list recordings too.' },
+      { id: 't2n', type: 'end-good', c: 1, r: 2, label: 'Nothing changes', tip: 'Cancel. Everything stays.' },
+      { id: 't3', type: 'process', c: 2, r: 3, label: 'Every share they made is deleted, every tool disconnected, signed out', tip: 'Immediate. Viewers of those shares see "Link not valid".' },
+      { id: 't4', type: 'end-good', c: 2, r: 4, label: '"You have left" page', tip: 'Audit lines about their actions remain for the retention window, without the content.' },
+      { id: 'o0', type: 'start', c: 3, r: 0, label: 'Operator acts (self-hosted only)', tip: 'IT. Two cases.' },
+      { id: 'o1', type: 'decision', c: 3, r: 1, label: 'Remove one designer, or shut everything down?', tip: 'Both happen outside the product, in settings and on the server.' },
+      { id: 'o2', type: 'process', c: 3, r: 2, label: 'Remove them from the allowed list (a server setting, or the company login group)', tip: 'Their next visit is refused at the sign-in page. Their connected tools stop.' },
+      { id: 'o3', type: 'process', c: 3, r: 3, label: 'Their shares stay, visible only to the server admin: revoke, hand over, or let retention take them', tip: 'Gap: orphaned shares have no home in the console today.' },
+      { id: 'o4', type: 'process', c: 4, r: 2, label: 'Export what must be kept, stop the process', tip: 'Reports and events per share (D11). Then stop Docker or the Node process.' },
+      { id: 'o5', type: 'end-bad', c: 4, r: 3, label: 'Delete the data folder and the secrets, tell the designers', tip: 'Nothing in the product does this; it is a checklist in the deployment guide.' },
+    ],
+    edges: [
+      { from: 's0', to: 's2' }, { from: 's2', to: 's3' },
+      { from: 's3', to: 's5', label: 'Now', kind: 'no' },
+      { from: 's3', to: 's4', label: 'Wait', kind: 'plain' }, { from: 's4', to: 's5', route: 'downLeft' },
+      { from: 't0', to: 't1' }, { from: 't1', to: 't2' }, { from: 't2', to: 't2n', label: 'No', kind: 'no' }, { from: 't2', to: 't3', label: 'Yes', kind: 'yes' }, { from: 't3', to: 't4' },
+      { from: 'o0', to: 'o1' },
+      { from: 'o1', to: 'o2', label: 'One person', kind: 'plain' }, { from: 'o2', to: 'o3' },
+      { from: 'o1', to: 'o4', label: 'Everything', kind: 'plain', route: 'downLeft' }, { from: 'o4', to: 'o5' },
+    ],
+  },
+
+  D19: {
+    title: 'D19 · Master map: how the diagrams join',
+    desc: 'One box per diagram. Follow the arrows to see how a Tester\'s actions reach a Viewer and how the Viewer\'s results come back. Click a box\'s name in the left list to open it.',
+    nodes: [
+      { id: 'd02', type: 'sub', c: 0, r: 0, label: 'D02 Gets in, hosted', tip: 'Google sign-in on a hosted copy.' },
+      { id: 'd03', type: 'sub', c: 0, r: 1, label: 'D03 Gets in, laptop', tip: 'One command, printed link.' },
+      { id: 'd04', type: 'sub', c: 0, r: 2, label: 'D04 Gets in, team server', tip: 'Operator sets up; company login, Google, or the admin secret.' },
+      { id: 'd05', type: 'sub', c: 1, r: 1, label: 'D05 First share with the sample', tip: 'Empty console → sample → your own link → results.' },
+      { id: 'd06', type: 'sub', c: 1, r: 3, label: 'D06 Connect Claude or the command line', tip: 'Optional. Publishes into the same D07/D08.' },
+      { id: 'd07', type: 'sub', c: 2, r: 1, label: 'D07 Make a view-only share', tip: 'Files, people, expiry, links shown once.' },
+      { id: 'd08', type: 'sub', c: 2, r: 2, label: 'D08 Set up a usability test', tip: 'D07 plus tasks, intro, recording, consent.' },
+      { id: 'd09', type: 'sub', c: 3, r: 1, label: 'D09 Send the links', tip: 'By hand, one per person. The hand-off to the Viewer.' },
+      { id: 'd14', type: 'start', c: 4, r: 1, label: 'D14 The Viewer\'s door', tip: 'Every check between the click and the prototype. Same everywhere.' },
+      { id: 'd15', type: 'sub', c: 4, r: 2, label: 'D15 Consent and recording', tip: 'What is recorded, and the Viewer\'s choice.' },
+      { id: 'd16', type: 'sub', c: 4, r: 3, label: 'D16 Doing the test', tip: 'Tasks, answers, feedback, stop, leave.' },
+      { id: 'd17', type: 'sub', c: 3, r: 2, label: 'D17 View-only visit', tip: 'No test: prototype, watermark, feedback button.' },
+      { id: 'd18', type: 'sub', c: 3, r: 3, label: 'D18 Coming back, phone, app', tip: 'Variations on the same visit.' },
+      { id: 'd10', type: 'sub', c: 2, r: 4, label: 'D10 Run a live share', tip: 'Add, rotate, revoke, extend, replace.' },
+      { id: 'd11', type: 'sub', c: 3, r: 4, label: 'D11 Read results', tip: 'Where the Viewer\'s work lands.' },
+      { id: 'd12', type: 'sub', c: 5, r: 5, label: 'D12 Watch the door, handle a leak', tip: 'The access log, and the fixes.' },
+      { id: 'd13', type: 'sub', c: 2, r: 5, label: 'D13 Endings', tip: 'A share, a Tester, an instance.' },
+      { id: 'd01', type: 'conn', c: 0, r: 4, label: 'D01', tip: 'The big picture, for anyone new to this map.' },
+    ],
+    edges: [
+      { from: 'd02', to: 'd05', route: 'upRight' }, { from: 'd03', to: 'd05' }, { from: 'd04', to: 'd05', route: 'upRight' },
+      { from: 'd05', to: 'd07' },
+      { from: 'd06', to: 'd08', label: 'into', kind: 'plain', route: 'upRight' },
+      { from: 'd07', to: 'd08', label: 'or', kind: 'plain' },
+      { from: 'd07', to: 'd09', label: 'links', kind: 'plain' },
+      { from: 'd08', to: 'd09', label: 'links', kind: 'plain', route: 'upRight' },
+      { from: 'd09', to: 'd14', label: 'click', kind: 'yes' },
+      { from: 'd14', to: 'd15' }, { from: 'd15', to: 'd16', label: 'test', kind: 'plain' }, { from: 'd15', to: 'd17', label: 'no test', kind: 'plain' },
+      { from: 'd16', to: 'd18', label: 'later', kind: 'plain' },
+      { from: 'd16', to: 'd11', label: 'results', kind: 'yes', route: 'downLeft' },
+      { from: 'd14', to: 'd12', label: 'logged', kind: 'plain', route: 'upRight' },
+      { from: 'd08', to: 'd10', label: 'live', kind: 'plain' },
+      { from: 'd10', to: 'd11', label: 'and', kind: 'plain' },
+      { from: 'd10', to: 'd13', label: 'ending', kind: 'plain' },
+      { from: 'd11', to: 'd12', label: 'and', kind: 'plain', route: 'downSide' },
+    ],
+  },
+  // __NEXT_DIAGRAM__
+};
+
+// The master list, in the order we draw them. Anything not in DIAGRAMS above shows as "not drawn yet".
+const MASTER = [
+  ['Setup', ['D00 Legend', 'D01 Big picture']],
+  ['Tester · getting in', ['D02 Gets in, hosted', 'D03 Gets in, self-hosted laptop', 'D04 Gets in, self-hosted team', 'D05 First share with the sample', 'D06 Connect Claude or the command line']],
+  ['Tester · making and sending', ['D07 Make a view-only share', 'D08 Make a usability test', 'D09 Send the links']],
+  ['Tester · running and learning', ['D10 Run a live share', 'D11 Read results', 'D12 Watch the door, handle a leak']],
+  ['Tester · ending', ['D13 End of a share and of a Tester']],
+  ['Viewer · same everywhere', ['D14 The door', 'D15 Consent and recording', 'D16 Doing the test', 'D17 View-only visit', 'D18 Coming back, phone, desktop app']],
+  ['The join', ['D19 Master map']],
+];
+
+// ---------- Drawing ----------
+const COL = 300, ROW = 118, W = 190, H = 72, DW = 220, DH = 92, PAD = 40;
+const $ = (s) => document.querySelector(s);
+
+function size(n) { return n.type === 'decision' ? [DW, DH] : n.type === 'conn' ? [44, 44] : n.type === 'note' ? [W + 30, H] : [W, H]; }
+function center(n) { return [PAD + n.c * COL + DW / 2, PAD + n.r * ROW + DH / 2]; }
+
+function wrap(text, max) {
+  const words = text.split(' '), lines = []; let cur = '';
+  for (const w of words) { if ((cur + ' ' + w).trim().length > max) { lines.push(cur.trim()); cur = w; } else cur += ' ' + w; }
+  if (cur.trim()) lines.push(cur.trim());
+  return lines;
+}
+
+function shapePath(n, cx, cy) {
+  const [w, h] = size(n), x = cx - w / 2, y = cy - h / 2;
+  switch (n.type) {
+    case 'start': case 'end-bad': case 'end-good':
+      return `<rect class="shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="${h / 2}"/>`;
+    case 'decision':
+      return `<polygon class="shape" points="${cx},${y} ${x + w},${cy} ${cx},${y + h} ${x},${cy}"/>`;
+    case 'io':
+      return `<polygon class="shape" points="${x + 18},${y} ${x + w},${y} ${x + w - 18},${y + h} ${x},${y + h}"/>`;
+    case 'data': {
+      const ry = 10;
+      return `<path class="shape" d="M${x},${y + ry} a${w / 2},${ry} 0 0 1 ${w},0 v${h - 2 * ry} a${w / 2},${ry} 0 0 1 ${-w},0 z"/><path class="shape" d="M${x},${y + ry} a${w / 2},${ry} 0 0 0 ${w},0" fill="none"/>`;
+    }
+    case 'doc':
+      return `<path class="shape" d="M${x},${y} h${w} v${h - 12} q${-w / 4},-14 ${-w / 2},0 q${-w / 4},14 ${-w / 2},0 z"/>`;
+    case 'conn':
+      return `<circle class="shape" cx="${cx}" cy="${cy}" r="${w / 2}"/>`;
+    case 'place':
+      return `<rect class="shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="14"/>`;
+    case 'note':
+      return `<path class="shape" d="M${x + 12},${y} h-12 v${h} h12"/>`;
+    case 'sub':
+      return `<rect class="shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="4"/><path class="shape" d="M${x + 8},${y} v${h} M${x + w - 8},${y} v${h}" fill="none"/>`;
+    default:
+      return `<rect class="shape" x="${x}" y="${y}" width="${w}" height="${h}" rx="6"/>`;
+  }
+}
+
+function edgePath(e, a, b) {
+  const [ax, ay] = center(a), [bx, by] = center(b), [aw, ah] = size(a), [bw, bh] = size(b);
+  let pts;
+  const route = e.route || (a.r === b.r ? (b.c > a.c ? 'right' : 'left') : 'down');
+  if (route === 'right') pts = [[ax + aw / 2, ay], [bx - bw / 2, by]];
+  else if (route === 'left') pts = [[ax - aw / 2, ay], [bx + bw / 2, by]];
+  else if (route === 'loopBelow') { const yy = ay + ah / 2 + 22; pts = [[ax, ay + ah / 2], [ax, yy], [bx, yy], [bx, by + bh / 2]]; }
+  else if (route === 'upRight') { // out of the right side, then up or down into the target's left side
+    const xx = e.lane === 'near' ? ax + aw / 2 + 24 : (ax + aw / 2 + bx - bw / 2) / 2;
+    pts = [[ax + aw / 2, ay], [xx, ay], [xx, by], [bx - bw / 2, by]];
+  }
+  else if (route === 'loopLeft') { // out of the left side, up or down a lane on the left, into the target's left side
+    const lane = e.lane === 'far' ? 14 : Math.min(ax - aw / 2, bx - bw / 2) - 36;
+    pts = [[ax - aw / 2, ay], [lane, ay], [lane, by], [bx - bw / 2, by]];
+  }
+  else if (route === 'downSide') { // straight down to the target's row, then sideways into its side
+    const side = bx < ax ? bx + bw / 2 : bx - bw / 2;
+    pts = [[ax, ay + ah / 2], [ax, by], [side, by]];
+  }
+  else if (route === 'loopUp') { // out of the right side, up a side lane, into the target's right side (a "go back" loop)
+    const lane = Math.max(ax + aw / 2, bx + bw / 2) + 36;
+    pts = [[ax + aw / 2, ay], [lane, ay], [lane, by], [bx + bw / 2, by]];
+  }
+  else if (route === 'downLeft') { // straight down, then across just above the target, so it crosses nothing
+    const yy = by - bh / 2 - 16; pts = [[ax, ay + ah / 2], [ax, yy], [bx, yy], [bx, by - bh / 2]];
+  }
+  else { // down
+    if (ax === bx) pts = [[ax, ay + ah / 2], [bx, by - bh / 2]];
+    else { const yy = (ay + ah / 2 + by - bh / 2) / 2; pts = [[ax, ay + ah / 2], [ax, yy], [bx, yy], [bx, by - bh / 2]]; }
+  }
+  // Label: on the first straight run if it is long enough to hold a pill, else on the longest run.
+  const segs = pts.slice(1).map((p, i) => ({ x: (pts[i][0] + p[0]) / 2, y: (pts[i][1] + p[1]) / 2, len: Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]) }));
+  const seg = segs[0].len >= 34 ? segs[0] : segs.reduce((m, s) => (s.len > m.len ? s : m));
+  return { d: 'M' + pts.map((p) => p.join(',')).join(' L'), lx: seg.x, ly: seg.y };
+}
+
+function render(id) {
+  const D = DIAGRAMS[id];
+  $('#dTitle').textContent = D.title; $('#dDesc').textContent = D.desc;
+  const byId = Object.fromEntries(D.nodes.map((n) => [n.id, n]));
+  const cols = Math.max(...D.nodes.map((n) => n.c)) + 1, rows = Math.max(...D.nodes.map((n) => n.r)) + 1;
+  const width = PAD * 2 + (cols - 1) * COL + DW + 60, height = PAD * 2 + (rows - 1) * ROW + DH + 30;
+  let svg = `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>`;
+  for (const e of D.edges) {
+    const { d, lx, ly } = edgePath(e, byId[e.from], byId[e.to]);
+    const tip = e.tip ? ` data-tip="${esc(e.tip)}" data-title="Arrow"` : '';
+    svg += `<g class="edge ${e.kind || ''}" data-from="${e.from}" data-to="${e.to}"${tip}><path d="${d}" marker-end="url(#arr)"${e.dashed ? ' stroke-dasharray="4 3"' : ''}/>` +
+      (e.label ? `<g class="lbl"><rect rx="9" x="${lx}" y="${ly - 9}" height="18"/><text x="${lx}" y="${ly}">${esc(e.label)}</text></g>` : '') + `</g>`;
+  }
+  for (const n of D.nodes) {
+    const [cx, cy] = center(n), lines = wrap(n.label, n.type === 'decision' ? 20 : n.type === 'conn' ? 6 : n.type === 'note' ? 32 : 27);
+    const y0 = cy - (lines.length - 1) * 7;
+    svg += `<g class="node ${n.type}" data-title="${esc(n.label)}" data-shape="${SHAPE_NAMES[n.type]}" data-tip="${esc(n.tip)}" tabindex="0">${shapePath(n, cx, cy)}` +
+      `<text text-anchor="middle">${lines.map((l, i) => `<tspan x="${cx}" y="${y0 + i * 14 + 4}">${esc(l)}</tspan>`).join('')}</text></g>`;
+  }
+  svg += '</svg>';
+  $('#canvas').innerHTML = svg;
+  for (const g of document.querySelectorAll('.lbl')) { const b = g.querySelector('text').getBBox(), r = g.querySelector('rect'); r.setAttribute('x', b.x - 6); r.setAttribute('width', b.width + 12); }
+  for (const g of document.querySelectorAll('[data-tip]')) {
+    const show = () => { $('#eShape').textContent = g.dataset.shape || ''; $('#eTitle').textContent = g.dataset.title; $('#eTip').textContent = g.dataset.tip; $('#aside').classList.add('open'); };
+    g.addEventListener('mouseenter', show); g.addEventListener('focus', show); g.addEventListener('click', show);
+  }
+  for (const b of document.querySelectorAll('nav button')) b.classList.toggle('active', b.dataset.id === id);
+  $('#pick').value = id;
+  $('#aside').classList.remove('open');
+  // Open scrolled to the start of the story (the first start oval), so a narrow screen does not begin on a side column.
+  const first0 = D.nodes.filter((n) => n.r === 0 && (n.type === 'start' || n.type === 'sub')).sort((p, q) => p.c - q.c)[0] || D.nodes[0];
+  const cv = $('#canvas'); cv.scrollLeft = Math.max(0, center(first0)[0] - cv.clientWidth / 2);
+  try { localStorage.setItem('vantage-flow', id); } catch (e) {}
+}
+
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+
+// Sidebar
+const nav = $('#nav');
+for (const [group, items] of MASTER) {
+  nav.insertAdjacentHTML('beforeend', `<h2>${group}</h2>`);
+  for (const it of items) {
+    const id = it.split(' ')[0], b = document.createElement('button');
+    b.textContent = it; b.dataset.id = id; b.disabled = !DIAGRAMS[id];
+    b.addEventListener('click', () => render(id)); nav.appendChild(b);
+  }
+}
+// Layout check for whoever draws the next diagram: run check() in the browser console. Returns {} when every diagram is
+// clean, otherwise a list of arrows that cross a shape they are not attached to, and labels with too many lines.
+window.check = function () {
+  const out = {}, keep = document.querySelector('nav button.active')?.dataset.id;
+  for (const id of Object.keys(DIAGRAMS)) {
+    render(id);
+    const svg = document.querySelector('svg');
+    const nodes = [...svg.querySelectorAll('.node')].map((g) => { const b = g.querySelector('.shape').getBBox(); return { t: g.dataset.title, x: b.x, y: b.y, w: b.width, h: b.height, lines: g.querySelectorAll('tspan').length, type: [...g.classList].find((c) => c !== 'node') }; });
+    const probs = [];
+    for (const n of nodes) { const max = n.type === 'decision' ? 4 : n.type === 'conn' ? 1 : 5; if (n.lines > max) probs.push(`overflow ${n.lines} lines: ${n.t.slice(0, 40)}`); }
+    for (const e of svg.querySelectorAll('.edge path')) {
+      const pts = e.getAttribute('d').match(/-?[\d.]+,-?[\d.]+/g).map((p) => p.split(',').map(Number));
+      for (let i = 0; i < pts.length - 1; i++) {
+        const [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+        for (const n of nodes) {
+          let hit = false;
+          for (let t = 0.02; t < 0.98; t += 0.02) { const x = x1 + (x2 - x1) * t, y = y1 + (y2 - y1) * t; if (x > n.x + 2 && x < n.x + n.w - 2 && y > n.y + 2 && y < n.y + n.h - 2) { hit = true; break; } }
+          if (hit) probs.push(`line through "${n.t.slice(0, 35)}" seg ${i}`);
+        }
+      }
+    }
+    // Arrows that cross or lie on top of each other are a tangle. Two arrows may share a final segment into the same
+    // shape (a merge); anything else is reported.
+    const edges = [...svg.querySelectorAll('.edge path')].map((e) => ({ pts: e.getAttribute('d').match(/-?[\d.]+,-?[\d.]+/g).map((p) => p.split(',').map(Number)), to: e.parentNode.dataset.to, from: e.parentNode.dataset.from }));
+    const cross = (a, b, c, d) => { const o = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])); return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0; };
+    const overlap = (a, b, c, d) => { // collinear horizontal or vertical segments sharing more than a point
+      if (a[1] === b[1] && c[1] === d[1] && a[1] === c[1]) return Math.min(Math.max(a[0], b[0]), Math.max(c[0], d[0])) - Math.max(Math.min(a[0], b[0]), Math.min(c[0], d[0])) > 4;
+      if (a[0] === b[0] && c[0] === d[0] && a[0] === c[0]) return Math.min(Math.max(a[1], b[1]), Math.max(c[1], d[1])) - Math.max(Math.min(a[1], b[1]), Math.min(c[1], d[1])) > 4;
+      return false;
+    };
+    for (let i = 0; i < edges.length; i++) for (let j = i + 1; j < edges.length; j++) {
+      const A = edges[i], B = edges[j];
+      for (let x = 0; x < A.pts.length - 1; x++) for (let y = 0; y < B.pts.length - 1; y++) {
+        const lastA = x === A.pts.length - 2, lastB = y === B.pts.length - 2, merge = A.to === B.to && lastA && lastB;
+        const fork = A.from === B.from && x === 0 && y === 0;
+        if (merge || fork) continue;
+        if (cross(A.pts[x], A.pts[x + 1], B.pts[y], B.pts[y + 1])) probs.push(`arrows cross: ${A.from}→${A.to} and ${B.from}→${B.to}`);
+        else if (A.from !== B.from && A.to !== B.to && overlap(A.pts[x], A.pts[x + 1], B.pts[y], B.pts[y + 1])) probs.push(`arrows overlap: ${A.from}→${A.to} and ${B.from}→${B.to}`);
+      }
+    }
+    for (const l of svg.querySelectorAll('.lbl rect')) {
+      const b = l.getBBox();
+      for (const n of nodes) if (b.x < n.x + n.w - 2 && b.x + b.width > n.x + 2 && b.y < n.y + n.h - 2 && b.y + b.height > n.y + 2) probs.push(`label "${l.nextElementSibling.textContent}" touches "${n.t.slice(0, 30)}"`);
+    }
+    if (probs.length) out[id] = probs;
+  }
+  if (keep) render(keep);
+  return out;
+};
+
+const ORDER = MASTER.flatMap(([, items]) => items.map((it) => it.split(' ')[0])).filter((id) => DIAGRAMS[id]);
+for (const [group, items] of MASTER) {
+  const og = document.createElement('optgroup'); og.label = group;
+  for (const it of items) { const id = it.split(' ')[0]; if (!DIAGRAMS[id]) continue; const o = document.createElement('option'); o.value = id; o.textContent = it; og.appendChild(o); }
+  if (og.children.length) $('#pick').appendChild(og);
+}
+$('#pick').addEventListener('change', (e) => render(e.target.value));
+const step = (d) => { const i = ORDER.indexOf($('#pick').value); render(ORDER[(i + d + ORDER.length) % ORDER.length]); window.scrollTo(0, 0); };
+$('#prev').addEventListener('click', () => step(-1));
+$('#next').addEventListener('click', () => step(1));
+$('#fit').addEventListener('click', () => { const on = $('#canvas').classList.toggle('fit'); $('#fit').classList.toggle('on', on); });
+$('#asideClose').addEventListener('click', () => $('#aside').classList.remove('open'));
+$('#asideTitle').addEventListener('click', () => $('#aside').classList.toggle('open'));
+let first = 'D00';
+try { const saved = localStorage.getItem('vantage-flow'); if (saved && DIAGRAMS[saved]) first = saved; } catch (e) {}
+render(first);
+</script>
+</body>
+</html>
