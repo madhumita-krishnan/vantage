@@ -117,7 +117,7 @@
   }
   const checkout = mkShare({
     id: 'Qm4xT9vLp2Kd',
-    name: 'Checkout redesign v3',
+    name: 'Sample Prototype 1: Checkout redesign',
     tasks: CHECKOUT_TASKS,
     passcode: { hash: 'demo' },
     voice: true,
@@ -142,7 +142,7 @@
   });
   const onboarding = mkShare({
     id: 'Hb7nR2wQx5Ae',
-    name: 'Onboarding flow, round 2',
+    name: 'Sample Prototype 2: Onboarding flow',
     mode: 'moderated',
     showTasks: false,
     tasks: [
@@ -157,7 +157,7 @@
   });
   const pricing = mkShare({
     id: 'Zt3kW8mNc1Yf',
-    name: 'Pricing page handoff',
+    name: 'Sample Prototype 3: Pricing page handoff',
     mode: 'view',
     createdAt: NOW - 1 * day,
     expiresAt: NOW + 29 * day,
@@ -166,7 +166,7 @@
   });
   mkShare({
     id: 'Pw9cD4sEj6Lo',
-    name: 'Dashboard concept, round 1',
+    name: 'Sample Prototype 4: Dashboard concept',
     createdAt: NOW - 40 * day,
     expiresAt: NOW - 12 * day,
     tasks: [{ text: 'Find last month’s revenue', kind: 'task', when: { type: 'start', value: null } }],
@@ -174,7 +174,7 @@
   });
   mkShare({
     id: 'Xn2vB6hKq8Rt',
-    name: 'Investor demo (do not forward)',
+    name: 'Sample Prototype 5: Investor demo',
     mode: 'view',
     revoked: true,
     createdAt: NOW - 20 * day,
@@ -254,7 +254,7 @@
   const adminLog = [
     { ts: iso(NOW - 45 * 60e3), type: 'admin.signin', email: ME, ip: '198.51.100.7' },
     { ts: iso(NOW - 2 * day), type: 'share.created', by: ME, name: onboarding.name, ip: '198.51.100.7' },
-    { ts: iso(NOW - 3 * day), type: 'share.revoked', by: ME, name: 'Investor demo (do not forward)', ip: '198.51.100.7' },
+    { ts: iso(NOW - 3 * day), type: 'share.revoked', by: ME, name: 'Sample Prototype 5: Investor demo', ip: '198.51.100.7' },
     { ts: iso(NOW - 6 * day), type: 'share.created', by: ME, name: checkout.name, ip: '198.51.100.7' },
     { ts: iso(NOW - 9 * day), type: 'token.created', by: ME, name: 'Claude Code on my laptop', ip: '198.51.100.7' },
     { ts: iso(NOW - 11 * day), type: 'token.revoked', by: ME, name: 'CLI on the studio Mac mini', ip: '198.51.100.7' },

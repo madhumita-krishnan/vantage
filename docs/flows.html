@@ -911,6 +911,7 @@ function edgePath(e, a, b) {
 
 function render(id) {
   const D = DIAGRAMS[id];
+  if (location.hash.slice(1) !== id) history.replaceState(null, '', '#' + id);
   $('#dTitle').textContent = D.title; $('#dDesc').textContent = D.desc;
   const byId = Object.fromEntries(D.nodes.map((n) => [n.id, n]));
   const cols = Math.max(...D.nodes.map((n) => n.c)) + 1, rows = Math.max(...D.nodes.map((n) => n.r)) + 1;
@@ -1018,10 +1019,15 @@ const step = (d) => { const i = ORDER.indexOf($('#pick').value); render(ORDER[(i
 $('#prev').addEventListener('click', () => step(-1));
 $('#next').addEventListener('click', () => step(1));
 $('#fit').addEventListener('click', () => { const on = $('#canvas').classList.toggle('fit'); $('#fit').classList.toggle('on', on); });
+// Fit is on by default: a diagram wider than the window shrinks to fit. Click Fit to see it at full size.
+$('#canvas').classList.add('fit'); $('#fit').classList.add('on');
 $('#asideClose').addEventListener('click', () => $('#aside').classList.remove('open'));
 $('#asideTitle').addEventListener('click', () => $('#aside').classList.toggle('open'));
 let first = 'D00';
 try { const saved = localStorage.getItem('vantage-flow'); if (saved && DIAGRAMS[saved]) first = saved; } catch (e) {}
+// A link can open a diagram directly: flows.html#D14. The address updates as you move, so any diagram can be linked.
+if (DIAGRAMS[location.hash.slice(1)]) first = location.hash.slice(1);
+window.addEventListener('hashchange', () => { if (DIAGRAMS[location.hash.slice(1)]) render(location.hash.slice(1)); });
 render(first);
 </script>
 </body>

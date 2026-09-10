@@ -8,9 +8,28 @@ Built for product designers who prototype with Claude or any tool that produces 
 Designer ──(console / CLI / Claude)──▶ Vantage ◀──(personal link)── Tester
 ```
 
-| 🎮 **TRY ME**                                                                                                                                                                                                                                                    | 🗺️ **HOW THIS WORKS**                                                                                                                                                                                                                                           |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Check out the demo before you set anything up.** Every screen, live on demo data, in one file: **[docs/demo.html](docs/demo.html)**. The real console, tester view and gate pages; buttons work; nothing is saved. Download the file and open it in a browser. | **Every step a designer and a tester take, as flowcharts.** Twenty diagrams, from making a share to reading results: **[docs/flows.html](docs/flows.html)**. Hover or tap any shape for what it means in plain words. The demo's screens follow the same order. |
+<table>
+<tr>
+<td width="34%" valign="top">
+
+### 🎮 TRY ME
+
+**Check out the demo before you set anything up.** Every screen, live on demo data, in one file: **[docs/demo.html](docs/demo.html)**. The real console, tester view and gate pages; buttons work; nothing is saved. The prototypes in it are placeholders, named "Sample Prototype 1", "Sample Prototype 2" and so on. Download the file and open it in a browser.
+
+</td>
+<td width="66%"><a href="docs/demo.html"><img src="docs/images/demo.png" alt="The demo: the Prototypes screen of the console, with the walkthrough list on the left" width="100%"></a></td>
+</tr>
+<tr>
+<td width="34%" valign="top">
+
+### 🗺️ HOW THIS WORKS
+
+**Every step a designer and a tester take, as flowcharts.** Twenty diagrams, from making a share to reading results: **[docs/flows.html](docs/flows.html)**. Hover or tap any shape for what it means in plain words. The demo's screens follow the same order.
+
+</td>
+<td width="66%"><a href="docs/flows.html"><img src="docs/images/flows.png" alt="The flow diagrams: the big picture, one loop from the designer to the tester and back" width="100%"></a></td>
+</tr>
+</table>
 
 Once this repository is public and GitHub Pages is switched on, both open with one click at this repository's GitHub Pages address, `/demo.html` and `/flows.html`.
 
