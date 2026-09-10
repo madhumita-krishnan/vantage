@@ -5,40 +5,49 @@
    optionValues, introEditor, wireIntroEditor, introValue, uploadIntro */
 /* global $, esc, ic, toast, api, uploadXhr, render */
 
-// ---- tasks and questions, each with a "when" rule ----
+// ---- tasks and questions: a title, an optional description and a "when" rule, laid out like a form builder ----
 const WHEN = { start: 'At the start', after: 'After task…', screen: 'On screen…', minutes: 'After … minutes' };
 const WHEN_PLACEHOLDER = { after: 'task #', screen: '#checkout', minutes: '5', start: '' };
 
 function taskRow(t) {
-  t = t || { text: '', kind: 'task', when: { type: 'start', value: '' } };
+  t = t || { text: '', description: '', kind: 'task', when: { type: 'start', value: '' } };
   const options = Object.entries(WHEN)
     .map(([k, v]) => `<option value="${k}" ${t.when.type === k ? 'selected' : ''}>${v}</option>`)
     .join('');
-  const placeholder =
-    t.kind === 'question' ? 'What did you expect to happen here?' : 'Find the price of the annual plan';
+  const title =
+    t.kind === 'question'
+      ? 'Question, e.g. What did you expect to happen here?'
+      : 'Task, e.g. Find the price of the annual plan';
   return `
-    <div class="taskrow">
-      <select class="tk">
-        <option value="task" ${t.kind === 'task' ? 'selected' : ''}>Task</option>
-        <option value="question" ${t.kind === 'question' ? 'selected' : ''}>Question</option>
-      </select>
-      <input type="text" class="tt" value="${esc(t.text)}" placeholder="${placeholder}">
-      <select class="tw">${options}</select>
-      <input type="text" class="tv" value="${esc(t.when.type === 'after' ? t.when.value + 1 : (t.when.value ?? ''))}" placeholder="${WHEN_PLACEHOLDER[t.when.type]}"
-        ${t.when.type === 'start' ? 'disabled' : ''}>
-      <button type="button" class="rm" title="Remove">${ic('x')}</button>
+    <div class="taskcard">
+      <div class="head">
+        <input type="text" class="tt" value="${esc(t.text)}" placeholder="${title}" aria-label="Title">
+        <select class="tk" aria-label="Kind">
+          <option value="task" ${t.kind === 'task' ? 'selected' : ''}>Task</option>
+          <option value="question" ${t.kind === 'question' ? 'selected' : ''}>Question</option>
+        </select>
+      </div>
+      <textarea class="td" aria-label="Description" placeholder="Description (optional): where to start, what counts as done, anything the tester should know">${esc(t.description || '')}</textarea>
+      <div class="foot">
+        <span class="hint">Show it</span>
+        <select class="tw" aria-label="When it appears">${options}</select>
+        <input type="text" class="tv" value="${esc(t.when.type === 'after' ? t.when.value + 1 : (t.when.value ?? ''))}" placeholder="${WHEN_PLACEHOLDER[t.when.type]}"
+          ${t.when.type === 'start' ? 'disabled' : ''} aria-label="When: value">
+        <span></span>
+        <button type="button" class="rm" title="Remove">${ic('x')}</button>
+      </div>
     </div>`;
 }
 function taskEditor(tasks) {
   return `
     <div class="field">
       <label>Tasks and questions for testers</label>
-      <div class="stack" id="tasks" style="gap:var(--s2)">${tasks.map(taskRow).join('')}</div>
+      <div class="stack" id="tasks" style="gap:var(--s4)">${tasks.map(taskRow).join('')}</div>
       <div class="row">
         <button type="button" class="btn small" id="taskAdd">${ic('plus')}Add</button>
-        <span class="hint">A task gets Completed / Couldn't buttons. A question gets a text answer. "When" controls when
-          it appears: at the start, after another task is done, when the tester reaches a screen (match on the page
-          path or #hash), or after a number of minutes.</span>
+        <span class="hint">A task gets Completed / Couldn't buttons; a question gets a text answer. "Show it" says when
+          it appears: at the start, after another task, when the tester reaches a screen (the page path or #hash), or
+          after a number of minutes.</span>
       </div>
     </div>`;
 }
@@ -46,6 +55,12 @@ function wireTaskEditor() {
   const box = $('#tasks');
   const wire = (r) => {
     r.querySelector('.rm').onclick = () => r.remove();
+    r.querySelector('.tk').onchange = (e) => {
+      r.querySelector('.tt').placeholder =
+        e.target.value === 'question'
+          ? 'Question, e.g. What did you expect to happen here?'
+          : 'Task, e.g. Find the price of the annual plan';
+    };
     r.querySelector('.tw').onchange = (e) => {
       const v = r.querySelector('.tv');
       v.disabled = e.target.value === 'start';
@@ -53,7 +68,7 @@ function wireTaskEditor() {
       if (e.target.value === 'start') v.value = '';
     };
   };
-  box.querySelectorAll('.taskrow').forEach(wire);
+  box.querySelectorAll('.taskcard').forEach(wire);
   $('#taskAdd').onclick = () => {
     box.insertAdjacentHTML('beforeend', taskRow());
     wire(box.lastElementChild);
@@ -61,12 +76,17 @@ function wireTaskEditor() {
   };
 }
 function taskValue() {
-  return [...$('#tasks').querySelectorAll('.taskrow')]
+  return [...$('#tasks').querySelectorAll('.taskcard')]
     .map((r) => {
       const type = r.querySelector('.tw').value;
       let value = r.querySelector('.tv').value.trim();
       if (type === 'after') value = Math.max(0, (+value || 1) - 1); // people count from 1; the server from 0
-      return { text: r.querySelector('.tt').value, kind: r.querySelector('.tk').value, when: { type, value } };
+      return {
+        text: r.querySelector('.tt').value,
+        description: r.querySelector('.td').value,
+        kind: r.querySelector('.tk').value,
+        when: { type, value },
+      };
     })
     .filter((t) => t.text.trim());
 }
@@ -119,58 +139,85 @@ function wireModeSeg() {
 }
 const modeValue = () => $('#modeSeg .on').dataset.m;
 
-// ---- option switches ----
+// ---- option switches: three that change what a tester experiences stay in view; the rest sit under "More
+// settings", grouped, each with a short title and one line of what it does ----
 const OPTIONS = [
-  [
-    'showTasks',
-    'Show tasks and questions to testers. Turn off for moderated sessions where you ask them yourself.',
-    (s) => s.showTasks !== false,
-  ],
-  ['record', 'Record interactions: clicks, navigation, focus, scroll.', (s) => s.recordSessions !== false],
-  [
-    'recordText',
-    'Also record what testers type into the prototype. Off by default so real personal data is never captured; turn on when the prototype uses sample data and the typed input matters.',
-    (s) => !!s.recordText,
-  ],
-  [
-    'voice',
-    'Offer think-aloud voice recording. Testers choose on the consent screen, see a red Recording indicator while it runs, and can stop it at any time. Off by default.',
-    (s) => !!s.voice,
-  ],
-  [
-    'screen',
-    'Offer screen recording: a video of the prototype tab, with the voice track when both are on, that you can watch back on the results tab. Desktop browsers only; the tester picks the tab and can stop at any time. About 5 MB a minute, counted against the media limit. Off by default.',
-    (s) => !!s.screen,
-  ],
-  [
-    'consent',
-    'Ask testers for consent before recording anything. Always on when voice or screen recording is offered, because that is where testers choose.',
-    (s) => s.requireConsent !== false,
-  ],
-  [
-    'signin',
-    'Testers must sign in with Google as the invited address before the link opens, so a forwarded link opens nothing. Needs Google sign-in on this server. Off by default because it excludes people without a Google account.',
-    (s) => !!s.requireSignIn,
-  ],
-  ['wm', "Show a watermark with the viewer's email over the prototype.", (s) => s.watermark !== false],
+  {
+    id: 'showTasks',
+    main: true,
+    title: 'Show tasks to testers',
+    desc: 'Off for moderated sessions, where you ask them yourself.',
+    on: (s) => s.showTasks !== false,
+  },
+  {
+    id: 'voice',
+    main: true,
+    title: 'Offer voice recording',
+    desc: 'Think-aloud audio. Testers choose on the consent screen and can stop at any time.',
+    on: (s) => !!s.voice,
+  },
+  {
+    id: 'screen',
+    main: true,
+    title: 'Offer screen recording',
+    desc: 'A video of the prototype tab, desktop browsers only. About 5 MB a minute.',
+    on: (s) => !!s.screen,
+  },
+  {
+    id: 'record',
+    group: 'Recording',
+    title: 'Record interactions',
+    desc: 'Clicks, navigation, focus and scroll.',
+    on: (s) => s.recordSessions !== false,
+  },
+  {
+    id: 'recordText',
+    group: 'Recording',
+    title: 'Record what testers type',
+    desc: 'Off by default so real personal data is never captured. Turn on when the prototype uses sample data.',
+    on: (s) => !!s.recordText,
+  },
+  {
+    id: 'consent',
+    group: 'Consent and privacy',
+    title: 'Ask for consent before recording',
+    desc: 'Always on when voice or screen recording is offered; that is where testers choose.',
+    on: (s) => s.requireConsent !== false,
+  },
+  {
+    id: 'wm',
+    group: 'Consent and privacy',
+    title: "Watermark with the viewer's email",
+    desc: 'Over every screen, so a screenshot names who took it.',
+    on: (s) => s.watermark !== false,
+  },
+  {
+    id: 'signin',
+    group: 'Access',
+    title: 'Require Google sign-in',
+    desc: 'The link opens only for the invited address, so a forwarded link opens nothing. Needs Google sign-in on this server; excludes people without a Google account.',
+    on: (s) => !!s.requireSignIn,
+  },
 ];
-const sw = (id, label, on, cls = '') =>
-  `<label class="opt ${cls}"><input type="checkbox" id="${id}" ${on ? 'checked' : ''}><span class="sw"></span><span>${label}</span></label>`;
+const sw = (o, on) =>
+  `<label class="opt"><input type="checkbox" id="${o.id}" ${on ? 'checked' : ''}><span class="sw"></span><span><b>${o.title}</b><span class="hint">${o.desc}</span></span></label>`;
 function optionChecks(s) {
-  const all = sw(
-    'optAll',
-    'Select all',
-    OPTIONS.every((o) => o[2](s)),
-    'all'
-  );
-  return `<div class="stack" id="opts" style="gap:var(--s3)">${all}${OPTIONS.map((o) => sw(o[0], o[1], o[2](s))).join('')}</div>`;
+  const main = OPTIONS.filter((o) => o.main)
+    .map((o) => sw(o, o.on(s)))
+    .join('');
+  const groups = [...new Set(OPTIONS.filter((o) => o.group).map((o) => o.group))];
+  const more = groups
+    .map(
+      (g) =>
+        `<div class="optgroup"><h4>${g}</h4>${OPTIONS.filter((o) => o.group === g)
+          .map((o) => sw(o, o.on(s)))
+          .join('')}</div>`
+    )
+    .join('');
+  return `<div class="stack" id="opts" style="gap:var(--s3)">${main}</div>
+    <details class="more"><summary>More settings</summary><div class="stack" style="gap:var(--s5)">${more}</div></details>`;
 }
-function wireOptions() {
-  const all = $('#optAll');
-  const items = OPTIONS.map((o) => $('#' + o[0]));
-  all.onchange = () => items.forEach((i) => (i.checked = all.checked));
-  items.forEach((i) => (i.onchange = () => (all.checked = items.every((x) => x.checked))));
-}
+function wireOptions() {} // nothing to wire; kept so the pages that call it do not change
 function optionValues() {
   return {
     showTasks: $('#showTasks').checked,

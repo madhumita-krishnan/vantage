@@ -612,6 +612,7 @@
                     '. ' +
                     esc(t.text) +
                     '</div>' +
+                    (t.description ? '<div class=\"muted desc\">' + esc(t.description) + '</div>' : '') +
                     (r
                       ? '<div class="muted">Answered</div>'
                       : '<textarea placeholder="Your answer"></textarea>' +
@@ -628,6 +629,7 @@
                   '. ' +
                   esc(t.text) +
                   '</div>' +
+                  (t.description ? '<div class=\"muted desc\">' + esc(t.description) + '</div>' : '') +
                   (r
                     ? '<div class="muted">Marked as ' + (r === 'done' ? 'completed' : 'could not complete') + '</div>'
                     : '<div class="actions"><button class="btn" data-r="done">Completed</button><button class="btn" data-r="stuck">Couldn\'t do it</button></div>' +

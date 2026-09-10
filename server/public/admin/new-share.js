@@ -10,9 +10,9 @@ let pending = { files: [], entry: '', media: null };
 function renderNew(app) {
   pending = { files: [], entry: '', media: null };
   app.innerHTML = shell(
-    `<div class="pagehead"><h1>New share</h1></div>
+    `<div class="pagehead"><h1>New Share</h1></div>
      <div class="card" style="max-width:var(--form-w)">
-       <form class="stack" id="newForm" style="gap:var(--s6)">
+       <form class="stack" id="newForm" style="gap:var(--s7)">
          <div class="section">
            <h3>Prototype</h3>
            <div class="hint">Upload the files, say who may open it, and set when it stops working.</div>

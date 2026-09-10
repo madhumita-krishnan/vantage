@@ -205,7 +205,7 @@ function shell(content, active) {
   return `
     <nav class="nav">
       <a class="brand" href="#" data-nav="list">${ic('lock', 'lg')}Vantage</a>
-      <div class="links">${link('list', 'Prototypes')}${link('new', 'New share')}${link('server', 'Server')}</div>
+      <div class="links">${link('list', 'Prototypes')}${link('new', 'New Share')}${link('server', 'Server')}</div>
       <span class="spacer"></span>
       <span class="hint">${status} · ${me.server.sso ? 'SSO' : 'personal links'}</span>
       <a href="#" class="me ${active === 'account' ? 'on' : ''}" data-nav="account" title="Account">

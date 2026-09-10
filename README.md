@@ -8,6 +8,12 @@ Built for product designers who prototype with Claude or any tool that produces 
 Designer ──(console / CLI / Claude)──▶ Vantage ◀──(personal link)── Tester
 ```
 
+| 🎮 **TRY ME**                                                                                                                                                                                                                                                    | 🗺️ **HOW THIS WORKS**                                                                                                                                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Check out the demo before you set anything up.** Every screen, live on demo data, in one file: **[docs/demo.html](docs/demo.html)**. The real console, tester view and gate pages; buttons work; nothing is saved. Download the file and open it in a browser. | **Every step a designer and a tester take, as flowcharts.** Twenty diagrams, from making a share to reading results: **[docs/flows.html](docs/flows.html)**. Hover or tap any shape for what it means in plain words. The demo's screens follow the same order. |
+
+Once this repository is public and GitHub Pages is switched on, both open with one click at this repository's GitHub Pages address, `/demo.html` and `/flows.html`.
+
 ## Two ways to use it
 
 **Run it yourself.** One Node process, no third-party packages, files encrypted on disk, nothing sent anywhere. For teams whose policy forbids third-party hosting, and for anyone who wants to read every line before trusting it. Start with the three steps below; deploy with [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
@@ -15,10 +21,6 @@ Designer ──(console / CLI / Claude)──▶ Vantage ◀──(personal link
 **Use a hosted copy.** The same server deployed with Google sign-in and per-person limits, for teams without such a policy. There is no public hosted instance yet; the deployment doc has the Cloud Run recipe, and the free tiers cover a small team.
 
 Either way the code is the same. Which one fits you depends on one question: may your prototypes sit on someone else's server?
-
-## See it first, no setup
-
-Every screen of Vantage, live on demo data, in one file: [docs/demo.html](docs/demo.html). Download it and open it in a browser, or, once this repository is public and GitHub Pages is on, open it at the published address. The console, the tester view and every gate page are the real pages; buttons work; nothing you do there is saved. The screens are in the order of the [flow diagrams](docs/flows.html), so the two read together.
 
 ## Try it in three steps
 

@@ -40,6 +40,7 @@
   --r-card: 8px;
   --r-sheet: 12px;
   --r-pill: 99px;
+  --icon-gap: 6px; /* icon to label inside a button: a touch more than a word space, so the icon reads as its own thing */
   --form-w: 640px;
   --page-w: 1100px;
   --panel-w: 340px;
@@ -154,7 +155,7 @@ input[type='date'] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--s1);
+  gap: var(--icon-gap);
   height: var(--control-h);
   padding: 0 var(--s4);
   border: 1px solid var(--line-strong);
@@ -181,6 +182,54 @@ input[type='date'] {
   height: var(--control-h-sm);
   padding: 0 var(--s3);
   font-size: 12px;
+}
+/* reveal: the icon alone at rest; on hover or focus the label slides out while the icon turns twice. Pointers only:
+   on touch screens and narrow layouts the label is always shown, and reduced motion drops the turn. */
+.btn.reveal > span {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+}
+@media (hover: hover) and (pointer: fine) and (min-width: 701px) {
+  .btn.reveal {
+    padding: 0 10px;
+  }
+  .btn.reveal > span {
+    max-width: 0;
+    opacity: 0;
+    transition:
+      max-width 0.35s ease,
+      opacity 0.25s ease,
+      margin-left 0.35s ease;
+    margin-left: calc(-1 * var(--icon-gap));
+  }
+  .btn.reveal > svg.i {
+    transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .btn.reveal:hover > span,
+  .btn.reveal:focus-visible > span {
+    max-width: 12ch;
+    opacity: 1;
+    margin-left: 0;
+  }
+  .btn.reveal:hover > svg.i,
+  .btn.reveal:focus-visible > svg.i {
+    transform: rotate(720deg);
+  }
+  .btn.reveal:hover,
+  .btn.reveal:focus-visible {
+    padding: 0 var(--s4) 0 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn.reveal > span,
+  .btn.reveal > svg.i {
+    transition: none;
+  }
+  .btn.reveal:hover > svg.i,
+  .btn.reveal:focus-visible > svg.i {
+    transform: none;
+  }
 }
 .btn:disabled {
   opacity: 0.5;
@@ -243,7 +292,7 @@ textarea {
 .section {
   display: flex;
   flex-direction: column;
-  gap: var(--s3);
+  gap: var(--s4);
 }
 .section > h3 {
   font-size: 16px;
@@ -472,24 +521,97 @@ textarea {
 .loc .mono {
   font-size: 12px;
 }
-/* task editor */
-.taskrow {
+/* task editor: one card per task, like a form builder. Title and kind on top, description under it, the "when" rule at the foot. */
+.taskcard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--panel);
+}
+.taskcard .head {
   display: grid;
-  grid-template-columns: 110px minmax(0, 1fr) 150px 110px 32px;
+  grid-template-columns: minmax(0, 1fr) 130px;
+  gap: var(--s2);
+}
+.taskcard .tt {
+  font-size: 16px;
+  height: 40px;
+}
+.taskcard .td {
+  min-height: 56px;
+  font-size: 13px;
+}
+.taskcard .foot {
+  display: grid;
+  grid-template-columns: auto 160px 110px minmax(0, 1fr) 32px;
   gap: var(--s2);
   align-items: center;
 }
-.taskrow .rm {
+.taskcard .rm {
   width: 32px;
-  height: var(--control-h);
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line);
-  border-radius: var(--r-control);
-  background: var(--panel);
+  border: 0;
+  background: none;
   color: var(--muted);
+  border-radius: var(--r-control);
   cursor: pointer;
+}
+.taskcard .rm:hover {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+@media (max-width: 700px) {
+  .taskcard .head,
+  .taskcard .foot {
+    grid-template-columns: 1fr;
+  }
+  .taskcard .foot span:empty {
+    display: none;
+  }
+}
+/* option groups under "More settings" */
+.opt > span > b {
+  display: block;
+  font-weight: 500;
+}
+.opt > span > .hint {
+  display: block;
+}
+.optgroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+.optgroup h4 {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+details.more > summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--accent);
+  padding: var(--s2) 0;
+  list-style: none;
+}
+details.more > summary::before {
+  content: '▸ ';
+}
+details.more[open] > summary::before {
+  content: '▾ ';
+}
+details.more[open] > summary {
+  margin-bottom: var(--s3);
 }
 /* recording indicator + media */
 .rec {

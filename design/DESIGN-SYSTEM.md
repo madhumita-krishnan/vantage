@@ -15,8 +15,8 @@ Everything (padding, gaps, margins) uses one of these. Nothing else.
 | `--s3` | 12 | input padding (horizontal), gap between related controls, table cell padding |
 | `--s4` | 16 | gap between form fields, gap between grid columns |
 | `--s5` | 20 | gap between a sheet's header and its first item, section title to content |
-| `--s6` | 24 | gap between sections inside a card |
-| `--s7` | 32 | gap between cards, page top padding |
+| `--s6` | 24 | gap between a group of related controls and the next group |
+| `--s7` | 32 | gap between sections inside a card, gap between cards, page top padding |
 | `--s8` | 48 | space below the footer text (the very bottom of every page) |
 | `--s9` | 64 | **minimum** space between the last piece of content and the footer line; grows when the page is shorter than the screen |
 | `--gutter` | 20 desktop / **16 phone** | **gutter**: card padding, page side padding, panel, sheet, modal and toast inset. Phone = viewport 700px or narrower |
@@ -30,7 +30,21 @@ Everything (padding, gaps, margins) uses one of these. Nothing else.
 
 **Scrolling boxes.** A bottom sheet, side panel or modal body that can hold more than fits scrolls inside itself (`.scroll`), never the page behind it. Its content starts `--gutter` below the header row and ends with `--gutter-b` (32px, plus the phone safe area) of empty space. While more content is below the fold a 32px fade (`.scrollwrap.more`) shows at the bottom edge; it disappears at the end of the scroll, so the last line is always readable in full and never sits under the fade. The scrollbar is real and proportional (thin, `--line` colored where the platform lets us style it), never a painted stand-in. In the canvas mockups the sheets and the console pages really scroll, and the fade is driven by the scroll position.
 
-**Stack rule.** A form is a vertical stack with `gap: var(--s4)` between field groups and `gap: var(--s6)` between sections. Do not add per-element margins on top of the gap.
+**Stack rule.** A form is a vertical stack with `gap: var(--s4)` between field groups and `gap: var(--s7)` between sections. Do not add per-element margins on top of the gap.
+
+**Component spacing, in one table.** Read it as "how far apart are two things", from closest to farthest. Things that belong together sit closer than things that do not (law of proximity), and the same relationship always gets the same distance.
+
+| Between | Gap |
+|---|---|
+| An icon and its label inside a button | `--icon-gap` (6px): a touch more than a word space, so the icon reads as its own thing but part of the button |
+| Buttons in a row, a switch and the next switch | `--s2` (8) |
+| A label and its control, a control and its hint | `--s1` (4) |
+| A field and the next field | `--s4` (16) |
+| A section title and its first field | `--s4` (16) |
+| One group of switches and the next group | `--s5` (20) |
+| A section and the next section inside a card | `--s7` (32) |
+| A card and the next card | `--s7` (32) |
+| The last content and the footer | at least `--s9` (64) |
 
 ## 2. Sizes
 
@@ -43,6 +57,7 @@ Everything (padding, gaps, margins) uses one of these. Nothing else.
 | `--r-card` | 8px | cards, panels, modals (the kit's input and thumbnail radius) |
 | `--r-sheet` | 12px | the bottom sheet on phones (the kit's modal radius) |
 | `--r-pill` | 99px | status pills, count badges |
+| `--icon-gap` | 6px | icon to label inside a button |
 | `--form-w` | 640px | max width of any single-column form |
 | `--page-w` | 1100px | max width of the console |
 | `--panel-w` | 340px | tester side panel on desktop |
@@ -109,7 +124,7 @@ An icon with a number next to it always carries a `title` tooltip that spells it
 
 ## 6. Components
 
-- **Button**: height `--control-h`, padding `0 var(--s4)` (16px each side of the label), radius `--r-control`, 14px/500. Variants: primary (accent fill), default (panel fill, `--line-strong` border), danger (danger text). Small variant: `--control-h-sm`, padding `0 var(--s3)`, 12px; only inside tables and header rows. On phones a standard button is `--touch` (44px) tall with the standard 14px label and 16px padding; a small button is never stretched to 44. Buttons in a row: `display:flex; gap: var(--s2)`.
+- **Button**: height `--control-h`, padding `0 var(--s4)` (16px each side of the label), radius `--r-control`, 14px/500. Variants: primary (accent fill), default (panel fill, `--line-strong` border), danger (danger text). Small variant: `--control-h-sm`, padding `0 var(--s3)`, 12px; only inside tables and header rows. **With an icon:** the icon is 16px, sits before the label, and the gap between them is `--icon-gap` (6px): more than the space between two words, so the icon is its own thing, but inside the same padding, so it is still part of the button. Labels are Title Case when the button names a thing to make ("New Share", "Create share" stays as is because it is an action on the form). **Reveal variant** (`.btn.reveal`, the New Share button): at rest on a desktop it shows only the icon; on hover or keyboard focus the label slides out over 0.35s while the icon turns twice (720°) over 0.6s. On touch screens, on phones and with reduced motion the label is always visible and nothing turns, because there is no hover and a hidden label is a hidden button. On phones a standard button is `--touch` (44px) tall with the standard 14px label and 16px padding; a small button is never stretched to 44. Buttons in a row: `display:flex; gap: var(--s2)`.
 - **Input / select / textarea**: height `--control-h` (textarea min 96px), padding `0 var(--s3)`, radius `--r-control`, `--line-strong` border, `--placeholder` placeholder text, accent focus ring (2px outline offset 1px). Always `width:100%`.
 - **Field**: label (12/16, 500, muted) + control + optional hint (12/16 muted), stacked with `gap: var(--s1)`.
 - **Card**: panel fill, line border, radius `--r-card`, padding `--gutter`, and the kit's soft `--shadow-card`.
@@ -118,11 +133,12 @@ An icon with a number next to it always carries a `title` tooltip that spells it
 - **List row** (shares list): grid `minmax(0,1fr) 72px 72px 96px`, gap `--s4`, row padding `var(--s3) var(--s2)`. The count cells are icon + number, right-aligned, tabular figures.
 - **Pill**: 11px 600 uppercase, padding `2px var(--s2)`, radius `--r-pill`.
 - **Tabs**: 36px tall, 14px, active = ink text + 2px accent underline.
-- **Switch** (every on/off option): a 36×20 pill track with a 16px round thumb. Off = line fill, thumb left; on = accent fill, thumb right. Label to the right, 13/20, aligned to the top of the track. Options stack with `--s3` gaps. A group with more than two switches starts with a **Select all** switch in muted text, separated by a line. Checkboxes are not used anywhere in the console.
+- **Switch** (every on/off option): a 36×20 pill track with a 16px round thumb. Off = line fill, thumb left; on = accent fill, thumb right. To the right, a **title** (13/20, 500) and under it **one line of what it does** (12/16 muted): the pattern every settings screen people already know uses, a name and a sentence. Options stack with `--s3` gaps. Checkboxes are not used anywhere in the console.
+- **Settings organisation** (Hick's law, Miller's law): at most **three** switches are in view, the ones that change what a tester experiences (show tasks, voice, screen). Everything else lives under a **More settings** disclosure (a native `<details>`, so the form keeps its state), grouped under small uppercase headings by what the setting is about: Recording, Consent and privacy, Access. Groups are `--s5` apart. Nothing is duplicated between the visible three and the groups.
 - **Segmented toggle** (Unmoderated / Moderated, intro type): a pill. Outer track 28px tall, `--r-pill` radius, 2px padding, `--bg` fill, line border. Options are 24px pills, 13px/500; the selected one has `--panel` fill and a 1px shadow. It hugs its content (`align-self: flex-start`), never stretches.
 - **Navigation bar**: 48px tall (the kit's top bar), panel fill, line border below. Brand (lock + name) on the left, then text links 32px tall as pills (`--r-pill`); the current page gets `--accent-soft` fill and ink text, the kit's selected-item tint. On the right: status text, then the **account chip** (24px initials circle in accent, the signed-in email, 13px muted, same 32px pill shape; ink text and `--accent-soft` fill when the Account page is open). Sign out lives on the Account page, not in the bar. The tester view keeps its own 44px header because the prototype needs the space.
 - **Footer**: line border above, `--s5` padding top, `--s8` (48px) padding bottom, which is the gap at the bottom of every page, pushed to the bottom of the screen by the bottom rule. Same on every page of the console and in every desktop mockup. 12px muted text. Product name and version on the left, documentation links on the right.
-- **Task editor row**: grid `110px minmax(0,1fr) 150px 110px 32px` with `--s2` gap: kind, text, when, value, remove. All controls 36px tall.
+- **Task card** (the form-builder pattern, as in Google Forms): one card per task or question, line border, `--r-card`, `--s4` padding, `--s3` between its rows. Top row: the title (16px, 40px tall) with the kind selector (Task / Question, 130px) on its right. Under it: a description textarea (13px, min 56px), optional. Foot row: the word "Show it", the when selector (160px), its value (110px), a spacer, and a remove icon at the far right. Cards are `--s4` apart. On phones every row stacks to one column.
 - **Recording indicator**: 28px pill, `--danger-bg` fill, danger text 12px/600, pulsing 8px dot, Stop button inside. Shown in the header for the whole time the microphone is on; never hidden while recording. On phones the label is hidden and the dot plus Stop remain. The toast that appears when recording starts is a courtesy; the pill is the permanent signal.
 - **Media player**: 16:9 video with native controls plus a controls row below it: captions select (28px) and Full screen button. Audio uses the native player at full width.
 - **Location label** (results, feedback): a small screen icon, the word "on", then the path in mono, muted, with a tooltip "Where they were in the prototype". Never a bare symbol.
@@ -142,7 +158,36 @@ An icon with a number next to it always carries a `title` tooltip that spells it
 - Watermark: viewer email + date, rotated -24°, 9% opacity, tiled, never interactive.
 - The "Before you start" screen is the tester's onboarding, and the only one: personal link, passcode if set, then this one modal, then the prototype. Its body is, in order: the designer's intro (text, audio or video), then a "What gets recorded" section with the voice switch and the consent buttons. Media sits above the consent text, never replaces it, because consent is the legal part. The modal follows the scrolling rules above, so a long intro is read by scrolling while the buttons stay in view. After it closes, the product explains itself in two toasts at most (recording on, tasks waiting) and the Tasks badge; there is no tour.
 
+## 8. Laws we follow, and where
+
+Twenty rules of thumb, each tied to something concrete in Vantage so it can be checked, not just admired.
+
+| Law | What it says | Where it shows up here |
+|---|---|---|
+| Hick's | More choices, slower choice | Three switches in view, the rest under More settings |
+| Fitts's | Big, close targets are faster | 36px controls on desktop, 44px on phones, primary action at the end of the form |
+| Jakob's | People expect what other sites do | Task cards look like Google Forms; settings look like every settings screen |
+| Proximity | Close things read as related | The spacing table: 4 / 8 / 16 / 32 by relationship |
+| Similarity | Same-looking things read as the same kind | One button shape, one switch shape, one card shape |
+| Uniform connectedness | Things inside a boundary belong together | A task's title, description and rule share one card |
+| Prägnanz | The eye prefers the simplest shape | Cards, rows and columns; no decoration that is not information |
+| Miller's | About seven things at once | Settings grouped into three named groups |
+| Doherty threshold | Answer within 400ms | Add viewer wakes up as you type; copy and save confirm with a toast at once |
+| Von Restorff | The one different thing is remembered | One primary button per page; danger is red and nothing else is |
+| Serial position | First and last are remembered | Purpose first, Create last; Name first on the viewers table |
+| Peak-end | The end colours the memory | The Thank-you page for testers; the link shown once, clearly, for designers |
+| Zeigarnik | Unfinished things nag | The Tasks badge counts what is left |
+| Tesler's | Complexity has to live somewhere | The server holds it (origins, encryption, limits); the Server page just states it |
+| Postel's | Accept generously, send strictly | People fields take "Name <email>" or a bare email; the server stores one clean form |
+| Parkinson's | Work fills the time given | Expiry defaults to seven days, not forever |
+| Occam's razor | Prefer the simpler design | Select all removed; open sign-up removed; one file per demo |
+| Pareto | A few things carry most of the value | The three visible switches; the four tabs on a share |
+| Minimise target distance | Put the next control near the last | Add viewer sits under the viewers table; Add task under the tasks |
+| Goal-gradient | Effort rises near the finish | Tasks number themselves; the last step is one button |
+
 ## 8. Changelog
+
+- **2026-09-10, pass 10.** Button icon gap made a token (6px) and written down. New Share in Title Case, with the reveal variant (icon at rest, label on hover, two turns). Add viewer is two fields, name and email, with the button asleep until both are filled. "Rotate" is now "New link". Tasks became cards with a title, an optional description (also shown to testers), and the when rule at the foot. Test setup shows three switches; the rest sit under More settings, grouped, each with a title and one line. Sections inside a card are 32 apart (were 24), and a section's title is 16 from its first field (was 12). Select all removed. A component-spacing table and a table of the laws we follow.
 
 - **2026-09-07, pass 9.** Re-themed on the "Dashboard - Free UI Kit" Figma kit, decoded from its `.fig` file (see `design/kit/KIT.md`). Colours are the kit's named styles: blue Primary #2d68a2 as the accent, Black #181a1b ink, Sub Black muted, Stroke lines, Background 2 page, plus new tokens for placeholder, disabled, strong borders, the soft selected tint and the card shadow. Type is Plus Jakarta Sans (picked over Manrope on 2026-09-07 for its clearer letters at 12 and 14px). Radii 6 / 8 / 12. Nav bar 48 tall with 32px pill links. Cards carry the kit's shadow. Spacing, gutter, bottom and scrolling rules unchanged.
 

@@ -25,7 +25,7 @@ const WHEN_TYPES = ['start', 'after', 'screen', 'minutes'];
 const now = () => Date.now();
 const iso = (t) => new Date(t).toISOString();
 
-// Tasks are { text, kind: task|question, when: { type: start|after|screen|minutes, value } }. Plain strings still accepted.
+// Tasks are { text, description, kind: task|question, when: { type: start|after|screen|minutes, value } }. Plain strings still accepted.
 function normalizeTasks(tasks) {
   return (Array.isArray(tasks) ? tasks : [])
     .map((t) => {
@@ -34,6 +34,9 @@ function normalizeTasks(tasks) {
         .trim()
         .slice(0, 300);
       if (!text) return null;
+      const description = String((t && t.description) || '')
+        .trim()
+        .slice(0, 1000);
       const w = t.when && typeof t.when === 'object' ? t.when : { type: 'start' };
       const type = WHEN_TYPES.includes(w.type) ? w.type : 'start';
       const value =
@@ -46,7 +49,7 @@ function normalizeTasks(tasks) {
                   .trim()
                   .slice(0, 200)
               : null;
-      return { text, kind: TASK_KINDS.includes(t.kind) ? t.kind : 'task', when: { type, value } };
+      return { text, description, kind: TASK_KINDS.includes(t.kind) ? t.kind : 'task', when: { type, value } };
     })
     .filter(Boolean)
     .slice(0, 50);

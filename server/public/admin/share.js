@@ -127,7 +127,7 @@ function tabLinks(t, share) {
       ? `<div class="link">${esc(l)}</div>`
       : v.revoked
         ? '—'
-        : '<span class="muted">Issued earlier. Rotate for a new link.</span>';
+        : '<span class="muted">Issued earlier. Make a new link to send it again.</span>';
     const copyButtons = l
       ? `<button class="btn small" data-copy="${esc(l)}">Copy</button>
          <button class="btn small" data-copy="vantage://open?u=${encodeURIComponent(l)}"
@@ -135,7 +135,7 @@ function tabLinks(t, share) {
       : '';
     const manage = v.revoked
       ? ''
-      : `<button class="btn small" data-rotate="${v.id}" title="Issue a new link; the old one stops working">Rotate</button>
+      : `<button class="btn small" data-rotate="${v.id}" title="Makes a new link for this person. The old one stops working.">New link</button>
          <button class="btn small danger" data-revoke="${v.id}">Revoke</button>`;
     return `
       <tr class="${v.revoked ? 'muted' : ''}">
@@ -149,23 +149,24 @@ function tabLinks(t, share) {
   t.innerHTML = `
     <div class="stack">
       <div class="hint">Send each person their own link through your normal channel. A link is shown once, when it is
-        issued, and is not stored: copy it now, or <b>Rotate</b> to issue a new one (the old one stops working).
+        issued, and is not stored: copy it now, or click <b>New link</b> to make another (the old one stops working).
         <b>App link</b> opens the same prototype in the Vantage viewer app (see the README), whose window is
         excluded from screenshots and screen sharing on macOS and Windows.</div>
       <table>
         <thead><tr><th>Viewer</th><th class="num">Opens</th><th style="width:160px">Last seen</th><th>Personal link</th><th class="actions"></th></tr></thead>
         <tbody>${share.viewers.map(row).join('')}</tbody>
       </table>
-      <div class="row">
-        <input type="text" id="nv" placeholder="Add viewer: Name <email@company.example>" style="flex:1;width:auto">
-        <button class="btn" id="add">Add viewer</button>
+      <div class="row" id="addRow">
+        <input type="text" id="nvName" placeholder="Name" autocomplete="off" style="flex:1;width:auto;min-width:140px">
+        <input type="email" id="nvEmail" placeholder="Email" autocomplete="off" style="flex:2;width:auto;min-width:200px">
+        <button class="btn" id="add" disabled>Add viewer</button>
         ${share.viewers.filter(link).length > 1 ? '<button class="btn" id="copyAll">Copy all links</button>' : ''}
       </div>
     </div>`;
   t.querySelectorAll('[data-copy]').forEach((b) => (b.onclick = () => copy(b.dataset.copy)));
   t.querySelectorAll('[data-rotate]').forEach((b) => {
     b.onclick = async () => {
-      if (!confirm('Issue a new link? The current one stops working.')) return;
+      if (!confirm('Make a new link for this person? The current one stops working.')) return;
       const r = await api(`/shares/${share.id}/viewers/${b.dataset.rotate}/rotate`, { method: 'POST' });
       links[r.viewer.id] = r.viewer.link;
       render();
@@ -178,9 +179,14 @@ function tabLinks(t, share) {
       render();
     };
   });
+  // Add viewer needs both a name and a plausible email before the button wakes up.
+  const nvOk = () => $('#nvName').value.trim() && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test($('#nvEmail').value.trim());
+  const nvSync = () => ($('#add').disabled = !nvOk());
+  $('#nvName').oninput = nvSync;
+  $('#nvEmail').oninput = nvSync;
   $('#add').onclick = async () => {
-    const s = $('#nv').value.trim();
-    if (!s) return;
+    if (!nvOk()) return;
+    const s = `${$('#nvName').value.trim()} <${$('#nvEmail').value.trim()}>`;
     try {
       const r = await api(`/shares/${share.id}/viewers`, { method: 'POST', body: JSON.stringify({ viewers: [s] }) });
       for (const v of r.viewers) if (v.link) links[v.id] = v.link;
@@ -189,9 +195,13 @@ function tabLinks(t, share) {
       alert(e.message);
     }
   };
-  $('#nv').onkeydown = (e) => {
-    if (e.key === 'Enter') $('#add').click();
-  };
+  for (const id of ['#nvName', '#nvEmail'])
+    $(id).onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        $('#add').click();
+      }
+    };
   if ($('#copyAll'))
     $('#copyAll').onclick = () =>
       copy(
@@ -375,7 +385,7 @@ function tabSettings(t, share) {
     : '';
   t.innerHTML = `
     <div class="detail-cols">
-      <div class="stack" style="gap:var(--s6)">
+      <div class="stack" style="gap:var(--s7)">
         <div class="section"><h3>Share</h3>
           <div class="field"><label>Name</label><input type="text" id="sName" value="${esc(share.name)}"></div>
           ${modeSeg(share.mode)}
@@ -387,7 +397,7 @@ function tabSettings(t, share) {
         <div class="field"><label>Notes</label><textarea id="sNotes" style="min-height:64px">${esc(share.notes)}</textarea></div>
         <div class="row"><button class="btn primary" id="save">Save</button></div>
       </div>
-      <div class="stack" style="gap:var(--s6)">
+      <div class="stack" style="gap:var(--s7)">
         <div class="section"><h3>Files</h3>
           <div class="field"><label>Replace prototype files</label>
             <div class="drop" id="drop2">Drop a folder here, or click to choose<input type="file" id="fileR" multiple webkitdirectory></div>

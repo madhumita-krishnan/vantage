@@ -1,7 +1,7 @@
 'use strict';
 // The Prototypes list (with the "try it" empty state) and the Server page.
 /* exported renderList, renderServer */
-/* global $, esc, fmt, rel, count, toast, api, shell, wireShell, render */
+/* global $, esc, ic, fmt, rel, count, toast, api, shell, wireShell, render */
 
 function shareRow(s) {
   const kind = s.mode === 'moderated' ? 'Moderated test · ' : s.mode === 'view' ? 'View only · ' : '';
@@ -21,7 +21,7 @@ function shareRow(s) {
 async function renderList(app) {
   app.innerHTML = shell(
     `<div class="pagehead"><h1>Prototypes</h1><span class="spacer"></span>
-       <button class="btn primary" id="new">+ New share</button></div>
+       <button class="btn primary reveal" id="new">${ic('plus')}<span>New Share</span></button></div>
      <div class="card shares" id="list"><p class="muted" style="margin:0">Loading…</p></div>`,
     'list'
   );
@@ -42,7 +42,7 @@ async function renderList(app) {
           <input type="email" id="sampleEmail" placeholder="Your email (for your personal link)" style="flex:1;width:auto;max-width:360px">
           <button class="btn primary" id="sample">Try it with the sample prototype</button>
         </div>
-        <p class="muted" style="margin:0">Or click <b>New share</b> and drop your own prototype folder, or ask Claude to share one.</p>
+        <p class="muted" style="margin:0">Or click <b>New Share</b> and drop your own prototype folder, or ask Claude to share one.</p>
       </div>`;
     $('#sample').onclick = async () => {
       const viewer = $('#sampleEmail').value.trim();
@@ -108,7 +108,8 @@ async function renderServer(app) {
     : 'None allowed. Prototypes must be self-contained.';
   app.innerHTML = shell(
     `<div class="pagehead"><h1>Server</h1></div>
-     <div class="stack" style="gap:var(--s6)">
+     <p class="hint" style="margin:0 0 var(--s5);max-width:60ch">Set by whoever runs this server, before it starts. Nothing here can be changed from a browser, on purpose: a stolen session must never be able to open the door for everyone.</p>
+     <div class="stack" style="gap:var(--s7)">
        <div class="card"><div class="section"><h3>Status</h3><dl class="kv">
          ${row('Version', esc(s.version))}
          ${row('Console address', esc(s.publicUrl))}
