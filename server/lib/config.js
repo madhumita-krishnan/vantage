@@ -37,8 +37,13 @@ function loadConfig(env = process.env, root = path.join(__dirname, '..')) {
     defaultExpiryDays: +(env.DEFAULT_EXPIRY_DAYS || 7),
     maxExpiryDays: +(env.MAX_EXPIRY_DAYS || 365),
     retentionDays: +(env.RETENTION_DAYS || 30), // purge prototype files (and old admin-log lines) this long after expiry
+    // Free monthly allowance for tester traffic. Once it is used, links pause until the 1st and say so. Sized under the
+    // hosting free tiers so a copy that runs for free stays free (Cloud Run: 1 GiB egress, 2 M requests). 0 = no limit.
+    maxMonthlyBytes: +(env.MAX_MONTHLY_MB ?? 800) * 1048576,
+    maxMonthlyRequests: +(env.MAX_MONTHLY_REQUESTS ?? 1500000),
     ssoLogoutUrl: env.SSO_LOGOUT_URL || '',
-    // Google sign-in for a hosted deployment. Anyone with a Google account may sign in unless ADMIN_EMAILS restricts it.
+    // Google sign-in for a hosted deployment. Always an allow-list: ADMIN_EMAILS or ALLOWED_SIGNIN_DOMAINS says who may
+    // sign in. There is no "anyone with a Google account" mode; the server refuses to start rather than guess.
     googleClientId: env.GOOGLE_CLIENT_ID || '',
     allowedSigninDomains: list(env.ALLOWED_SIGNIN_DOMAINS).map((d) => d.toLowerCase().replace(/^@/, '')),
     abuseEmail: env.ABUSE_EMAIL || '', // shown to testers as the place to report a misused link
@@ -59,13 +64,13 @@ function loadConfig(env = process.env, root = path.join(__dirname, '..')) {
   if (cfg.trustedHeaderEmail && !cfg.trustProxy)
     console.error('TRUSTED_HEADER_EMAIL is set but TRUST_PROXY is not 1; the header will be ignored.');
   if (cfg.googleClientId && !cfg.googleClientSecret) throw new Error('GOOGLE_CLIENT_ID needs GOOGLE_CLIENT_SECRET');
-  // Open Google sign-up means designers who do not trust each other. Their prototypes must not share an origin.
-  const openSignup = cfg.googleClientId && !cfg.adminEmails.length && !cfg.allowedSigninDomains.length;
-  if (openSignup && !cfg.contentOrigin.includes('*') && env.ALLOW_SHARED_CONTENT_ORIGIN !== '1')
+  if (cfg.googleClientId && !cfg.adminEmails.length && !cfg.allowedSigninDomains.length)
     throw new Error(
-      'Anyone with a Google account may sign in, so set CONTENT_ORIGIN to a wildcard (https://*.content.example.com) ' +
-        'so every share gets its own origin, or set ALLOW_SHARED_CONTENT_ORIGIN=1 to accept that two prototypes open ' +
-        'in one browser can read each other.'
+      'Google sign-in is on, but no one is allowed in yet, so the server will not start.\n' +
+        '  Tell it who may sign in, with one of these:\n' +
+        '    ADMIN_EMAILS=you@example.com            one or more addresses, separated by commas\n' +
+        '    ALLOWED_SIGNIN_DOMAINS=yourcompany.com  everyone with an address at that company\n' +
+        '  Nobody outside that list can ever sign in.'
     );
   fs.mkdirSync(cfg.dataDir, { recursive: true, mode: 0o700 });
   if (!cfg.adminToken && !cfg.adminEmails.length && !cfg.googleClientId) {

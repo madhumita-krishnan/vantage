@@ -104,7 +104,7 @@ const ownsShare = (share, owner) => {
   const by = String(share.createdBy || '');
   return by === owner || by.startsWith(owner + ' via ');
 };
-// The person behind a share: "ana@x.com" or "ana@x.com via Claude Code" both belong to ana@x.com.
+// The person behind a share: "ana@x.example" or "ana@x.example via Claude Code" both belong to ana@x.example.
 const shareOwner = (share) => String(share.createdBy || '').split(' via ')[0];
 // Bytes a share holds: prototype files, intro media and recordings.
 const shareBytes = (s) =>

@@ -126,6 +126,7 @@ module.exports = function admin(ctx) {
       identity: { kind: admin.kind, who: owner, tokenId: admin.tokenId || null, label },
       server: {
         encryptionAtRest: blob.enabled,
+        usage: ctx.usage.status(),
         sso: !!(CONFIG.trustProxy && CONFIG.trustedHeaderEmail),
         publicUrl: baseUrl(req),
         contentOrigin: CONFIG.contentOrigin,

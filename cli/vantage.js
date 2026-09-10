@@ -7,7 +7,7 @@ const L = require('./lib');
 const HELP = `Vantage CLI
 
 Usage:
-  vantage publish <folder|file.html> --name "Checkout v3" --viewers "Priya <priya@x.com>,tom@y.org" [options]
+  vantage publish <folder|file.html> --name "Checkout v3" --viewers "Priya <priya@x.example>,tom@y.example" [options]
   vantage inline  <folder|file.html> [--in-place]          Bundle external scripts/styles/fonts into ./vendor so the prototype is self-contained
   vantage list                                              List shares
   vantage show <shareId>                                    Show a share and its viewers (links are shown once, when issued)

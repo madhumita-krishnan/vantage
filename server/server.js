@@ -26,6 +26,7 @@ function createApp(env = process.env) {
     readPublic: (f) => fs.readFileSync(path.join(PUBLIC, f), 'utf8'),
   };
   ctx.H = require('./lib/http')(CONFIG);
+  ctx.usage = require('./lib/usage')(CONFIG);
   ctx.gate = (req, res, status, title, message, extra = '') =>
     ctx.H.html(
       req,
@@ -59,6 +60,14 @@ function createApp(env = process.env) {
     const content = onContentPort || CONFIG.contentHostRe.test(hostOf(req));
     try {
       if (p === '/healthz') return send(req, res, 200, 'ok', { 'Content-Type': 'text/plain' });
+      // Tester traffic counts against the free monthly allowance; once it is used, links pause and say so.
+      if (content || p.startsWith('/p/')) {
+        if (ctx.usage.exhausted()) {
+          ctx.usage.refused();
+          return ctx.gate(req, res, 503, 'Paused until next month', ctx.usage.MESSAGE);
+        }
+        ctx.usage.count(res);
+      }
       if (p === '/vantage.css')
         return send(req, res, 200, ctx.readPublic('vantage.css'), { 'Content-Type': 'text/css; charset=utf-8' });
       const m = p.match(/^\/p\/([A-Za-z0-9_-]{6,32})(\/.*)?$/);

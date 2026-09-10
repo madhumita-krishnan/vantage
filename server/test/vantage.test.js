@@ -526,8 +526,8 @@ test('Google sign-in: cookie session, CSRF check, per-person visibility and limi
     GOOGLE_TOKEN_URL: g.url,
     GOOGLE_AUTH_URL: 'http://auth.test/o',
     ADMIN_TOKEN: 'z'.repeat(32),
+    ADMIN_EMAILS: 'ana@example.com,ben@example.com',
     MAX_SHARES_PER_OWNER: '1',
-    ALLOW_SHARED_CONTENT_ORIGIN: '1',
   });
   assert.equal(v.ctx.CONFIG.quickstart, false);
   assert.equal((await v.call('GET', '/api/auth', null, {}, null)).data.google, true);
@@ -599,11 +599,29 @@ test('Google sign-in: cookie session, CSRF check, per-person visibility and limi
   g.close();
 });
 
-test('open Google sign-up refuses to start on a shared content origin', async () => {
+test('Google sign-in without an allow-list refuses to start, and says what to set', async () => {
   await assert.rejects(
     boot({ GOOGLE_CLIENT_ID: 'client-1', GOOGLE_CLIENT_SECRET: 's' }),
-    /CONTENT_ORIGIN to a wildcard/
+    /ADMIN_EMAILS=you@example.com/
   );
+});
+
+test('free monthly allowance: links pause with a plain message once it is used, the console keeps working', async () => {
+  const v = await boot({ ADMIN_TOKEN: 'z'.repeat(32), MAX_MONTHLY_REQUESTS: '2' });
+  try {
+    const first = await v.call('GET', '/p/abcdefgh', null, {}, null);
+    const second = await v.call('GET', '/p/abcdefgh', null, {}, null);
+    assert.notEqual(first.status, 503);
+    assert.notEqual(second.status, 503); // the normal gate, whatever it says: two requests used the allowance
+    const paused = await v.call('GET', '/p/abcdefgh', null, {}, null);
+    assert.equal(paused.status, 503);
+    assert.match(String(paused.data), /Paused until next month/);
+    assert.match(String(paused.data), /free allowance for the month/);
+    assert.equal((await v.call('GET', '/api/shares')).status, 200); // the designer's console is not paused
+    assert.equal(v.ctx.usage.status().refused, 1);
+  } finally {
+    await v.close();
+  }
 });
 
 test('require sign-in: a forwarded link opens nothing until the invited address signs in with Google', async () => {
@@ -678,8 +696,8 @@ test('storage limit per person applies to uploads', async () => {
     GOOGLE_CLIENT_SECRET: 's',
     GOOGLE_TOKEN_URL: g.url,
     ADMIN_TOKEN: 'z'.repeat(32),
+    ADMIN_EMAILS: 'ana@example.com',
     MAX_STORAGE_MB_PER_OWNER: '0.00001',
-    ALLOW_SHARED_CONTENT_ORIGIN: '1',
   });
   const ana = await signIn(v, 'ana@example.com');
   assert.equal(

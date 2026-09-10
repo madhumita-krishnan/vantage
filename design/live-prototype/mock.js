@@ -57,7 +57,7 @@
   const R = __RESULTS__({ normalizeTasks, shareStatus }); // the server's own results.js
 
   // ---- demo data ----
-  const ME = 'mira@lumen.design';
+  const ME = 'mira@lumen.example';
   const BASE = 'https://prototypes.lumen.design';
   const viewer = (id, name, email, opens, seenAgo, extra) => ({
     id,
@@ -130,10 +130,10 @@
       subtitles: [],
     },
     viewers: {
-      v1: viewer('v1', 'Priya Shah', 'priya@customer.com', 3, 2 * 3600e3),
-      v2: viewer('v2', 'Tom Reyes', 'tom@partner.org', 1, 26 * 3600e3),
-      v3: viewer('v3', 'Lena Okafor', 'lena@lumen.design', 0, null),
-      v4: viewer('v4', 'Sam Field', 'sam@oldagency.com', 2, 4 * day, { revoked: true }),
+      v1: viewer('v1', 'Priya Shah', 'priya@customer.example', 3, 2 * 3600e3),
+      v2: viewer('v2', 'Tom Reyes', 'tom@partner.example', 1, 26 * 3600e3),
+      v3: viewer('v3', 'Lena Okafor', 'lena@lumen.example', 0, null),
+      v4: viewer('v4', 'Sam Field', 'sam@oldagency.example', 2, 4 * day, { revoked: true }),
     },
     recordings: {
       s1: { viewerId: 'v1', mime: 'audio/webm', size: 1_843_200, segments: 12, startedAt: NOW - 2 * 3600e3 - 600e3, updatedAt: NOW - 2 * 3600e3 },
@@ -153,7 +153,7 @@
     expiresAt: NOW + 12 * day,
     notes: 'Sessions on Thursday 10:00 and 14:00 with Dana.',
     files: { count: 9, bytes: 268_000, paths: ['index.html', 'workspace.html', 'invite.html', 'css/app.css', 'js/app.js', 'img/logo.svg', 'img/empty.svg', 'fonts/inter.woff2', 'vendor/tailwind.js'] },
-    viewers: { v5: viewer('v5', 'Dana Whitfield', 'dana@customer.com', 0, null), v6: viewer('v6', 'Arun Mehta', 'arun@customer.com', 0, null) },
+    viewers: { v5: viewer('v5', 'Dana Whitfield', 'dana@customer.example', 0, null), v6: viewer('v6', 'Arun Mehta', 'arun@customer.example', 0, null) },
   });
   const pricing = mkShare({
     id: 'Zt3kW8mNc1Yf',
@@ -162,7 +162,7 @@
     createdAt: NOW - 1 * day,
     expiresAt: NOW + 29 * day,
     files: { count: 5, bytes: 96_000, paths: ['index.html', 'css/app.css', 'img/hero.png', 'img/logo.svg', 'fonts/inter.woff2'] },
-    viewers: { v7: viewer('v7', 'Jules Barr', 'jules@lumen.design', 4, 30 * 60e3), v8: viewer('v8', 'Noor Haddad', 'noor@lumen.design', 1, 5 * 3600e3) },
+    viewers: { v7: viewer('v7', 'Jules Barr', 'jules@lumen.example', 4, 30 * 60e3), v8: viewer('v8', 'Noor Haddad', 'noor@lumen.example', 1, 5 * 3600e3) },
   });
   mkShare({
     id: 'Pw9cD4sEj6Lo',
@@ -170,7 +170,7 @@
     createdAt: NOW - 40 * day,
     expiresAt: NOW - 12 * day,
     tasks: [{ text: 'Find last month’s revenue', kind: 'task', when: { type: 'start', value: null } }],
-    viewers: { v9: viewer('v9', 'Priya Shah', 'priya@customer.com', 2, 30 * day) },
+    viewers: { v9: viewer('v9', 'Priya Shah', 'priya@customer.example', 2, 30 * day) },
   });
   mkShare({
     id: 'Xn2vB6hKq8Rt',
@@ -218,33 +218,33 @@
     [26000, 'click', 'index.html#plans', { target: 'div.plan "Annual"', x: 78.0, y: 44.0 }],
   ].forEach(([t, type, path, data]) => ev(checkout, 'v2', 's3', t, type, path, data, tomAgo));
   feedback[checkout.id].push(
-    { ts: iso(NOW - priyaAgo + 13000), kind: 'task', viewer: 'Priya Shah', email: 'priya@customer.com', session: 's1', text: 'The annual toggle looked disabled until I hovered it.', location: 'index.html#team', taskIndex: 0, result: 'done' },
-    { ts: iso(NOW - priyaAgo + 31000), kind: 'task', viewer: 'Priya Shah', email: 'priya@customer.com', session: 's1', text: '', location: 'index.html#team', taskIndex: 1, result: 'done' },
-    { ts: iso(NOW - priyaAgo + 60000), kind: 'task', viewer: 'Priya Shah', email: 'priya@customer.com', session: 's1', text: 'Put the postal code before the city, that is how I think of my address. Also the Save button jumped when the error appeared.', location: 'index.html#billing', taskIndex: 2, result: 'answer' },
-    { ts: iso(NOW - priyaAgo + 64000), kind: 'feedback', viewer: 'Priya Shah', email: 'priya@customer.com', session: 's1', text: 'Something broke on the billing screen after I typed the postal code, the page showed an error in the corner.', location: 'index.html#billing' },
-    { ts: iso(NOW - tomAgo + 9000), kind: 'task', viewer: 'Tom Reyes', email: 'tom@partner.org', session: 's3', text: 'Went for Team first, did not see the annual option until later.', location: 'index.html#team', taskIndex: 0, result: 'done' },
-    { ts: iso(NOW - tomAgo + 27000), kind: 'task', viewer: 'Tom Reyes', email: 'tom@partner.org', session: 's3', text: 'Could not find where to add someone. Went back to plans.', location: 'index.html#plans', taskIndex: 1, result: 'stuck' },
-    { ts: iso(NOW - 90 * 60e3), kind: 'note', by: ME, viewer: 'Tom Reyes', email: 'tom@partner.org', session: 's3', text: 'Tom expected "Add member" on the plans screen, next to the seat count.', location: '' }
+    { ts: iso(NOW - priyaAgo + 13000), kind: 'task', viewer: 'Priya Shah', email: 'priya@customer.example', session: 's1', text: 'The annual toggle looked disabled until I hovered it.', location: 'index.html#team', taskIndex: 0, result: 'done' },
+    { ts: iso(NOW - priyaAgo + 31000), kind: 'task', viewer: 'Priya Shah', email: 'priya@customer.example', session: 's1', text: '', location: 'index.html#team', taskIndex: 1, result: 'done' },
+    { ts: iso(NOW - priyaAgo + 60000), kind: 'task', viewer: 'Priya Shah', email: 'priya@customer.example', session: 's1', text: 'Put the postal code before the city, that is how I think of my address. Also the Save button jumped when the error appeared.', location: 'index.html#billing', taskIndex: 2, result: 'answer' },
+    { ts: iso(NOW - priyaAgo + 64000), kind: 'feedback', viewer: 'Priya Shah', email: 'priya@customer.example', session: 's1', text: 'Something broke on the billing screen after I typed the postal code, the page showed an error in the corner.', location: 'index.html#billing' },
+    { ts: iso(NOW - tomAgo + 9000), kind: 'task', viewer: 'Tom Reyes', email: 'tom@partner.example', session: 's3', text: 'Went for Team first, did not see the annual option until later.', location: 'index.html#team', taskIndex: 0, result: 'done' },
+    { ts: iso(NOW - tomAgo + 27000), kind: 'task', viewer: 'Tom Reyes', email: 'tom@partner.example', session: 's3', text: 'Could not find where to add someone. Went back to plans.', location: 'index.html#plans', taskIndex: 1, result: 'stuck' },
+    { ts: iso(NOW - 90 * 60e3), kind: 'note', by: ME, viewer: 'Tom Reyes', email: 'tom@partner.example', session: 's3', text: 'Tom expected "Add member" on the plans screen, next to the seat count.', location: '' }
   );
   const au = (share, ago, type, extra) => audit[share.id].push({ ts: iso(NOW - ago), type, shareId: share.id, ip: extra.ip || '203.0.113.42', ua: 'Mozilla/5.0 (Macintosh) Safari/17', ...extra });
   au(checkout, 6 * day, 'share.created', { by: ME, name: checkout.name, viewers: 3, ip: '198.51.100.7' });
-  au(checkout, 4 * day + 3600e3, 'link.redeemed', { email: 'sam@oldagency.com', viewerId: 'v4', ip: '192.0.2.88' });
-  au(checkout, 4 * day, 'view.open', { email: 'sam@oldagency.com', viewerId: 'v4', session: 's0', ip: '192.0.2.88' });
-  au(checkout, 3 * day, 'viewer.revoked', { by: ME, email: 'sam@oldagency.com', ip: '198.51.100.7' });
-  au(checkout, tomAgo + 30e3, 'link.redeemed', { email: 'tom@partner.org', viewerId: 'v2', ip: '203.0.113.9' });
-  au(checkout, tomAgo + 25e3, 'passcode.ok', { email: 'tom@partner.org', ip: '203.0.113.9' });
-  au(checkout, tomAgo + 20e3, 'consent', { email: 'tom@partner.org', accepted: true, ip: '203.0.113.9' });
-  au(checkout, tomAgo, 'screen.started', { email: 'tom@partner.org', session: 's3', ip: '203.0.113.9' });
-  au(checkout, tomAgo - 9e3, 'task.result', { email: 'tom@partner.org', session: 's3', taskIndex: 0, result: 'done', ip: '203.0.113.9' });
+  au(checkout, 4 * day + 3600e3, 'link.redeemed', { email: 'sam@oldagency.example', viewerId: 'v4', ip: '192.0.2.88' });
+  au(checkout, 4 * day, 'view.open', { email: 'sam@oldagency.example', viewerId: 'v4', session: 's0', ip: '192.0.2.88' });
+  au(checkout, 3 * day, 'viewer.revoked', { by: ME, email: 'sam@oldagency.example', ip: '198.51.100.7' });
+  au(checkout, tomAgo + 30e3, 'link.redeemed', { email: 'tom@partner.example', viewerId: 'v2', ip: '203.0.113.9' });
+  au(checkout, tomAgo + 25e3, 'passcode.ok', { email: 'tom@partner.example', ip: '203.0.113.9' });
+  au(checkout, tomAgo + 20e3, 'consent', { email: 'tom@partner.example', accepted: true, ip: '203.0.113.9' });
+  au(checkout, tomAgo, 'screen.started', { email: 'tom@partner.example', session: 's3', ip: '203.0.113.9' });
+  au(checkout, tomAgo - 9e3, 'task.result', { email: 'tom@partner.example', session: 's3', taskIndex: 0, result: 'done', ip: '203.0.113.9' });
   au(checkout, 5 * 3600e3, 'link.rejected', { reason: 'bad_token', ip: '198.51.100.201' });
   au(checkout, 5 * 3600e3 - 40e3, 'link.rejected', { reason: 'bad_token', ip: '198.51.100.201' });
-  au(checkout, priyaAgo + 40e3, 'link.redeemed', { email: 'priya@customer.com', viewerId: 'v1' });
-  au(checkout, priyaAgo + 30e3, 'passcode.fail', { email: 'priya@customer.com' });
-  au(checkout, priyaAgo + 22e3, 'passcode.ok', { email: 'priya@customer.com' });
-  au(checkout, priyaAgo + 15e3, 'consent', { email: 'priya@customer.com', accepted: true });
-  au(checkout, priyaAgo + 14e3, 'voice.started', { email: 'priya@customer.com', session: 's1' });
-  au(checkout, priyaAgo - 64e3, 'feedback', { email: 'priya@customer.com', session: 's1' });
-  au(pricing, 30 * 60e3, 'view.open', { email: 'jules@lumen.design', viewerId: 'v7', session: 's9' });
+  au(checkout, priyaAgo + 40e3, 'link.redeemed', { email: 'priya@customer.example', viewerId: 'v1' });
+  au(checkout, priyaAgo + 30e3, 'passcode.fail', { email: 'priya@customer.example' });
+  au(checkout, priyaAgo + 22e3, 'passcode.ok', { email: 'priya@customer.example' });
+  au(checkout, priyaAgo + 15e3, 'consent', { email: 'priya@customer.example', accepted: true });
+  au(checkout, priyaAgo + 14e3, 'voice.started', { email: 'priya@customer.example', session: 's1' });
+  au(checkout, priyaAgo - 64e3, 'feedback', { email: 'priya@customer.example', session: 's1' });
+  au(pricing, 30 * 60e3, 'view.open', { email: 'jules@lumen.example', viewerId: 'v7', session: 's9' });
   au(onboarding, 2 * day, 'share.created', { by: ME, name: onboarding.name, viewers: 2, ip: '198.51.100.7' });
 
   const tokens = [
@@ -629,7 +629,7 @@
       return json(200, {
         name: share.name,
         sharedBy: ME,
-        abuseEmail: 'security@lumen.design',
+        abuseEmail: 'security@lumen.example',
         tasks: share.tasks,
         entry: share.entry,
         watermark: share.watermark,

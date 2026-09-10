@@ -61,7 +61,7 @@ Any client that supports stdio MCP servers takes the same `command`, `args`, `en
 
 ## Example conversation
 
-> Share ./checkout-v3 with Priya Shah (priya@customer.com) and tom@partner.org for 7 days, passcode 8841, tasks: find the annual price; add a team member.
+> Share ./checkout-v3 with Priya Shah (priya@customer.example) and tom@partner.example for 7 days, passcode 8841, tasks: find the annual price; add a team member.
 
 Claude calls `vantage_publish_prototype`, then gives you two links to send. A week later:
 

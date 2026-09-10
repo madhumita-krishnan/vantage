@@ -175,7 +175,7 @@ const DIAGRAMS = {
       { id: 'next', type: 'conn', c: 1, r: 11, label: 'D15', tip: 'Continue on diagram D15: Consent and recording. From there, D16 (doing the test) or D17 (a view-only visit).' },
       // Company-login side entrance (self-hosted only)
       { id: 'sso', type: 'start', c: 3, r: 0, label: 'Employee opens the share address, already signed in to the company (self-hosted only)', tip: 'Exception. On a self-hosted copy that sits behind the company\'s own login (SSO), an employee can arrive without any personal link. The company login already told the server who they are.' },
-      { id: 'ssoOk', type: 'decision', c: 3, r: 1, label: 'Does the share allow their email or their company domain?', tip: 'The Tester can allow "anyone @company.com" or specific addresses on a share. If so, this person is let in and added to the viewer list automatically.' },
+      { id: 'ssoOk', type: 'decision', c: 3, r: 1, label: 'Does the share allow their email or their company domain?', tip: 'The Tester can allow "anyone @company.example" or specific addresses on a share. If so, this person is let in and added to the viewer list automatically.' },
       { id: 'ssoNo', type: 'end-bad', c: 4, r: 1, label: '"Not invited"', tip: 'The page says: you are signed in as X, but this prototype has not been shared with you.' },
     ],
     edges: [

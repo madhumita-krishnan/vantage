@@ -1,19 +1,26 @@
 /* Vantage design tokens. Spec: design/DESIGN-SYSTEM.md */
 :root {
-  --bg: #f6f7f9;
+  --bg: #f7f7f8;
+  --bg-2: #eff0f1;
   --panel: #fff;
-  --ink: #16181d;
-  --muted: #5f6673;
-  --line: #e3e6eb;
-  --accent: #2d5bff;
+  --ink: #181a1b;
+  --muted: #697077;
+  --muted-2: #838a91;
+  --placeholder: #9ea3a9;
+  --disabled: #b9bdc1;
+  --line: #e9ebec;
+  --line-strong: #d4d6d9;
+  --accent: #2d68a2;
   --accent-ink: #fff;
-  --danger: #c92a2a;
-  --ok: #2b8a3e;
-  --warn: #b7791f;
-  --ok-bg: #d3f9d8;
-  --warn-bg: #fff3bf;
-  --warn-ink: #8a6116;
-  --danger-bg: #ffe3e3;
+  --accent-soft: #eff5fb;
+  --danger: #e95050;
+  --ok: #4db24d;
+  --warn: #eb763c;
+  --ok-bg: #e4f4e4;
+  --warn-bg: #fdeee5;
+  --warn-ink: #b4501d;
+  --danger-bg: #fce5e5;
+  --shadow-card: 0 1px 40px rgba(0, 0, 0, 0.05);
   --s1: 4px;
   --s2: 8px;
   --s3: 12px;
@@ -30,13 +37,13 @@
   --control-h-sm: 28px;
   --touch: 44px;
   --r-control: 6px;
-  --r-card: 10px;
-  --r-sheet: 14px;
+  --r-card: 8px;
+  --r-sheet: 12px;
   --r-pill: 99px;
   --form-w: 640px;
   --page-w: 1100px;
   --panel-w: 340px;
-  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 @media (max-width: 700px) {
@@ -46,20 +53,27 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1115;
-    --panel: #171a21;
-    --ink: #e8eaf0;
-    --muted: #9aa3b2;
-    --line: #2a2f3a;
-    --accent: #6b8cff;
-    --accent-ink: #0b0d12;
-    --ok: #8ce99a;
-    --warn: #ffe066;
-    --danger: #ff8787;
-    --ok-bg: #163d22;
-    --warn-bg: #4a3a0c;
-    --warn-ink: #ffe066;
-    --danger-bg: #4a1616;
+    --bg: #131516;
+    --bg-2: #1e2124;
+    --panel: #191c1e;
+    --ink: #eceeef;
+    --muted: #a0a6ac;
+    --muted-2: #868d93;
+    --placeholder: #6f767c;
+    --disabled: #4d5358;
+    --line: #2a2e31;
+    --line-strong: #383d41;
+    --accent: #7fb0e0;
+    --accent-ink: #0d1a26;
+    --accent-soft: #1a2a3a;
+    --ok: #7bcf7b;
+    --warn: #f2a06e;
+    --danger: #f28585;
+    --ok-bg: #173a1c;
+    --warn-bg: #3f2416;
+    --warn-ink: #f2a06e;
+    --danger-bg: #421c1c;
+    --shadow-card: 0 1px 40px rgba(0, 0, 0, 0.35);
   }
 }
 * {
@@ -108,6 +122,10 @@ textarea {
   font: inherit;
   color: inherit;
 }
+::placeholder {
+  color: var(--placeholder);
+  opacity: 1;
+}
 svg.i {
   width: 16px;
   height: 16px;
@@ -126,7 +144,7 @@ input[type='date'] {
   width: auto;
   height: var(--control-h);
   padding: 0 var(--s3);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-control);
   background: var(--panel);
   color: var(--ink);
@@ -139,7 +157,7 @@ input[type='date'] {
   gap: var(--s1);
   height: var(--control-h);
   padding: 0 var(--s4);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-control);
   background: var(--panel);
   color: var(--ink);
@@ -183,7 +201,7 @@ select {
   width: 100%;
   height: var(--control-h);
   padding: 0 var(--s3);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-control);
   background: var(--panel);
   color: var(--ink);
@@ -192,7 +210,7 @@ textarea {
   width: 100%;
   min-height: 96px;
   padding: var(--s2) var(--s3);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-control);
   background: var(--panel);
   color: var(--ink);
@@ -294,7 +312,7 @@ textarea {
 }
 /* navigation + footer */
 .nav {
-  height: 56px;
+  height: 48px;
   display: flex;
   align-items: center;
   gap: var(--s5);
@@ -317,16 +335,16 @@ textarea {
 .nav .links a {
   display: inline-flex;
   align-items: center;
-  height: 36px;
+  height: 32px;
   padding: 0 var(--s3);
-  border-radius: var(--r-control);
+  border-radius: var(--r-pill);
   color: var(--muted);
   text-decoration: none;
   font-weight: 500;
 }
 .nav .links a.on {
   color: var(--ink);
-  background: var(--bg);
+  background: var(--accent-soft);
 }
 .nav .links a:hover {
   color: var(--ink);
@@ -338,9 +356,9 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: var(--s2);
-  height: 36px;
+  height: 32px;
   padding: 0 var(--s3);
-  border-radius: var(--r-control);
+  border-radius: var(--r-pill);
   color: var(--muted);
   text-decoration: none;
   font-size: 13px;
@@ -354,7 +372,7 @@ textarea {
 .nav .me.on,
 .nav .me:hover {
   color: var(--ink);
-  background: var(--bg);
+  background: var(--accent-soft);
 }
 .nav .me .avatar {
   width: 24px;
@@ -569,6 +587,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: var(--r-card);
   padding: var(--gutter);
+  box-shadow: var(--shadow-card);
 }
 .pill {
   display: inline-flex;
@@ -646,6 +665,20 @@ th.num {
 td.actions {
   width: 1%;
   white-space: nowrap;
+}
+/* phones: a table scrolls sideways inside its card instead of wrapping every word */
+@media (max-width: 700px) {
+  table {
+    display: block;
+    overflow-x: auto;
+  }
+  th,
+  td {
+    white-space: nowrap;
+  }
+  .nav .links a {
+    white-space: nowrap;
+  }
 }
 /* gate */
 .gate {

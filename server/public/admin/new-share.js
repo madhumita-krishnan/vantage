@@ -31,7 +31,7 @@ function renderNew(app) {
            <h3>Who can open it</h3>
            <div class="field">
              <label>People (one per line: <span class="mono">Name &lt;email&gt;</span> or just an email)</label>
-             <textarea id="viewers" placeholder="Priya Shah <priya@customer.com>&#10;tom@partner.org"></textarea>
+             <textarea id="viewers" placeholder="Priya Shah <priya@customer.example>&#10;tom@partner.example"></textarea>
              <div class="hint">Each person gets their own private link, shown once after you create the share. Send links
                through your usual channel.</div></div>
            <div class="cols2">

@@ -6,7 +6,7 @@ Written for the people who have to approve Vantage: security, privacy and IT. It
 
 ## 0. Reporting a vulnerability
 
-Email madhumita.design@yahoo.com with the details, or open a GitHub issue titled "Security" if nothing in it is sensitive. Do not include real prototype content or tester data in the report. There is no bounty. There is a promise to answer, fix or document within a reasonable time.
+Open a GitHub issue titled "Security" if nothing in it is sensitive. Do not include real prototype content or tester data in the report. There is no bounty. There is a promise to answer, fix or document within a reasonable time.
 
 ## 1. What the system is
 
@@ -132,7 +132,7 @@ The `_admin.ndjson` log shows what happened and when.
 ```
 TRUST_PROXY=1
 TRUSTED_HEADER_EMAIL=<your proxy's email header>
-ADMIN_EMAILS=designer1@company.com,designer2@company.com
+ADMIN_EMAILS=designer1@company.example,designer2@company.example
 VANTAGE_ENCRYPTION_KEY=<64 hex chars, from a secrets manager>
 PUBLIC_URL=https://prototypes.internal.company.com
 CONTENT_ORIGIN=https://*.prototypes-content.internal.company.com   (a wildcard, one origin per share; or a single hostname)
@@ -177,7 +177,7 @@ How an attacker would actually approach this, in the order a real one would, wit
 |---|---|---|---|
 | Phish the designer's Google account | Low | Everything that designer owns | Two-factor on the account; the Vantage cannot help here. `admin.signin` from a new address shows in the log. |
 | Steal the server admin token | Low if it is ever exposed | Everything, all designers | Hosted copies run without one (Google sign-in only). Quick start keeps it in a 0600 file and binds to localhost. Never paste it into chat or a screenshot. |
-| A malicious prototype reading another designer's prototype (shared content origin) | Medium; needs an account and a victim with both open | The other prototype's content | One origin per share (`CONTENT_ORIGIN` wildcard). The server refuses to start with open Google sign-up on a shared origin unless `ALLOW_SHARED_CONTENT_ORIGIN=1`. |
+| A malicious prototype reading another designer's prototype (shared content origin) | Medium; needs an account and a victim with both open | The other prototype's content | One origin per share (`CONTENT_ORIGIN` wildcard). Every designer on a server is on its allow-list; there is no open sign-up. |
 | A forwarded or intercepted personal link | Low | One prototype, as that tester | Passcode by a second channel, or `requireSignIn` (the link opens only for the invited Google account). Every opening and refusal is logged. |
 | Flooding the rate limiter with junk keys to reset a real limit | Low | A passcode brute force | The limiter never evicts a live bucket; when full it refuses newcomers until a window ends. A proxy limiter in front is still recommended. |
 | Hostile network (fake Wi-Fi) | Low | Timing and size of encrypted traffic, nothing else | HTTPS with HSTS. Never serve a real deployment over plain HTTP. |

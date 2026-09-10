@@ -132,7 +132,7 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 
 **Where.** `server/lib/admin.js:442-443`: `String(r.by || '').startsWith(ownerOf(admin))`.
 
-**What is wrong.** `ana@x.co` is a prefix of `ana@x.com`, so a person with the shorter address sees the longer address's account activity (share names, token names). `ownsShare` in `shares.js:102-105` gets this right by requiring `owner + ' via '`; the activity filter should reuse it.
+**What is wrong.** `ana@a.example` is a prefix of `ana@a.example.org`, so a person with the shorter address sees the longer address's account activity (share names, token names). `ownsShare` in `shares.js:102-105` gets this right by requiring `owner + ' via '`; the activity filter should reuse it.
 
 ## 11. Unbounded ticket minting (Low, S)
 
@@ -191,6 +191,8 @@ Findings 3 and 6 are plain bugs and should be fixed today. Findings 1, 2, 4 and 
 **What is wrong.** A prompt-injected agent holding a Vantage token can publish any directory the user can read to any email address. The skill tells the agent to confirm first; the server does not enforce anything. Refuse paths outside the current working directory unless the user passes an explicit override, require an `.html` file at the top level, and cap the file count.
 
 ## 18. Phishing through the hosted service (Low, abuse, M)
+
+**Status, 0.3.2:** closed. Open sign-up no longer exists: Google sign-in requires `ADMIN_EMAILS` or `ALLOWED_SIGNIN_DOMAINS`, and the server refuses to start without one. Every designer on a server was named by its operator.
 
 **Status, 0.2.0:** partly. The shell shows who shared the prototype, the consent text names custom events, and `ABUSE_EMAIL` puts a report address in front of testers. Open sign-up itself is a product decision; `ALLOWED_SIGNIN_DOMAINS` exists for teams that want it closed.
 

@@ -82,6 +82,15 @@ async function renderList(app) {
 }
 
 async function renderServer(app) {
+  // Tester traffic this month against the free allowance. When it is used up, links pause until the 1st and say so.
+  const allowance = (u) => {
+    if (!u || (!u.maxBytes && !u.maxRequests)) return 'No limit set';
+    const mb = (b) => (b / 1048576).toFixed(0);
+    const used = `${mb(u.bytes)} of ${mb(u.maxBytes)} MB and ${u.requests.toLocaleString()} of ${u.maxRequests.toLocaleString()} requests used this month`;
+    return u.paused
+      ? `<span style="color:var(--danger)">Used up. Links are paused until the 1st and tell testers so.</span> ${used}${u.refused ? `; ${u.refused} opens refused` : ''}`
+      : `${used}. When it is used up, links pause until the 1st and tell testers so, so this copy never costs money.`;
+  };
   const m = await api('/me');
   const s = m.server;
   const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
@@ -117,6 +126,7 @@ async function renderServer(app) {
          ${row('Prototype upload limit', `${s.maxUploadMb} MB`)}
          ${row('Media limit (intro + voice)', `${s.maxMediaMb} MB per share`)}
          ${row('External origins', origins)}
+         ${row('Free monthly allowance', allowance(s.usage))}
        </dl>
        <div class="hint">Change these with environment variables and restart. See <a href="/docs/deployment" target="_blank">Deployment</a>.</div>
        </div></div>

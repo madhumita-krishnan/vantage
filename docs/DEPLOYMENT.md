@@ -65,7 +65,7 @@ WantedBy=multi-user.target
 
 ## Option C: Google Cloud Run (a hosted copy)
 
-One container, one instance, a Cloud Storage bucket mounted as the data directory, secrets from Secret Manager, Google sign-in for designers. Everything below fits in the free tiers for a small team; set a billing alert anyway.
+One container, one instance, a Cloud Storage bucket mounted as the data directory, secrets from Secret Manager, Google sign-in for the designers you name. Everything below fits in the free tiers for a small team. The budget alert at the end is not optional: it is the only way you find out before, not after, that something is costing you money.
 
 ```bash
 gcloud auth login && gcloud config set project YOUR_PROJECT
@@ -82,13 +82,21 @@ printf %s "YOUR_GOOGLE_CLIENT_SECRET" | gcloud secrets create google-client-secr
 gcloud run deploy vantage --source server --region us-central1 --allow-unauthenticated \
   --max-instances 1 --port 8787 \
   --add-volume name=data,type=cloud-storage,bucket=YOUR_BUCKET --add-volume-mount volume=data,mount-path=/data \
-  --set-env-vars DATA_DIR=/data,TRUST_PROXY=1,CONTENT_PORT=0,PUBLIC_URL=https://vantage.example.com,CONTENT_ORIGIN=https://content.vantage.example.com,MAX_SHARES_PER_OWNER=10,MAX_STORAGE_MB_PER_OWNER=200 \
+  --set-env-vars DATA_DIR=/data,TRUST_PROXY=1,CONTENT_PORT=0,PUBLIC_URL=https://vantage.example.com,CONTENT_ORIGIN=https://content.vantage.example.com,ADMIN_EMAILS=you@example.com,MAX_SHARES_PER_OWNER=10,MAX_STORAGE_MB_PER_OWNER=200 \
   --set-secrets ADMIN_TOKEN=admin-token:latest,VANTAGE_ENCRYPTION_KEY=vantage-key:latest,GOOGLE_CLIENT_ID=google-client-id:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest
 
 # Two hostnames to the same service
 gcloud beta run domain-mappings create --service vantage --region us-central1 --domain vantage.example.com
 gcloud beta run domain-mappings create --service vantage --region us-central1 --domain content.vantage.example.com
+
+# Budget alert: required. Google emails you at 50%, 90% and 100% of the amount. Pick an amount you would notice, not one you would ignore.
+gcloud billing budgets create --billing-account=$(gcloud billing accounts list --format='value(name)' --limit=1) \
+  --display-name=vantage --budget-amount=10USD --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0
 ```
+
+**Who may sign in.** `ADMIN_EMAILS=you@example.com` is the whole access policy: only those addresses can open the console. Add colleagues to the list as you go, or set `ALLOWED_SIGNIN_DOMAINS=company.com` to admit everyone at a company. There is no "anyone with a Google account" mode. With Google sign-in on and neither list set, the server refuses to start and prints, in plain words, which of the two to set.
+
+**Why it costs nothing.** Tester traffic counts against a free monthly allowance (`MAX_MONTHLY_MB`, default 800, and `MAX_MONTHLY_REQUESTS`, default 1.5 million), both set under Cloud Run's free tier. When it is used up, links pause until the 1st and tell the tester so in plain words; nothing is deleted, and the console keeps working. The Server page shows how much is used. The budget alert is the backstop for anything outside the software's control, such as storage or a change in Google's free tier.
 
 Then, in the Google Cloud console under APIs & Services, create an OAuth client of type "Web application" with `https://vantage.example.com/auth/google/callback` as the authorised redirect URI, and put its ID and secret in the two secrets above.
 
@@ -96,8 +104,8 @@ Notes:
 - `--max-instances 1` matters. The metadata store is a single JSON file; two instances writing it would corrupt it. One instance serves a small team comfortably.
 - `TRUST_PROXY=1` is correct on Cloud Run: it terminates TLS and sets `X-Forwarded-Proto` and `X-Forwarded-For`.
 - The bucket mount uses Cloud Storage FUSE. Writes are slower than local disk, which is fine at this scale.
-- With `GOOGLE_CLIENT_ID` set and `ADMIN_EMAILS` empty, anyone with a Google account can sign in and gets their own space, limited by the two `MAX_*_PER_OWNER` values. Set `ADMIN_EMAILS` to restrict sign-in to a list.
-- Billing alert: Billing → Budgets & alerts in the console, or `gcloud billing budgets create`.
+- The two `MAX_*_PER_OWNER` values cap what each signed-in designer can store. `--max-instances 1` caps compute: Cloud Run never starts a second copy, so a flood of requests is refused by the rate limiter rather than paid for. The budget alert is what tells you if that ever stops being true.
+- The budget can also be set by hand: Billing → Budgets & alerts in the console.
 
 ## Reverse proxy and SSO (self-hosted)
 
@@ -152,9 +160,9 @@ With `CONTENT_ORIGIN=https://prototypes-content.internal.company.com` and `CONTE
 | Variable | Default | Meaning |
 |---|---|---|
 | `ADMIN_TOKEN` | generated | Admin secret (min 24 chars). Generated on first start when no admin mechanism is configured; set it yourself for a real deployment. |
-| `ADMIN_EMAILS` | (empty) | Comma-separated emails allowed into the console via the SSO header or Google sign-in. Empty with Google sign-in means anyone may sign in. |
+| `ADMIN_EMAILS` | (empty) | Comma-separated emails allowed into the console via the SSO header or Google sign-in. With Google sign-in, this or `ALLOWED_SIGNIN_DOMAINS` is required; the server refuses to start without one. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | (empty) | Enable "Sign in with Google". Redirect URI is `PUBLIC_URL/auth/google/callback`. |
-| `ALLOWED_SIGNIN_DOMAINS` | (empty) | Email domains allowed to sign in with Google, e.g. `company.com`. Combines with `ADMIN_EMAILS`; both empty means anyone. |
+| `ALLOWED_SIGNIN_DOMAINS` | (empty) | Email domains allowed to sign in with Google, e.g. `company.com`. Combines with `ADMIN_EMAILS`. |
 | `ABUSE_EMAIL` | (empty) | Address testers see on the consent screen for reporting a link they were not expecting. |
 | `VANTAGE_ENCRYPTION_KEY` | generated in quick start | 64 hex chars. Encrypts files and metadata at rest. Cannot be changed later without re-uploading. |
 | `PUBLIC_URL` | derived from request | Address of the console and tester pages, e.g. `https://vantage.example.com`. Set it. |
@@ -170,9 +178,10 @@ With `CONTENT_ORIGIN=https://prototypes-content.internal.company.com` and `CONTE
 | `DEFAULT_EXPIRY_DAYS` | `7` | Expiry when a share does not specify one. |
 | `MAX_EXPIRY_DAYS` | `365` | Hard cap on share lifetime. |
 | `RETENTION_DAYS` | `30` | Days after expiry before the whole share (files, viewers, recordings, events, feedback, its audit log) is deleted, and the age at which admin-log lines are dropped. |
+| `MAX_MONTHLY_MB` | `800` | Free monthly allowance of bytes served to testers. When used up, links pause until the 1st with a plain message. `0` = no limit. |
+| `MAX_MONTHLY_REQUESTS` | `1500000` | Same, counted in requests. `0` = no limit. |
 | `SESSION_HOURS` | `8` | Viewer session lifetime. |
 | `MAX_UPLOAD_MB` | `25` | Prototype upload cap. The whole upload is held in memory while it is decoded, so keep this modest. |
-| `ALLOW_SHARED_CONTENT_ORIGIN` | (unset) | With Google sign-in open to anyone, the server refuses to start unless `CONTENT_ORIGIN` is a wildcard. Set to `1` to accept a shared origin anyway (two prototypes open in one browser can then read each other). |
 | `MAX_MEDIA_MB` | `200` | Intro media plus voice and screen recordings, per share. Screen video runs about 5 MB a minute; a tester's recording stops itself at the limit. Also counted toward `MAX_STORAGE_MB_PER_OWNER`. |
 | `ALLOWED_EXTERNAL_ORIGINS` | (empty) | Origins prototypes may load from, if a share opts in. Leave empty. |
 | `PORT` / `HOST` | `8787` / `0.0.0.0` (`127.0.0.1` in quick start) | Listen address. |
@@ -195,5 +204,5 @@ The Vantage never calls out, so alerting is the platform's job. Three settings c
 2. **Alert on secret access.** In Secret Manager, every read of the encryption key is written to Cloud Audit Logs. Create a log-based alert for `protoPayload.methodName="google.cloud.secretmanager.v1.SecretManagerService.AccessSecretVersion"` from any principal other than the Vantage's service account.
 3. **Alert on refusals.** Every refused link, passcode, sign-in and admin call is written to stderr as one line beginning `vantage-refused`. On Cloud Run that lands in Cloud Logging; alert on `textPayload:"vantage-refused"` above a rate you choose (ten in five minutes is a reasonable start). A single refusal is a typo; a burst is someone trying.
 
-For a hosted copy also: run without `ADMIN_TOKEN` (Google sign-in only), set `CONTENT_ORIGIN` to a wildcard so every share has its own origin, and keep `VANTAGE_ENCRYPTION_KEY` in Secret Manager, never in the environment file.
+For a hosted copy also: run without `ADMIN_TOKEN` (Google sign-in only, with `ADMIN_EMAILS` naming the designers), optionally set `CONTENT_ORIGIN` to a wildcard so every share has its own origin, and keep `VANTAGE_ENCRYPTION_KEY` in Secret Manager, never in the environment file.
 

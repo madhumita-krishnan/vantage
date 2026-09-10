@@ -2,6 +2,8 @@
 
 One set of rules for every screen: the designer console, the tester view, and the canvas mockups. The values here are the values in `server/public/vantage.css`. Change them there and everything follows.
 
+Since 2026-09-07 the colours, type, radii and the navigation bar come from a Figma kit, "Dashboard - Free UI Kit". What was taken and what each value maps to is in `design/kit/KIT.md`. The spacing scale, gutter, bottom and scrolling rules are Vantage's own and did not change.
+
 ## 1. Spacing scale
 
 Everything (padding, gaps, margins) uses one of these. Nothing else.
@@ -37,9 +39,9 @@ Everything (padding, gaps, margins) uses one of these. Nothing else.
 | `--control-h` | 36px | every input, select, button, and tab hit-target on desktop |
 | `--control-h-sm` | 28px | secondary buttons inside tables and headers |
 | `--touch` | 44px | minimum hit target on phone (buttons and rows in the tester view) |
-| `--r-control` | 6px | inputs, buttons, checkboxes |
-| `--r-card` | 10px | cards, panels, modals |
-| `--r-sheet` | 14px | the bottom sheet on phones |
+| `--r-control` | 6px | inputs, buttons, checkboxes (the kit's card and button radius) |
+| `--r-card` | 8px | cards, panels, modals (the kit's input and thumbnail radius) |
+| `--r-sheet` | 12px | the bottom sheet on phones (the kit's modal radius) |
 | `--r-pill` | 99px | status pills, count badges |
 | `--form-w` | 640px | max width of any single-column form |
 | `--page-w` | 1100px | max width of the console |
@@ -47,7 +49,7 @@ Everything (padding, gaps, margins) uses one of these. Nothing else.
 
 ## 3. Type
 
-System font stack. One family, four sizes, two weights.
+**Plus Jakarta Sans** (free, chosen by eye against four other Gilroy stand-ins; the kit's main dashboard is set in Gilroy, which is paid), falling back to the system stack. One family, four sizes, two weights. Sizes are the kit's: 12, 14, 16, 20.
 
 | Role | Size / line | Weight | Color |
 |---|---|---|---|
@@ -66,15 +68,24 @@ Numbers in tables and stat cells use `font-variant-numeric: tabular-nums` and ar
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--bg` | #f6f7f9 | #0f1115 | page |
-| `--panel` | #ffffff | #171a21 | cards, header, sheets |
-| `--ink` | #16181d | #e8eaf0 | text |
-| `--muted` | #5f6673 | #9aa3b2 | secondary text, icons at rest |
-| `--line` | #e3e6eb | #2a2f3a | borders, dividers |
-| `--accent` | #2d5bff | #6b8cff | primary action, active tab, focus ring |
-| `--ok` | #2b8a3e | #8ce99a | completed, active |
-| `--warn` | #b7791f | #ffe066 | expiring, caution |
-| `--danger` | #c92a2a | #ff8787 | revoke, stuck, errors |
+| `--bg` | #f7f7f8 | #131516 | page (kit: Background 2) |
+| `--bg-2` | #eff0f1 | #1e2124 | hover fills, segmented track (kit: Background 1) |
+| `--panel` | #ffffff | #191c1e | cards, header, sheets (kit: White) |
+| `--ink` | #181a1b | #eceeef | text (kit: Black) |
+| `--muted` | #697077 | #a0a6ac | secondary text, icons at rest (kit: Sub Black) |
+| `--muted-2` | #838a91 | #868d93 | timestamps, tertiary text (kit: sub black 2) |
+| `--placeholder` | #9ea3a9 | #6f767c | placeholder text in fields (kit: Placeholder) |
+| `--disabled` | #b9bdc1 | #4d5358 | disabled text and icons (kit: Disable) |
+| `--line` | #e9ebec | #2a2e31 | dividers, card borders (kit: Stroke) |
+| `--line-strong` | #d4d6d9 | #383d41 | input and button borders (kit's field border) |
+| `--accent` | #2d68a2 | #7fb0e0 | primary action, active tab, focus ring (kit: Primary) |
+| `--accent-soft` | #eff5fb | #1a2a3a | selected nav item, selected row (kit's selected board) |
+| `--ok` | #4db24d | #7bcf7b | completed, active (kit: Feedback/Green) |
+| `--warn` | #eb763c | #f2a06e | expiring, caution (kit: Red Orange) |
+| `--danger` | #e95050 | #f28585 | revoke, stuck, errors (kit: Feedback/Red) |
+| `--shadow-card` | 0 1px 40px rgba(0,0,0,.05) | same at .35 | cards (kit: Card Shadow) |
+
+The kit has no dark theme. The dark column keeps the kit's hue relationships (neutral greys with a faint blue lean, the same blue accent lightened for contrast).
 
 Status pills use a tint of the status color as background (`active`, `expired`, `revoked`).
 
@@ -98,10 +109,10 @@ An icon with a number next to it always carries a `title` tooltip that spells it
 
 ## 6. Components
 
-- **Button**: height `--control-h`, padding `0 var(--s4)` (16px each side of the label), radius `--r-control`, 14px/500. Variants: primary (accent fill), default (panel fill, line border), danger (danger text). Small variant: `--control-h-sm`, padding `0 var(--s3)`, 12px; only inside tables and header rows. On phones a standard button is `--touch` (44px) tall with the standard 14px label and 16px padding; a small button is never stretched to 44. Buttons in a row: `display:flex; gap: var(--s2)`.
-- **Input / select / textarea**: height `--control-h` (textarea min 96px), padding `0 var(--s3)`, radius `--r-control`, line border, accent focus ring (2px outline offset 1px). Always `width:100%`.
+- **Button**: height `--control-h`, padding `0 var(--s4)` (16px each side of the label), radius `--r-control`, 14px/500. Variants: primary (accent fill), default (panel fill, `--line-strong` border), danger (danger text). Small variant: `--control-h-sm`, padding `0 var(--s3)`, 12px; only inside tables and header rows. On phones a standard button is `--touch` (44px) tall with the standard 14px label and 16px padding; a small button is never stretched to 44. Buttons in a row: `display:flex; gap: var(--s2)`.
+- **Input / select / textarea**: height `--control-h` (textarea min 96px), padding `0 var(--s3)`, radius `--r-control`, `--line-strong` border, `--placeholder` placeholder text, accent focus ring (2px outline offset 1px). Always `width:100%`.
 - **Field**: label (12/16, 500, muted) + control + optional hint (12/16 muted), stacked with `gap: var(--s1)`.
-- **Card**: panel fill, line border, radius `--r-card`, padding `--s5`.
+- **Card**: panel fill, line border, radius `--r-card`, padding `--gutter`, and the kit's soft `--shadow-card`.
 - **Section** inside a card: title (16/24 600) then content; sections separated by `--s6`.
 - **Table**: 13px, header 12px 500 muted, cell padding `var(--s2) var(--s3)`, row divider `--line`. Count columns are fixed width (72px) and right-aligned. Action columns are fixed width and never wrap.
 - **List row** (shares list): grid `minmax(0,1fr) 72px 72px 96px`, gap `--s4`, row padding `var(--s3) var(--s2)`. The count cells are icon + number, right-aligned, tabular figures.
@@ -109,7 +120,7 @@ An icon with a number next to it always carries a `title` tooltip that spells it
 - **Tabs**: 36px tall, 14px, active = ink text + 2px accent underline.
 - **Switch** (every on/off option): a 36×20 pill track with a 16px round thumb. Off = line fill, thumb left; on = accent fill, thumb right. Label to the right, 13/20, aligned to the top of the track. Options stack with `--s3` gaps. A group with more than two switches starts with a **Select all** switch in muted text, separated by a line. Checkboxes are not used anywhere in the console.
 - **Segmented toggle** (Unmoderated / Moderated, intro type): a pill. Outer track 28px tall, `--r-pill` radius, 2px padding, `--bg` fill, line border. Options are 24px pills, 13px/500; the selected one has `--panel` fill and a 1px shadow. It hugs its content (`align-self: flex-start`), never stretches.
-- **Navigation bar**: 56px tall, panel fill, line border below. Brand (lock + name) on the left, then text links 36px tall with `--r-control` radius; the current page gets `--bg` fill and ink text. On the right: status text, then the **account chip** (24px initials circle in accent, the signed-in email, 13px muted, same 36px link shape; ink text and `--bg` fill when the Account page is open). Sign out lives on the Account page, not in the bar. The tester view keeps its own 44px header because the prototype needs the space.
+- **Navigation bar**: 48px tall (the kit's top bar), panel fill, line border below. Brand (lock + name) on the left, then text links 32px tall as pills (`--r-pill`); the current page gets `--accent-soft` fill and ink text, the kit's selected-item tint. On the right: status text, then the **account chip** (24px initials circle in accent, the signed-in email, 13px muted, same 32px pill shape; ink text and `--accent-soft` fill when the Account page is open). Sign out lives on the Account page, not in the bar. The tester view keeps its own 44px header because the prototype needs the space.
 - **Footer**: line border above, `--s5` padding top, `--s8` (48px) padding bottom, which is the gap at the bottom of every page, pushed to the bottom of the screen by the bottom rule. Same on every page of the console and in every desktop mockup. 12px muted text. Product name and version on the left, documentation links on the right.
 - **Task editor row**: grid `110px minmax(0,1fr) 150px 110px 32px` with `--s2` gap: kind, text, when, value, remove. All controls 36px tall.
 - **Recording indicator**: 28px pill, `--danger-bg` fill, danger text 12px/600, pulsing 8px dot, Stop button inside. Shown in the header for the whole time the microphone is on; never hidden while recording. On phones the label is hidden and the dot plus Stop remain. The toast that appears when recording starts is a courtesy; the pill is the permanent signal.
@@ -132,6 +143,8 @@ An icon with a number next to it always carries a `title` tooltip that spells it
 - The "Before you start" screen is the tester's onboarding, and the only one: personal link, passcode if set, then this one modal, then the prototype. Its body is, in order: the designer's intro (text, audio or video), then a "What gets recorded" section with the voice switch and the consent buttons. Media sits above the consent text, never replaces it, because consent is the legal part. The modal follows the scrolling rules above, so a long intro is read by scrolling while the buttons stay in view. After it closes, the product explains itself in two toasts at most (recording on, tasks waiting) and the Tasks badge; there is no tour.
 
 ## 8. Changelog
+
+- **2026-09-07, pass 9.** Re-themed on the "Dashboard - Free UI Kit" Figma kit, decoded from its `.fig` file (see `design/kit/KIT.md`). Colours are the kit's named styles: blue Primary #2d68a2 as the accent, Black #181a1b ink, Sub Black muted, Stroke lines, Background 2 page, plus new tokens for placeholder, disabled, strong borders, the soft selected tint and the card shadow. Type is Plus Jakarta Sans (picked over Manrope on 2026-09-07 for its clearer letters at 12 and 14px). Radii 6 / 8 / 12. Nav bar 48 tall with 32px pill links. Cards carry the kit's shadow. Spacing, gutter, bottom and scrolling rules unchanged.
 
 - **2026-09-05, pass 8.** Sign-in screen gains a *Sign in with Google* primary button when the server offers it, above company sign-in and the token form, each separated by the *or* divider. Links tab: a personal link is shown once, when issued; rows for earlier links read "Issued earlier. Rotate for a new link." Account page drops the admin list and shows the person's limits. Server page shows the content origin. No token changes.
 

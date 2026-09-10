@@ -16,6 +16,10 @@ Designer ──(console / CLI / Claude)──▶ Vantage ◀──(personal link
 
 Either way the code is the same. Which one fits you depends on one question: may your prototypes sit on someone else's server?
 
+## See it first, no setup
+
+Every screen of Vantage, live on demo data, in one file: [docs/demo.html](docs/demo.html). Download it and open it in a browser, or, once this repository is public and GitHub Pages is on, open it at the published address. The console, the tester view and every gate page are the real pages; buttons work; nothing you do there is saved. The screens are in the order of the [flow diagrams](docs/flows.html), so the two read together.
+
 ## Try it in three steps
 
 Needs Node 20 or newer. Nothing to install, nothing to configure, and no Claude account needed.
@@ -42,15 +46,15 @@ Built in a few days with Claude Code. It has an end-to-end test suite (`cd serve
 
 ## What you get
 
-| Piece                        | What it does                                                                                                                                                                                                                                                                                                      |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`server/`**                | The Vantage: a Node server with no third-party packages, one Docker image. Stores prototypes encrypted, gates them behind personal links, a passcode, your SSO, or Google sign-in, serves them from a separate origin in a locked-down frame, records access and, for usability tests, interactions and feedback. |
-| **Console** (`/admin`)       | Upload a folder, invite people, copy their links, revoke, extend, read results.                                                                                                                                                                                                                                   |
-| **`cli/vantage.js`**         | Publish from the terminal. `vantage inline` pulls CDN scripts, styles and fonts into the bundle so the prototype works with no internet access.                                                                                                                                                                   |
-| **`mcp/server.js`**          | An MCP server so Claude Code, Claude Desktop or Cursor can publish, invite, revoke and read usability results.                                                                                                                                                                                                    |
-| **`skill/prototype-share/`** | Optional Claude Code skill with the checked workflow (make self-contained, confirm viewers, publish, report).                                                                                                                                                                                                     |
-| **`viewer-app/`**            | Optional desktop viewer (Electron) whose window is excluded from screenshots and screen sharing on macOS and Windows.                                                                                                                                                                                             |
-| **`docs/`**                  | [SECURITY.md](docs/SECURITY.md) for your security review, [DEPLOYMENT.md](docs/DEPLOYMENT.md) for IT, [OBJECTIONS.md](docs/OBJECTIONS.md) on what is still weak.                                                                                                                                                  |
+| Piece                        | What it does                                                                                                                                                                                                                                                                                                                  |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`server/`**                | The Vantage: a Node server with no third-party packages, one Docker image. Stores prototypes encrypted, gates them behind personal links, a passcode, your SSO, or Google sign-in, serves them from a separate origin in a locked-down frame, records access and, for usability tests, interactions and feedback.             |
+| **Console** (`/admin`)       | Upload a folder, invite people, copy their links, revoke, extend, read results.                                                                                                                                                                                                                                               |
+| **`cli/vantage.js`**         | Publish from the terminal. `vantage inline` pulls CDN scripts, styles and fonts into the bundle so the prototype works with no internet access.                                                                                                                                                                               |
+| **`mcp/server.js`**          | An MCP server so Claude Code, Claude Desktop or Cursor can publish, invite, revoke and read usability results.                                                                                                                                                                                                                |
+| **`skill/prototype-share/`** | Optional Claude Code skill with the checked workflow (make self-contained, confirm viewers, publish, report).                                                                                                                                                                                                                 |
+| **`viewer-app/`**            | Optional desktop viewer (Electron) whose window is excluded from screenshots and screen sharing on macOS and Windows.                                                                                                                                                                                                         |
+| **`docs/`**                  | [SECURITY.md](docs/SECURITY.md) for your security review, [DEPLOYMENT.md](docs/DEPLOYMENT.md) for IT, [OBJECTIONS.md](docs/OBJECTIONS.md) on what is still weak. [flows.html](docs/flows.html) is every Tester and Viewer flow as a flowchart; open it in a browser and hover or tap any shape for a plain-words explanation. |
 
 ## What a security review will find
 
@@ -58,6 +62,8 @@ Built in a few days with Claude Code. It has an end-to-end test suite (`cd serve
 - **Prototypes run on their own origin.** The files are served from a second hostname or port, so a prototype's scripts cannot reach the console, the tester shell, or another share. This is the same separation GitHub Pages and CodePen use.
 - **Named access only.** Every viewer gets a personal link tied to their email. The link's secret travels in the URL fragment so it never reaches a log, is stored only as a hash, shown once when issued, and can be revoked or re-issued at any time. Optional passcode as a second factor, or, on a server with Google sign-in, a per-share rule that testers must sign in as the invited address, so a forwarded link opens nothing. Optional SSO through your identity-aware proxy (Cloudflare Access, Google IAP, Azure AD App Proxy, oauth2-proxy).
 - **Encrypted at rest.** Prototype files and metadata are AES-256-GCM encrypted with a key you hold.
+- **Sign-in is always a list.** With Google sign-in on, an allow-list of addresses or a company domain is required, or the server refuses to start and says which to set. There is no "anyone with a Google account" mode.
+- **It cannot run up a bill.** Tester traffic counts against a free monthly allowance sized under the hosting free tier. When it is used up, links pause until the 1st and tell the tester so; the console keeps working and nothing is deleted.
 - **Each person sees only their own shares.** Sign in with Google or a personal token and the console shows what you created. The server admin token sees everything.
 - **Auditable.** Who opened what, when, from where, plus every rejected attempt and every admin action, in append-only logs trimmed to your retention window.
 - **Research is opt-in at every level.** A share is view only unless you set up a test. Interaction recording needs the tester's consent. Voice recording, screen recording and typed-text capture are each off unless you turn them on for a share.
@@ -132,7 +138,7 @@ docs/OBJECTIONS.md         known weaknesses and the fix order
 docs/AUDIT.md              line-by-line code audit with findings, fixes and status
 docs/WHAT-IT-CANNOT-DO.md  the limits, in plain language, for designers
 docs/TESTING.md            how the code was checked, in plain language
-design/                    design system, canvas mockups, and the live prototype (node design/live-prototype/build.js)
+design/                    design system and the builder for docs/demo.html (node design/live-prototype/build.js)
 examples/sample-prototype  the prototype behind "Try it with the sample prototype"
 viewer-app/                optional desktop viewer with screenshot protection
 server/test/               end-to-end tests (npm test)

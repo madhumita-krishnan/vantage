@@ -157,7 +157,7 @@ function tabLinks(t, share) {
         <tbody>${share.viewers.map(row).join('')}</tbody>
       </table>
       <div class="row">
-        <input type="text" id="nv" placeholder="Add viewer: Name <email@company.com>" style="flex:1;width:auto">
+        <input type="text" id="nv" placeholder="Add viewer: Name <email@company.example>" style="flex:1;width:auto">
         <button class="btn" id="add">Add viewer</button>
         ${share.viewers.filter(link).length > 1 ? '<button class="btn" id="copyAll">Copy all links</button>' : ''}
       </div>
