@@ -184,7 +184,7 @@ const FLOWS = [
     { s: 'gate-invitation', why: 'Later, if the link they kept no longer carries its key.' } ] },
 ];
 
-const outer = `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vantage Screens</title>
+const outer = `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vantage demo</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
 <style>
 :root{color-scheme:light dark;--g:#f1f2f5;--g2:#ffffff;--ink:#1a1d24;--mute:#68707f;--line:#d9dce3;--acc:#2d5bff;--acc-ink:#fff;--frame:#c9cdd6;--shadow:0 20px 50px rgba(20,24,40,.18);--sans:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;--serif:'Fraunces',Georgia,'Times New Roman',serif;--mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
@@ -195,7 +195,7 @@ const outer = `<meta charset="utf-8"><meta name="viewport" content="width=device
 body{margin:0;background:var(--g);color:var(--ink);font:14px/20px var(--sans);height:100dvh;display:grid;grid-template-rows:56px 1fr;grid-template-columns:272px 1fr;overflow:hidden}
 header{grid-column:1/-1;display:flex;align-items:center;gap:20px;padding:0 20px;border-bottom:1px solid var(--line);background:var(--g2)}
 header h1{font:500 22px/1 var(--serif);margin:0;letter-spacing:-.01em}
-header h1 i{font-style:italic;color:var(--mute);font-weight:500}
+header h1 i{font-style:italic;color:var(--mute);font-weight:500;font-size:16px;letter-spacing:0}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;padding:2px;background:var(--g)}
 .seg button{border:0;background:none;color:var(--mute);font:500 13px/24px var(--sans);padding:0 12px;border-radius:6px;cursor:pointer}
 .seg button.on{background:var(--g2);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
@@ -227,6 +227,8 @@ main{overflow:auto;position:relative}
 .bar{display:none;gap:8px;padding:12px 16px 0;align-items:center}
 .bar select{flex:1;min-width:0;font:inherit;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--g2);color:var(--ink)}
 .bar button{font:inherit;min-height:40px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--g2);color:var(--ink);cursor:pointer}
+#tip{margin:20px 32px 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--g2);display:flex;gap:12px;align-items:center;font-size:13px;line-height:18px}
+#tip button{font:inherit;font-weight:500;min-height:36px;padding:0 14px;border-radius:8px;border:0;background:var(--acc);color:var(--acc-ink);cursor:pointer;white-space:nowrap}
 .dev{position:relative;border-radius:14px;background:var(--frame);padding:10px;box-shadow:var(--shadow);flex:none}
 .dev.phone{border-radius:44px;padding:12px}
 .dev .win{overflow:hidden;border-radius:6px;background:#fff}
@@ -245,25 +247,27 @@ main{overflow:auto;position:relative}
 .card b{display:block;margin:10px 0 0;font-weight:500}
 .card small{color:var(--mute);font-size:12px}
 .card:hover .shot{outline:2px solid var(--acc)}
-@media (max-width:900px){body{grid-template-columns:1fr}nav{display:none}.bar{display:flex}#stage{padding:16px 16px 40px}header .k{display:none}header{gap:10px;padding:0 12px}}
+@media (max-width:900px){body{grid-template-columns:1fr;grid-template-rows:auto 1fr}nav{display:none}.bar{display:flex}#stage{padding:16px 16px 40px}header .k{display:none}header{flex-wrap:wrap;gap:8px 10px;padding:8px 12px}.bar{position:sticky;top:0;z-index:2;background:var(--g);padding:12px 16px}.bar button{padding:0 14px;font-weight:500;white-space:nowrap}#tip{margin:12px 16px 0}#grid{grid-template-columns:1fr;padding:16px 12px 40px;justify-items:center}}
 @media (prefers-reduced-motion:no-preference){.card .shot{transition:outline-color .15s}}
 </style>
 <header>
-  <h1>Vantage <i>every screen</i></h1>
+  <h1>Vantage <i>demo</i></h1>
   <div class="seg" id="mode"><button class="on" data-m="one">One screen</button><button data-m="all">All screens</button></div>
   <div class="seg" id="device"><button class="on" data-d="desktop">Desktop</button><button data-d="phone">Phone</button></div>
   <span class="sp"></span>
   <span class="k">Real console and tester pages on demo data. Nothing you do here is saved. <kbd>←</kbd> <kbd>→</kbd> move between screens.</span>
 </header>
 <nav id="nav"></nav>
-<main><div class="bar"><select id="pick" aria-label="Choose a step"></select><button id="prev" title="Previous step">‹</button><button id="next" title="Next step">›</button></div><div id="stage"></div><div id="grid" hidden></div></main>
+<main><div class="bar"><select id="pick" aria-label="Choose a step"></select><button id="prev" title="Previous step">‹ Back</button><button id="next" title="Next step">Next ›</button></div>
+<div id="tip" hidden><span>Every screen of Vantage, live on sample data. Move between screens with Next and Back, the list, or the ← → keys. Buttons work; nothing you do here is saved.</span><button id="tipOk">Got it</button></div>
+<div id="stage"></div><div id="grid" hidden></div></main>
 <script>
 const DOCS = ${JSON.stringify({ console: consoleDoc, viewer: viewerDoc, gate: gateDoc }).replace(/<\/script/g, '<\\/script')};
 const SCREENS = ${JSON.stringify(SCREENS)};
 const PHONE = ${JSON.stringify(PHONE)};
 const FLOWS = ${JSON.stringify(FLOWS)};
 const $ = (s, r) => (r || document).querySelector(s);
-let mode = 'one', device = 'desktop';
+let mode = 'one', device = matchMedia('(max-width:900px)').matches ? 'phone' : 'desktop'; // phones get the phone frame; the toggle still allows desktop
 const byId = Object.fromEntries(SCREENS.map((s) => [s.id, s]));
 const STEPS = FLOWS.flatMap((f) => f.steps.map((st, i) => ({ key: f.id + '-' + (i + 1), f, s: byId[st.s], why: st.why, phone: !!st.phone })));
 const byKey = Object.fromEntries(STEPS.map((st) => [st.key, st]));
@@ -277,6 +281,8 @@ function frame(s, phone, scale) {
   f.setAttribute('allow', 'clipboard-write; microphone; display-capture');
   f.style.transform = 'scale(' + scale + ')';
   f.srcdoc = src(s);
+  // a screen's own scripts can scroll the page; every step starts at the top
+  f.addEventListener('load', () => { const m = document.querySelector('main'); m.scrollTop = 0; setTimeout(() => { m.scrollTop = 0; }, 300); });
   const win = document.createElement('div'); win.className = 'win';
   win.style.width = w * scale + 'px'; win.style.height = h * scale + 'px'; win.appendChild(f);
   return win;
@@ -297,7 +303,7 @@ function renderStage() {
   const pad = stage.clientWidth < 700 ? 32 : 84;
   const avail = Math.max(280, stage.clientWidth - pad);
   const [w, h] = size(phone);
-  const scale = Math.min(1, avail / w, Math.max(240, stage.clientHeight - 170) / h);
+  const scale = Math.min(1, avail / w, stage.clientWidth < 700 ? 1 : Math.max(240, stage.clientHeight - 170) / h); // narrow screens scroll; fit width only
   stage.innerHTML = '';
   const cap = document.createElement('div'); cap.className = 'cap';
   const n = STEPS.filter((x) => x.f === st.f).indexOf(st) + 1, of = st.f.steps.length;
@@ -333,7 +339,7 @@ $('#prev').addEventListener('click', () => step(-1));
 $('#next').addEventListener('click', () => step(1));
 function setMode(m) {
   mode = m; syncSeg('#mode', m, 'm');
-  $('#stage').hidden = m !== 'one'; $('#grid').hidden = m !== 'all';
+  $('#stage').hidden = m !== 'one'; $('#grid').hidden = m !== 'all'; $('.bar').hidden = m !== 'one';
   if (m === 'all' && !$('#grid').children.length) renderGrid();
   if (m === 'one') renderStage();
 }
@@ -362,7 +368,11 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft') step(-1);
 });
 let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => mode === 'one' && renderStage(), 150); });
-renderNav(); renderStage();
+// one-time hint on how to move around; remembered per browser
+let seenTip = false; try { seenTip = !!localStorage.getItem('vantage-demo-tip'); } catch (e) {}
+$('#tip').hidden = seenTip;
+$('#tipOk').onclick = () => { $('#tip').hidden = true; try { localStorage.setItem('vantage-demo-tip', '1'); } catch (e) {} };
+syncSeg('#device', device, 'd'); renderNav(); renderStage();
 </script>
 `;
 const out = path.join(ROOT, 'docs', 'demo.html');
